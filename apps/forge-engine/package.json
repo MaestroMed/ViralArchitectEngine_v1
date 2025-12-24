@@ -1,0 +1,22 @@
+{
+  "name": "@forge-lab/engine",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "python -m uvicorn forge_engine.main:app --reload --host 127.0.0.1 --port 7860",
+    "start": "python -m uvicorn forge_engine.main:app --host 127.0.0.1 --port 7860",
+    "lint": "ruff check src tests",
+    "format": "black src tests && ruff check --fix src tests",
+    "test": "pytest tests -v --cov=src/forge_engine",
+    "typecheck": "mypy src"
+  }
+}
+
+
+
+
+
+
+
+
+

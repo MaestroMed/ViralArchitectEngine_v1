@@ -1,0 +1,32 @@
+# FORGE Engine - Minimal Dependencies for Demo
+# Core API
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+
+# Data Validation
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# Database
+aiosqlite>=0.19.0
+sqlalchemy[asyncio]>=2.0.23
+
+# Video Processing
+numpy>=1.26.0
+opencv-python-headless>=4.8.0
+pillow>=10.1.0
+
+# HTTP
+httpx>=0.25.0
+aiofiles>=23.2.0
+watchfiles>=0.21.0
+
+
+
+
+
+
+
+
+

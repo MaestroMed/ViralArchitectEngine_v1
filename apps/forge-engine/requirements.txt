@@ -1,0 +1,48 @@
+# FORGE Engine Dependencies
+# Python 3.11+ required
+
+# Web Framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+
+# Data Validation
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# Database
+aiosqlite>=0.19.0
+sqlalchemy[asyncio]>=2.0.23
+
+# Transcription
+faster-whisper>=0.10.0
+
+# Audio/Video Processing
+numpy>=1.26.0
+opencv-python-headless>=4.8.0
+pillow>=10.1.0
+librosa>=0.10.1
+scipy>=1.11.0
+scenedetect[opencv]>=0.6.2
+
+# Async utilities
+httpx>=0.25.0
+aiofiles>=23.2.0
+watchfiles>=0.21.0
+
+# Dev dependencies (optional)
+# pytest>=7.4.0
+# pytest-asyncio>=0.21.0
+# pytest-cov>=4.1.0
+# ruff>=0.1.6
+# black>=23.11.0
+# mypy>=1.7.0
+
+
+
+
+
+
+
+
+

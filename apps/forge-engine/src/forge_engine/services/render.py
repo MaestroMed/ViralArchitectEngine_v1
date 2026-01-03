@@ -54,6 +54,9 @@ class RenderService:
             filters.extend(comp_filters)
         
         # Generate ASS captions if transcript provided
+        logger.info(f"[RENDER] caption_config: {caption_config}")
+        logger.info(f"[RENDER] layout_config: {layout_config}")
+        
         ass_path = None
         if transcript_segments and caption_config:
             logger.info(f"Processing {len(transcript_segments)} transcript segments for captions")

@@ -1,5 +1,6 @@
 """Project endpoints."""
 
+import logging
 import os
 from typing import Optional
 
@@ -9,6 +10,8 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from forge_engine.core.database import get_db
+
+logger = logging.getLogger(__name__)
 from forge_engine.core.jobs import JobManager, JobType
 from forge_engine.models import Project, Segment, Artifact
 from forge_engine.services.ingest import IngestService
@@ -200,6 +203,7 @@ async def import_from_url(
     async def download_handler(job, **kwargs):
         """Handle video download."""
         from forge_engine.api.v1.endpoints.websockets import broadcast_project_update
+        from forge_engine.core.config import settings
         
         project_id = kwargs.get("project_id")
         url = kwargs.get("url")
@@ -377,6 +381,51 @@ async def get_project(
         raise HTTPException(status_code=404, detail="Project not found")
     
     return {"success": True, "data": project.to_dict()}
+
+
+@router.delete("/{project_id}")
+async def delete_project(
+    project_id: str,
+    db: AsyncSession = Depends(get_db)
+) -> dict:
+    """Delete a project and all its associated data."""
+    import shutil
+    from forge_engine.core.config import settings
+    
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    project_name = project.name
+    
+    # Delete associated segments
+    await db.execute(
+        Segment.__table__.delete().where(Segment.project_id == project_id)
+    )
+    
+    # Delete associated artifacts
+    await db.execute(
+        Artifact.__table__.delete().where(Artifact.project_id == project_id)
+    )
+    
+    # Delete the project record
+    await db.delete(project)
+    await db.commit()
+    
+    # Delete project folder from disk
+    project_dir = settings.LIBRARY_PATH / "projects" / project_id
+    if project_dir.exists():
+        try:
+            shutil.rmtree(project_dir)
+            logger.info(f"Deleted project folder: {project_dir}")
+        except Exception as e:
+            logger.warning(f"Could not delete project folder: {e}")
+    
+    logger.info(f"Deleted project: {project_name} ({project_id})")
+    
+    return {"success": True, "message": f"Projet '{project_name}' supprimé"}
 
 
 @router.post("/{project_id}/ingest")
@@ -635,6 +684,11 @@ async def export_segment(
     # Create export job
     job_manager = JobManager.get_instance()
     export_service = ExportService()
+    
+    # Debug log
+    logger.info(f"[API] Export request - caption_style: {request.caption_style}")
+    logger.info(f"[API] Export request - layout_config: {request.layout_config}")
+    logger.info(f"[API] Export request - intro_config: {request.intro_config}")
     
     job = await job_manager.create_job(
         job_type=JobType.EXPORT,

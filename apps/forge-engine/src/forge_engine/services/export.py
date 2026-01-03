@@ -145,6 +145,9 @@ class ExportService:
                 render_layout_config.update(template.layout)
             
             # Build caption config from custom style or template
+            logger.info(f"[EXPORT] caption_style received: {caption_style}")
+            logger.info(f"[EXPORT] layout_config received: {layout_config}")
+            
             caption_config = {
                 "style": "custom" if caption_style else "forge_minimal",
                 "word_level": True,
@@ -198,39 +201,57 @@ class ExportService:
             
             # If intro is enabled, render intro and concatenate
             if intro_config and intro_config.get("enabled"):
-                job_manager.update_progress(job, 60, "intro", "Generating intro...")
-                
-                intro_path = exports_dir / f"{base_name}_intro_temp.mp4"
-                
-                # Set title from segment if not provided
-                if not intro_config.get("title"):
-                    intro_config["title"] = segment.topic_label or "Untitled"
-                
-                await self.intro.render_intro(
-                    source_path=project.source_path,
-                    output_path=str(intro_path),
-                    start_time=segment.start_time,
-                    duration=intro_config.get("duration", 2.0),
-                    config=intro_config,
-                    progress_callback=lambda p: job_manager.update_progress(
-                        job, 60 + p * 0.1, "intro", f"Intro: {p:.0f}%"
-                    )
-                )
-                
-                job_manager.update_progress(job, 70, "concat", "Concatenating intro + clip...")
-                
-                await self.intro.concat_intro_with_clip(
-                    intro_path=str(intro_path),
-                    clip_path=str(temp_clip_path),
-                    output_path=str(video_path),
-                )
-                
-                # Cleanup temp files
                 try:
-                    intro_path.unlink()
-                    temp_clip_path.unlink()
-                except Exception as e:
-                    logger.warning(f"Could not delete temp files: {e}")
+                    job_manager.update_progress(job, 60, "intro", "Generating intro...")
+                    
+                    intro_path = exports_dir / f"{base_name}_intro_temp.mp4"
+                    
+                    # Set title from segment if not provided
+                    if not intro_config.get("title"):
+                        intro_config["title"] = segment.topic_label or "Untitled"
+                    
+                    await self.intro.render_intro(
+                        source_path=project.source_path,
+                        output_path=str(intro_path),
+                        start_time=segment.start_time,
+                        duration=intro_config.get("duration", 2.0),
+                        config=intro_config,
+                        progress_callback=lambda p: job_manager.update_progress(
+                            job, 60 + p * 0.1, "intro", f"Intro: {p:.0f}%"
+                        )
+                    )
+                    
+                    job_manager.update_progress(job, 70, "concat", "Concatenating intro + clip...")
+                    
+                    await self.intro.concat_intro_with_clip(
+                        intro_path=str(intro_path),
+                        clip_path=str(temp_clip_path),
+                        output_path=str(video_path),
+                    )
+                    
+                    # Cleanup temp files
+                    try:
+                        intro_path.unlink()
+                        temp_clip_path.unlink()
+                    except Exception as e:
+                        logger.warning(f"Could not delete temp files: {e}")
+                        
+                except Exception as intro_error:
+                    # Intro rendering failed - fallback to clip without intro
+                    logger.warning(f"Intro rendering failed, exporting without intro: {intro_error}")
+                    job_manager.update_progress(job, 70, "fallback", "Intro échouée, export sans intro...")
+                    
+                    # Move temp clip to final path
+                    import shutil
+                    if temp_clip_path.exists():
+                        shutil.move(str(temp_clip_path), str(video_path))
+                    
+                    # Try to cleanup intro temp file if it exists
+                    try:
+                        if intro_path.exists():
+                            intro_path.unlink()
+                    except:
+                        pass
             
             # Record video artifact
             video_artifact = Artifact(

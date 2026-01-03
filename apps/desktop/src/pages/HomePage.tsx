@@ -286,9 +286,9 @@ function ProjectCard({
   
   const handleOpenFolder = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (window.forge?.openFolder) {
-      const projectDir = project.thumbnailPath?.replace(/[/\\]thumbnail\.jpg$/, '') || '';
-      if (projectDir) window.forge.openFolder(projectDir);
+    const projectDir = project.thumbnailPath?.replace(/[/\\]thumbnail\.jpg$/, '') || '';
+    if (window.forge?.openPath && projectDir) {
+      window.forge.openPath(projectDir);
     }
     setMenuOpen(false);
   };

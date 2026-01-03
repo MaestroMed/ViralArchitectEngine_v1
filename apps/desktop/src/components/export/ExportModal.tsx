@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
@@ -98,6 +98,14 @@ export function ExportModal({
   const [exporting, setExporting] = useState(false);
   const [activeTab, setActiveTab] = useState<'video' | 'subtitles' | 'extras'>('video');
 
+  // Sync caption style with store when modal opens or store changes
+  useEffect(() => {
+    setOptions((prev) => ({
+      ...prev,
+      captionStyle: subtitleStyle,
+    }));
+  }, [subtitleStyle, isOpen]);
+
   const estimatedSize = () => {
     const bitrateMap = { high: 12, medium: 6, low: 3 };
     const mbps = bitrateMap[options.quality];
@@ -107,7 +115,10 @@ export function ExportModal({
 
   const handleExport = async () => {
     setExporting(true);
-    await onExport(options);
+    // Always use the latest caption style from store at export time
+    const latestStyle = useSubtitleStyleStore.getState().style;
+    console.log('[ExportModal] Exporting with captionStyle:', latestStyle);
+    await onExport({ ...options, captionStyle: latestStyle });
     setExporting(false);
     onClose();
   };

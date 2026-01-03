@@ -254,19 +254,8 @@ class FFmpegService:
         progress_callback: Optional[callable] = None
     ) -> bool:
         """Render a clip with filters and captions."""
-        # Build filter complex
-        filter_chain = filters.copy()
-        
-        # Add ASS subtitles if provided
-        if ass_path and self.has_libass:
-            # Escape path for filter
-            escaped_path = ass_path.replace("\\", "/").replace(":", "\\:")
-            filter_chain.append(f"ass='{escaped_path}'")
-        
-        # Final scale to output size
-        filter_chain.append(f"scale={width}:{height}:force_original_aspect_ratio=decrease")
-        filter_chain.append(f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:black")
-        filter_chain.append(f"fps={fps}")
+        # Detect if we have a complex filter graph (with labels like [facecam])
+        is_complex = any('[' in f and ']' in f for f in filters)
         
         # Choose encoder
         encoder = "libx264"
@@ -276,22 +265,84 @@ class FFmpegService:
             encoder = "h264_nvenc"
             encoder_opts = ["-preset", "p4", "-cq", str(crf), "-b:v", "0"]
         
-        cmd = [
-            self.ffmpeg_path,
-            "-y",
-            "-ss", str(start_time),
-            "-i", input_path,
-            "-t", str(duration),
-            "-vf", ",".join(filter_chain),
-            "-c:v", encoder,
-            *encoder_opts,
-            "-c:a", "aac",
-            "-b:a", "192k",
-            "-ar", "48000",
-            "-movflags", "+faststart",
-            output_path
-        ]
+        # Ensure FFmpeg is initialized
+        if not self._initialized:
+            await self.check_availability()
         
+        logger.info(f"render_clip called with ass_path={ass_path}, has_libass={self.has_libass}")
+        
+        if is_complex:
+            # Build a proper filter_complex graph
+            # filters contain things like:
+            # "[0:v]crop=...;scale=...[facecam]"
+            # "[0:v]crop=...;scale=...[content]"
+            # "[facecam][content]vstack=inputs=2[out]"
+            
+            # Join them with ; for filter_complex
+            filter_graph = ";".join(filters)
+            
+            # Add post-processing to [out]
+            post_filters = []
+            if ass_path and self.has_libass:
+                escaped_path = ass_path.replace("\\", "/").replace(":", "\\:")
+                post_filters.append(f"ass='{escaped_path}'")
+                logger.info(f"Adding ASS filter: ass='{escaped_path}'")
+            post_filters.append(f"scale={width}:{height}:force_original_aspect_ratio=decrease")
+            post_filters.append(f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:black")
+            post_filters.append(f"fps={fps}")
+            
+            # Append post-processing to the graph
+            if post_filters:
+                filter_graph += f";[out]{','.join(post_filters)}[final]"
+            else:
+                filter_graph = filter_graph.replace("[out]", "[final]")
+            
+            cmd = [
+                self.ffmpeg_path,
+                "-y",
+                "-ss", str(start_time),
+                "-i", input_path,
+                "-t", str(duration),
+                "-filter_complex", filter_graph,
+                "-map", "[final]",
+                "-map", "0:a?",
+                "-c:v", encoder,
+                *encoder_opts,
+                "-c:a", "aac",
+                "-b:a", "192k",
+                "-ar", "48000",
+                "-movflags", "+faststart",
+                output_path
+            ]
+        else:
+            # Simple filter chain with -vf
+            filter_chain = filters.copy()
+            
+            if ass_path and self.has_libass:
+                escaped_path = ass_path.replace("\\", "/").replace(":", "\\:")
+                filter_chain.append(f"ass='{escaped_path}'")
+            
+            filter_chain.append(f"scale={width}:{height}:force_original_aspect_ratio=decrease")
+            filter_chain.append(f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:black")
+            filter_chain.append(f"fps={fps}")
+            
+            cmd = [
+                self.ffmpeg_path,
+                "-y",
+                "-ss", str(start_time),
+                "-i", input_path,
+                "-t", str(duration),
+                "-vf", ",".join(filter_chain),
+                "-c:v", encoder,
+                *encoder_opts,
+                "-c:a", "aac",
+                "-b:a", "192k",
+                "-ar", "48000",
+                "-movflags", "+faststart",
+                output_path
+            ]
+        
+        logger.info(f"Render command: {' '.join(cmd)}")
         return await self._run_ffmpeg(cmd, input_path, progress_callback, duration)
     
     async def extract_frame(
@@ -325,6 +376,57 @@ class FFmpegService:
             logger.error("Frame extraction failed: %s", stderr.decode())
             return False
         
+        return True
+    
+    async def extract_thumbnail(
+        self,
+        input_path: str,
+        output_path: str,
+        time_percent: float = 0.1,
+        width: int = 640,
+        height: int = 360
+    ) -> bool:
+        """Extract a thumbnail from video at a percentage of duration.
+        
+        Args:
+            input_path: Path to video file
+            output_path: Path to save thumbnail (jpg recommended)
+            time_percent: Position in video as percentage (0.0-1.0), default 10%
+            width: Thumbnail width
+            height: Thumbnail height
+        """
+        # Get video duration first
+        try:
+            info = await self.get_video_info(input_path)
+            duration = info.get("duration", 0)
+            time_seconds = duration * time_percent
+        except Exception:
+            # Fallback to 5 seconds if can't get duration
+            time_seconds = 5.0
+        
+        cmd = [
+            self.ffmpeg_path,
+            "-y",
+            "-ss", str(time_seconds),
+            "-i", input_path,
+            "-vframes", "1",
+            "-vf", f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}",
+            "-q:v", "3",
+            output_path
+        ]
+        
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        _, stderr = await proc.communicate()
+        
+        if proc.returncode != 0:
+            logger.warning("Thumbnail extraction failed: %s", stderr.decode()[:200])
+            return False
+        
+        logger.info("Thumbnail extracted: %s", output_path)
         return True
     
     async def _run_ffmpeg(
@@ -455,27 +557,31 @@ class FFmpegService:
         facecam_ratio: float = 0.4,
         background_blur: bool = True
     ) -> List[str]:
-        """Build FFmpeg filter for vertical composition."""
+        """Build FFmpeg filter for vertical composition.
+        
+        Uses force_original_aspect_ratio=increase + crop to fill the entire
+        space without black bars. Content is scaled to fill and cropped from center.
+        """
         filters = []
         
         if facecam_rect and content_rect:
             facecam_height = int(output_height * facecam_ratio)
             content_height = output_height - facecam_height
             
-            # Crop and scale facecam
+            # Crop and scale facecam - FILL entire width, crop excess height
             fc = facecam_rect
             filters.append(
                 f"[0:v]crop={fc['width']}:{fc['height']}:{fc['x']}:{fc['y']},"
-                f"scale={output_width}:{facecam_height}:force_original_aspect_ratio=decrease,"
-                f"pad={output_width}:{facecam_height}:(ow-iw)/2:(oh-ih)/2[facecam]"
+                f"scale={output_width}:{facecam_height}:force_original_aspect_ratio=increase,"
+                f"crop={output_width}:{facecam_height}[facecam]"
             )
             
-            # Crop and scale content
+            # Crop and scale content - FILL entire width, crop excess height
             cc = content_rect
             filters.append(
                 f"[0:v]crop={cc['width']}:{cc['height']}:{cc['x']}:{cc['y']},"
-                f"scale={output_width}:{content_height}:force_original_aspect_ratio=decrease,"
-                f"pad={output_width}:{content_height}:(ow-iw)/2:(oh-ih)/2[content]"
+                f"scale={output_width}:{content_height}:force_original_aspect_ratio=increase,"
+                f"crop={output_width}:{content_height}[content]"
             )
             
             # Stack vertically
@@ -489,13 +595,14 @@ class FFmpegService:
                     f"[0:v]split[blur][main];"
                     f"[blur]scale={output_width}:{output_height}:force_original_aspect_ratio=increase,"
                     f"crop={output_width}:{output_height},boxblur=20:20[bg];"
-                    f"[main]scale={output_width}:{output_height}:force_original_aspect_ratio=decrease[fg];"
+                    f"[main]scale={output_width}:{output_height}:force_original_aspect_ratio=increase,"
+                    f"crop={output_width}:{output_height}[fg];"
                     f"[bg][fg]overlay=(W-w)/2:(H-h)/2[out]"
                 )
             else:
                 filters.append(
-                    f"scale={output_width}:{output_height}:force_original_aspect_ratio=decrease,"
-                    f"pad={output_width}:{output_height}:(ow-iw)/2:(oh-ih)/2:black"
+                    f"scale={output_width}:{output_height}:force_original_aspect_ratio=increase,"
+                    f"crop={output_width}:{output_height}"
                 )
         
         return filters

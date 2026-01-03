@@ -155,6 +155,10 @@ class AnalysisService:
                             progress_callback=transcribe_progress
                         )
                         
+                        # Validate transcription result
+                        if not transcript_data or not transcript_data.get("segments"):
+                            raise ValueError("Transcription returned empty result")
+                        
                         # Detect hooks
                         transcript_data["segments"] = self.transcription.detect_hooks_and_punchlines(
                             transcript_data["segments"]
@@ -163,11 +167,16 @@ class AnalysisService:
                         # Save transcript immediately
                         with open(analysis_dir / "transcript.json", "w", encoding="utf-8") as f:
                             json.dump(transcript_data, f, indent=2, ensure_ascii=False)
-                        logger.info("✓ Saved transcript.json")
+                        logger.info("✓ Saved transcript.json with %d segments", len(transcript_data["segments"]))
                         
                     except Exception as e:
-                        logger.exception("Transcription failed: %s", e)
-                        transcript_data = {"segments": [], "text": "", "error": str(e)}
+                        logger.exception("CRITICAL: Transcription failed: %s", e)
+                        # Save error to file for debugging
+                        error_data = {"segments": [], "text": "", "error": str(e)}
+                        with open(analysis_dir / "transcript_error.json", "w", encoding="utf-8") as f:
+                            json.dump(error_data, f, indent=2)
+                        # Re-raise to fail the job properly - no transcription = no segments
+                        raise RuntimeError(f"Transcription failed: {e}") from e
             
             # Step 2: Audio analysis
             if analyze_audio and self.audio_analyzer:
@@ -378,6 +387,15 @@ class AnalysisService:
             # Update project status
             project.status = "analyzed"
             await db.commit()
+            
+            # Broadcast project update via WebSocket
+            from forge_engine.api.v1.endpoints.websockets import broadcast_project_update
+            broadcast_project_update({
+                "id": project.id,
+                "status": project.status,
+                "name": project.name,
+                "updatedAt": project.updated_at.isoformat() if project.updated_at else None,
+            })
             
             job_manager.update_progress(job, 100, "complete", f"Analysis complete - {len(segments)} segments found")
             

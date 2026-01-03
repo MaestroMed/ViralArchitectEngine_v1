@@ -1,6 +1,7 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { useLayoutEditorStore, useSubtitleStyleStore } from '@/store';
 import { motion, useDragControls } from 'framer-motion';
+import { KaraokeSubtitles, WordTiming, parseTranscriptToWords } from './KaraokeSubtitles';
 
 interface Canvas9x16Props {
   videoSrc: string;
@@ -9,6 +10,9 @@ interface Canvas9x16Props {
   currentSubtitle?: string;
   highlightedWord?: string;
   faceDetections?: any[];
+  wordTimings?: WordTiming[];  // Word-level timing for karaoke subtitles
+  clipStartTime?: number;      // Start time of clip in source video
+  clipDuration?: number;       // Duration of the clip
   onTimeUpdate?: (time: number) => void;
   onPlayPause?: () => void;
 }
@@ -20,6 +24,9 @@ export function Canvas9x16({
   currentSubtitle,
   highlightedWord,
   faceDetections = [],
+  wordTimings = [],
+  clipStartTime = 0,
+  clipDuration = 0,
   onTimeUpdate,
   onPlayPause,
 }: Canvas9x16Props) {
@@ -184,8 +191,14 @@ export function Canvas9x16({
         />
       ))}
 
-      {/* Subtitles */}
-      {renderSubtitle()}
+      {/* Karaoke Subtitles */}
+      {(wordTimings.length > 0 || currentSubtitle) && (
+        <KaraokeSubtitles
+          words={wordTimings.length > 0 ? wordTimings : parseTranscriptToWords(currentSubtitle || '', clipDuration)}
+          currentTime={currentTime}
+          clipStartTime={clipStartTime}
+        />
+      )}
 
       {/* Controls Overlay */}
       {!isPlaying && (
@@ -259,17 +272,79 @@ function DraggableZone({
       }}
       whileHover={{ scale: 1.005 }}
     >
-      {/* Video Content */}
-      <div className="w-full h-full bg-gray-900 relative">
+      {/* Video Content with Smart Framing */}
+      <div className="w-full h-full bg-gray-900 relative overflow-hidden">
         <video
           src={videoSrc}
-          className="zone-video w-full h-full object-cover pointer-events-none"
+          className="zone-video pointer-events-none"
           muted
-          style={{
-            objectPosition: faceRect 
-              ? `${(faceRect.x + faceRect.width/2) * 100}% ${(faceRect.y + faceRect.height/3) * 100}%` 
-              : 'center 20%'
-          }}
+          style={(() => {
+            // Priority 1: Use manual sourceCrop from zone (user-defined)
+            if (zone.sourceCrop && (zone.sourceCrop.width < 1 || zone.sourceCrop.height < 1 || zone.sourceCrop.x > 0 || zone.sourceCrop.y > 0)) {
+              const c = zone.sourceCrop;
+              
+              // To show ONLY the cropped region, we need to:
+              // 1. Scale the video up so the crop region becomes container-sized
+              // 2. Translate to position the crop region at origin
+              
+              // Scale: how much bigger to make the video
+              const scaleX = 1 / c.width;
+              const scaleY = 1 / c.height;
+              
+              // For "cover" behavior, use the larger scale
+              const scale = Math.max(scaleX, scaleY);
+              
+              // Translate: move so the crop region is centered
+              // After scaling, the crop region center should be at container center
+              const cropCenterX = c.x + c.width / 2;  // 0-1
+              const cropCenterY = c.y + c.height / 2; // 0-1
+              
+              // Translation in percentage of the SCALED video
+              // We want cropCenter to be at 50% of container
+              const translateX = (0.5 - cropCenterX) * 100;
+              const translateY = (0.5 - cropCenterY) * 100;
+              
+              return {
+                position: 'absolute' as const,
+                width: '100%',
+                height: '100%',
+                left: '50%',
+                top: '50%',
+                transform: `translate(-50%, -50%) scale(${scale}) translate(${translateX}%, ${translateY}%)`,
+                transformOrigin: 'center center',
+                objectFit: 'cover' as const,
+              };
+            }
+            // Priority 2: Auto-tracking with faceRect (only if autoTrack enabled)
+            if (zone.autoTrack && faceRect?.center) {
+              const centerX = faceRect.center.x;
+              const centerY = faceRect.center.y;
+              const zoom = faceRect.zoomFactor || 2;
+              
+              const translateX = (0.5 - centerX) * 100;
+              const translateY = (0.5 - centerY) * 100;
+              
+              return {
+                position: 'absolute' as const,
+                width: '100%',
+                height: '100%',
+                left: '50%',
+                top: '50%',
+                transform: `translate(-50%, -50%) scale(${zoom}) translate(${translateX}%, ${translateY}%)`,
+                transformOrigin: 'center center',
+                objectFit: 'cover' as const,
+              };
+            }
+            // Default: FFmpeg-like "cover" - fill container, crop excess from center
+            return {
+              position: 'absolute' as const,
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover' as const,
+              objectPosition: 'center center',
+            };
+          })()}
         />
         
         {/* Overlay when selected */}
@@ -305,17 +380,51 @@ function getInterpolatedFaceRect(detections: any[], time: number) {
   if (!detections || detections.length === 0) return null;
   
   const nextIdx = detections.findIndex(d => d.time > time);
-  if (nextIdx === -1) return detections[detections.length - 1].normalized;
-  if (nextIdx === 0) return detections[0].normalized;
+  if (nextIdx === -1) {
+    const last = detections[detections.length - 1];
+    return extractFaceData(last);
+  }
+  if (nextIdx === 0) {
+    return extractFaceData(detections[0]);
+  }
   
   const prev = detections[nextIdx - 1];
   const next = detections[nextIdx];
   const factor = (time - prev.time) / (next.time - prev.time);
   
+  // Use smoothed_rect if available, else fallback to normalized
+  const prevRect = prev.smoothed_rect || prev.normalized;
+  const nextRect = next.smoothed_rect || next.normalized;
+  
+  // Cubic easing for smoother motion
+  const eased = easeOutCubic(factor);
+  
   return {
-    x: prev.normalized.x + (next.normalized.x - prev.normalized.x) * factor,
-    y: prev.normalized.y + (next.normalized.y - prev.normalized.y) * factor,
-    width: prev.normalized.width + (next.normalized.width - prev.normalized.width) * factor,
-    height: prev.normalized.height + (next.normalized.height - prev.normalized.height) * factor,
+    x: prevRect.x + (nextRect.x - prevRect.x) * eased,
+    y: prevRect.y + (nextRect.y - prevRect.y) * eased,
+    width: prevRect.width + (nextRect.width - prevRect.width) * eased,
+    height: prevRect.height + (nextRect.height - prevRect.height) * eased,
+    // Interpolate zoom factor
+    zoomFactor: (prev.zoom_factor || 1) + ((next.zoom_factor || 1) - (prev.zoom_factor || 1)) * eased,
+    // Interpolate crop region for smart framing
+    cropRegion: prev.crop_region && next.crop_region ? {
+      x: prev.crop_region.x + (next.crop_region.x - prev.crop_region.x) * eased,
+      y: prev.crop_region.y + (next.crop_region.y - prev.crop_region.y) * eased,
+      width: prev.crop_region.width + (next.crop_region.width - prev.crop_region.width) * eased,
+      height: prev.crop_region.height + (next.crop_region.height - prev.crop_region.height) * eased,
+    } : null,
   };
+}
+
+function extractFaceData(detection: any) {
+  const rect = detection.smoothed_rect || detection.normalized;
+  return {
+    ...rect,
+    zoomFactor: detection.zoom_factor || 1,
+    cropRegion: detection.crop_region || null,
+  };
+}
+
+function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
 }

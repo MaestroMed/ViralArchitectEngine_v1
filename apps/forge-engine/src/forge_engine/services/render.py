@@ -15,7 +15,7 @@ class RenderService:
     """Service for rendering final video clips."""
     
     def __init__(self):
-        self.ffmpeg = FFmpegService()
+        self.ffmpeg = FFmpegService.get_instance()
         self.captions = CaptionEngine()
     
     async def render_clip(
@@ -56,11 +56,15 @@ class RenderService:
         # Generate ASS captions if transcript provided
         ass_path = None
         if transcript_segments and caption_config:
+            logger.info(f"Processing {len(transcript_segments)} transcript segments for captions")
+            logger.info(f"Clip time range: {start_time} to {start_time + duration}")
+            
             # Filter transcript to segment time range
             segment_transcript = [
                 seg for seg in transcript_segments
                 if start_time <= seg.get("start", 0) <= start_time + duration
             ]
+            logger.info(f"Filtered to {len(segment_transcript)} segments in time range")
             
             # Adjust times to be relative to clip start
             adjusted_transcript = []
@@ -81,9 +85,11 @@ class RenderService:
             
             if adjusted_transcript:
                 # Generate ASS file
+                logger.info(f"Generating ASS with custom_style: {caption_config.get('custom_style')}")
                 ass_content = self.captions.generate_ass(
                     adjusted_transcript,
                     style_name=caption_config.get("style", "forge_minimal"),
+                    custom_style=caption_config.get("custom_style"),
                     word_level=caption_config.get("word_level", True),
                     max_words_per_line=caption_config.get("max_words_per_line", 6),
                     max_lines=caption_config.get("max_lines", 2)
@@ -93,6 +99,7 @@ class RenderService:
                 ass_path = output_path.parent / f"{output_path.stem}_captions.ass"
                 with open(ass_path, "w", encoding="utf-8") as f:
                     f.write(ass_content)
+                logger.info(f"Saved ASS captions to: {ass_path}")
         
         # Render video
         success = await self.ffmpeg.render_clip(
@@ -113,10 +120,13 @@ class RenderService:
         if not success:
             raise RuntimeError("Video rendering failed")
         
-        # Clean up temp ASS file
+        # Clean up temp ASS file (subtitles are now burned into the video)
         if ass_path and ass_path.exists():
-            # Keep it for debugging, but could delete
-            pass
+            try:
+                ass_path.unlink()
+                logger.info(f"Cleaned up temp ASS file: {ass_path}")
+            except Exception as e:
+                logger.warning(f"Could not delete temp ASS file: {e}")
         
         return {
             "output_path": str(output_path),

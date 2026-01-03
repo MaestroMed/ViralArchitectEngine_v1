@@ -6,14 +6,18 @@ import {
   Layers, 
   Settings,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Eye,
+  Terminal
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/store';
 
 const navItems = [
   { path: '/', icon: Home, label: 'Accueil' },
+  { path: '/surveillance', icon: Eye, label: 'Surveillance' },
   { path: '/templates', icon: Layers, label: 'Templates' },
+  { path: '/admin', icon: Terminal, label: "L'ŒIL" },
   { path: '/settings', icon: Settings, label: 'Paramètres' },
 ];
 

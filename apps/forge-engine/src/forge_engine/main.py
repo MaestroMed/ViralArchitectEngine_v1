@@ -87,10 +87,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     else:
         logger.warning("FFmpeg not found! Video processing will fail.")
     
+    # Start L'ŒIL monitoring service
+    from forge_engine.services.monitor import MonitorService
+    monitor = MonitorService.get_instance()
+    await monitor.start()
+    logger.info("L'ŒIL monitoring service started")
+    
     yield
     
     # Cleanup
     logger.info("Shutting down FORGE Engine...")
+    await monitor.stop()
     await job_manager.stop()
     await close_db()
     logger.info("Shutdown complete")

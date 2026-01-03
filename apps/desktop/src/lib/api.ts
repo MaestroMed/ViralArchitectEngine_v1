@@ -14,7 +14,8 @@ class ApiClient {
     this.baseUrl = baseUrl;
   }
 
-  private async request<T>(
+  // Public request method for dynamic endpoints
+  async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
@@ -63,6 +64,7 @@ class ApiClient {
     extractAudio?: boolean;
     audioTrack?: number;
     normalizeAudio?: boolean;
+    autoAnalyze?: boolean;
   } = {}) {
     return this.request<ApiResponse<{ jobId: string }>>(`/projects/${id}/ingest`, {
       method: 'POST',
@@ -71,6 +73,7 @@ class ApiClient {
         extract_audio: options.extractAudio ?? true,
         audio_track: options.audioTrack ?? 0,
         normalize_audio: options.normalizeAudio ?? true,
+        auto_analyze: options.autoAnalyze ?? true,
       }),
     });
   }
@@ -152,10 +155,42 @@ class ApiClient {
     templateId?: string;
     platform?: string;
     includeCaptions?: boolean;
+    burnSubtitles?: boolean;
     includeCover?: boolean;
     includeMetadata?: boolean;
     includePost?: boolean;
     useNvenc?: boolean;
+    captionStyle?: {
+      fontFamily: string;
+      fontSize: number;
+      fontWeight: number;
+      color: string;
+      backgroundColor: string;
+      outlineColor: string;
+      outlineWidth: number;
+      position: 'bottom' | 'center' | 'top';
+      positionY?: number;
+      animation: string;
+      highlightColor: string;
+      wordsPerLine: number;
+    };
+    layoutConfig?: {
+      facecam?: { x: number; y: number; width: number; height: number; sourceCrop?: { x: number; y: number; width: number; height: number } };
+      content?: { x: number; y: number; width: number; height: number; sourceCrop?: { x: number; y: number; width: number; height: number } };
+      facecamRatio?: number;
+    };
+    introConfig?: {
+      enabled: boolean;
+      duration: number;
+      title: string;
+      badgeText: string;
+      backgroundBlur: number;
+      titleFont: string;
+      titleSize: number;
+      titleColor: string;
+      badgeColor: string;
+      animation: string;
+    };
   }) {
     return this.request<ApiResponse<{ jobId: string }>>(`/projects/${projectId}/export`, {
       method: 'POST',
@@ -165,10 +200,14 @@ class ApiClient {
         template_id: options.templateId,
         platform: options.platform ?? 'tiktok',
         include_captions: options.includeCaptions ?? true,
-        include_cover: options.includeCover ?? true,
-        include_metadata: options.includeMetadata ?? true,
-        include_post: options.includePost ?? true,
+        burn_subtitles: options.burnSubtitles ?? true,
+        include_cover: options.includeCover ?? false,
+        include_metadata: options.includeMetadata ?? false,
+        include_post: options.includePost ?? false,
         use_nvenc: options.useNvenc ?? true,
+        caption_style: options.captionStyle,
+        layout_config: options.layoutConfig,
+        intro_config: options.introConfig,
       }),
     });
   }
@@ -213,6 +252,26 @@ class ApiClient {
     return this.request<ApiResponse<any>>('/profiles', {
       method: 'POST',
       body: JSON.stringify(profile),
+    });
+  }
+
+  // URL Import
+  async getUrlInfo(url: string) {
+    return this.request<ApiResponse<any>>('/projects/url-info', {
+      method: 'POST',
+      body: JSON.stringify({ url }),
+    });
+  }
+
+  async importFromUrl(url: string, quality = 'best', autoIngest = true, autoAnalyze = true) {
+    return this.request<ApiResponse<{ project: any; jobId: string; videoInfo: any }>>('/projects/import-url', {
+      method: 'POST',
+      body: JSON.stringify({
+        url,
+        quality,
+        auto_ingest: autoIngest,
+        auto_analyze: autoAnalyze,
+      }),
     });
   }
 

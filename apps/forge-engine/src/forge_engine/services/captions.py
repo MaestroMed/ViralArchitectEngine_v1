@@ -65,9 +65,58 @@ class CaptionEngine:
         max_lines: int = 2
     ) -> str:
         """Generate ASS subtitle file content."""
-        style = CAPTION_STYLES.get(style_name, CAPTION_STYLES["forge_minimal"])
+        style = CAPTION_STYLES.get(style_name, CAPTION_STYLES["forge_minimal"]).copy()
+        
         if custom_style:
-            style = {**style, **custom_style}
+            # Convert custom style to ASS format (handle both camelCase and snake_case)
+            font_family = custom_style.get("fontFamily") or custom_style.get("font_family")
+            if font_family:
+                style["font_family"] = font_family
+            
+            font_size = custom_style.get("fontSize") or custom_style.get("font_size")
+            if font_size:
+                style["font_size"] = font_size
+            
+            font_weight = custom_style.get("fontWeight") or custom_style.get("font_weight")
+            if font_weight:
+                style["bold"] = font_weight >= 600
+            
+            color = custom_style.get("color")
+            if color:
+                style["primary_color"] = self._hex_to_ass_color(color)
+            
+            outline_color = custom_style.get("outlineColor") or custom_style.get("outline_color")
+            if outline_color:
+                style["outline_color"] = self._hex_to_ass_color(outline_color)
+            
+            outline_width = custom_style.get("outlineWidth") or custom_style.get("outline_width")
+            if outline_width:
+                style["outline_width"] = outline_width
+            
+            highlight_color = custom_style.get("highlightColor") or custom_style.get("highlight_color")
+            if highlight_color:
+                style["highlight_color"] = self._hex_to_ass_color(highlight_color)
+            
+            # Handle positionY (custom absolute Y position)
+            position_y = custom_style.get("positionY") or custom_style.get("position_y")
+            if position_y is not None and position_y > 0:
+                # positionY is distance from TOP in pixels (0-1920)
+                # ASS uses alignment + margin_v
+                # For subtitles, we use alignment=2 (bottom center) and margin_v from bottom
+                # margin_v = distance from BOTTOM edge
+                # So margin_v = 1920 - positionY - subtitle_height (approx 60px for text)
+                style["alignment"] = 2  # Bottom center
+                style["margin_v"] = max(0, self.output_height - position_y - 60)
+                logger.debug(f"Custom positionY={position_y} -> margin_v={style['margin_v']}")
+            else:
+                position = custom_style.get("position")
+                if position:
+                    # ASS alignment: 1=bottom-left, 2=bottom-center, 5=center, 8=top-center
+                    pos_map = {"bottom": 2, "center": 5, "top": 8}
+                    style["alignment"] = pos_map.get(position, 2)
+                    # Adjust margin for position
+                    margin_map = {"bottom": 180, "center": 500, "top": 120}
+                    style["margin_v"] = margin_map.get(position, 180)
         
         # Build ASS file
         lines = [
@@ -81,7 +130,7 @@ class CaptionEngine:
             "[V4+ Styles]",
             "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
             self._generate_style_line("Default", style),
-            self._generate_style_line("Highlight", {**style, "primary_color": "&H0000FFFF"}),  # Yellow highlight
+            self._generate_style_line("Highlight", {**style, "primary_color": style.get("highlight_color", "&H0000FFFF")}),
             "",
             "[Events]",
             "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
@@ -239,6 +288,20 @@ class CaptionEngine:
             f"Dialogue: 0,{self._format_time(start)},{self._format_time(end)},"
             f"Default,,0,0,0,,{display_text}"
         ]
+    
+    def _hex_to_ass_color(self, hex_color: str) -> str:
+        """Convert hex color (#RRGGBB) to ASS format (&HAABBGGRR)."""
+        if not hex_color or hex_color == "transparent":
+            return "&H00000000"
+        
+        hex_color = hex_color.lstrip("#")
+        if len(hex_color) == 6:
+            r = int(hex_color[0:2], 16)
+            g = int(hex_color[2:4], 16)
+            b = int(hex_color[4:6], 16)
+            # ASS uses AABBGGRR format (alpha, blue, green, red)
+            return f"&H00{b:02X}{g:02X}{r:02X}"
+        return "&H00FFFFFF"
     
     def _clean_word(self, word: str) -> str:
         """Clean a word for display."""

@@ -1,16 +1,75 @@
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CheckCircle, XCircle, Clock, Loader2, RefreshCw, Trash2 } from 'lucide-react';
+import { X, CheckCircle, XCircle, Clock, Loader2, RefreshCw, Trash2, ExternalLink, Cpu, Zap, ChevronDown, ChevronUp } from 'lucide-react';
 import { useJobsStore, useUIStore } from '@/store';
 import { useShallow } from 'zustand/react/shallow';
+import { useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { Progress } from '@/components/ui/Progress';
 
+interface JobDetails {
+  id: string;
+  projectName?: string;
+  device?: string;
+  startedAt?: string;
+  elapsedTime?: string;
+}
+
 export default function JobDrawer() {
+  const navigate = useNavigate();
   const { jobDrawerOpen, setJobDrawerOpen } = useUIStore();
+  const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
+  const [jobDetails, setJobDetails] = useState<Record<string, JobDetails>>({});
+  const [deviceInfo, setDeviceInfo] = useState<{ device: string; gpu?: string } | null>(null);
   
   // Get all jobs from store
   const jobs = useJobsStore(useShallow((state) => [...state.jobs]));
   const { removeJob } = useJobsStore();
+  
+  // Fetch device info on mount
+  useEffect(() => {
+    const fetchDeviceInfo = async () => {
+      try {
+        const caps = await api.request<{ whisper: { device: string }; gpu: { name?: string } }>('/capabilities');
+        setDeviceInfo({
+          device: caps.whisper?.device || 'unknown',
+          gpu: caps.gpu?.name,
+        });
+      } catch (e) {
+        console.error('Failed to fetch capabilities:', e);
+      }
+    };
+    fetchDeviceInfo();
+  }, []);
+  
+  // Fetch project details for expanded job
+  useEffect(() => {
+    const fetchJobDetails = async (jobId: string, projectId?: string) => {
+      if (!projectId || jobDetails[jobId]) return;
+      
+      try {
+        const project = await api.getProject(projectId);
+        if (project.data) {
+          setJobDetails(prev => ({
+            ...prev,
+            [jobId]: {
+              id: jobId,
+              projectName: project.data.name,
+            }
+          }));
+        }
+      } catch (e) {
+        console.error('Failed to fetch project:', e);
+      }
+    };
+    
+    if (expandedJobId) {
+      const job = jobs.find(j => j.id === expandedJobId);
+      if (job?.projectId) {
+        fetchJobDetails(expandedJobId, job.projectId);
+      }
+    }
+  }, [expandedJobId, jobs, jobDetails]);
 
   // Separate active and completed jobs
   const activeJobs = jobs.filter((j) => j.status === 'running' || j.status === 'pending');
@@ -115,37 +174,138 @@ export default function JobDrawer() {
                       layout
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="bg-[var(--bg-secondary)] rounded-lg p-4"
+                      className="bg-[var(--bg-secondary)] rounded-lg overflow-hidden"
                     >
-                      <div className="flex items-center gap-3 mb-2">
-                        {statusIcons[job.status]}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-[var(--text-primary)]">
-                              {jobTypeLabels[job.type] || job.type}
-                            </span>
-                            <span className="text-xs text-[var(--text-muted)]">
-                              {job.stage}
-                            </span>
+                      {/* Main job row - clickable */}
+                      <div 
+                        className="p-4 cursor-pointer hover:bg-[var(--bg-tertiary)] transition-colors"
+                        onClick={() => setExpandedJobId(expandedJobId === job.id ? null : job.id)}
+                      >
+                        <div className="flex items-center gap-3 mb-2">
+                          {statusIcons[job.status]}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-[var(--text-primary)]">
+                                {jobTypeLabels[job.type] || job.type}
+                              </span>
+                              <span className="text-xs text-[var(--text-muted)]">
+                                {job.stage}
+                              </span>
+                              {/* Device indicator */}
+                              {job.type === 'analyze' && deviceInfo && (
+                                <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                  deviceInfo.device === 'cuda' 
+                                    ? 'bg-green-500/20 text-green-400' 
+                                    : 'bg-amber-500/20 text-amber-400'
+                                }`}>
+                                  {deviceInfo.device === 'cuda' ? (
+                                    <><Zap className="w-3 h-3" /> GPU</>
+                                  ) : (
+                                    <><Cpu className="w-3 h-3" /> CPU</>
+                                  )}
+                                </span>
+                              )}
+                            </div>
+                            {job.message && (
+                              <p className="text-xs text-[var(--text-muted)] truncate mt-0.5">
+                                {job.message}
+                              </p>
+                            )}
                           </div>
-                          {job.message && (
-                            <p className="text-xs text-[var(--text-muted)] truncate mt-0.5">
-                              {job.message}
-                            </p>
+                          <span className="text-sm font-bold text-[var(--text-primary)] tabular-nums">
+                            {job.progress.toFixed(0)}%
+                          </span>
+                          {expandedJobId === job.id ? (
+                            <ChevronUp className="w-4 h-4 text-[var(--text-muted)]" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />
                           )}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleCancel(job.id); }}
+                            className="p-1.5 hover:bg-red-500/20 rounded-lg transition-colors"
+                            title="Annuler"
+                          >
+                            <X className="w-4 h-4 text-[var(--text-muted)]" />
+                          </button>
                         </div>
-                        <span className="text-sm font-bold text-[var(--text-primary)] tabular-nums">
-                          {job.progress.toFixed(0)}%
-                        </span>
-                        <button
-                          onClick={() => handleCancel(job.id)}
-                          className="p-1.5 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
-                          title="Annuler"
-                        >
-                          <X className="w-4 h-4 text-[var(--text-muted)]" />
-                        </button>
+                        <Progress value={job.progress} />
                       </div>
-                      <Progress value={job.progress} />
+                      
+                      {/* Expanded details */}
+                      <AnimatePresence>
+                        {expandedJobId === job.id && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="border-t border-[var(--border-color)] bg-[var(--bg-primary)]"
+                          >
+                            <div className="p-4 space-y-3 text-sm">
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <span className="text-[var(--text-muted)] text-xs">ID Job</span>
+                                  <p className="font-mono text-xs text-[var(--text-secondary)]">{job.id}</p>
+                                </div>
+                                <div>
+                                  <span className="text-[var(--text-muted)] text-xs">Projet</span>
+                                  <p className="text-[var(--text-secondary)] truncate">
+                                    {jobDetails[job.id]?.projectName || job.projectId?.slice(0, 8) || 'N/A'}
+                                  </p>
+                                </div>
+                                {job.type === 'analyze' && deviceInfo && (
+                                  <>
+                                    <div>
+                                      <span className="text-[var(--text-muted)] text-xs">Device</span>
+                                      <p className={`font-medium ${
+                                        deviceInfo.device === 'cuda' ? 'text-green-400' : 'text-amber-400'
+                                      }`}>
+                                        {deviceInfo.device === 'cuda' ? 'GPU (CUDA)' : 'CPU'}
+                                      </p>
+                                    </div>
+                                    {deviceInfo.gpu && (
+                                      <div>
+                                        <span className="text-[var(--text-muted)] text-xs">GPU</span>
+                                        <p className="text-[var(--text-secondary)] truncate">{deviceInfo.gpu}</p>
+                                      </div>
+                                    )}
+                                  </>
+                                )}
+                                <div>
+                                  <span className="text-[var(--text-muted)] text-xs">Étape</span>
+                                  <p className="text-[var(--text-secondary)]">{job.stage || 'N/A'}</p>
+                                </div>
+                                <div>
+                                  <span className="text-[var(--text-muted)] text-xs">Progression</span>
+                                  <p className="text-[var(--text-secondary)]">{job.progress.toFixed(1)}%</p>
+                                </div>
+                              </div>
+                              
+                              {/* Actions */}
+                              <div className="flex gap-2 pt-2 border-t border-[var(--border-color)]">
+                                {job.projectId && (
+                                  <button
+                                    onClick={() => {
+                                      setJobDrawerOpen(false);
+                                      navigate(`/project/${job.projectId}`);
+                                    }}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[var(--accent-color)] text-white rounded-lg hover:opacity-90 transition-opacity"
+                                  >
+                                    <ExternalLink className="w-3 h-3" />
+                                    Voir le projet
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleCancel(job.id)}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-red-400 bg-red-500/10 rounded-lg hover:bg-red-500/20 transition-colors"
+                                >
+                                  <X className="w-3 h-3" />
+                                  Annuler
+                                </button>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </motion.div>
                   ))}
 
@@ -159,25 +319,74 @@ export default function JobDrawer() {
                         <motion.div
                           key={job.id}
                           layout
-                          className="flex items-center gap-3 p-3 rounded-lg hover:bg-[var(--bg-secondary)] transition-colors"
+                          className="rounded-lg overflow-hidden"
                         >
-                          {statusIcons[job.status]}
-                          <div className="flex-1 min-w-0">
-                            <span className="text-sm text-[var(--text-secondary)]">
-                              {jobTypeLabels[job.type] || job.type}
-                            </span>
-                          </div>
-                          {job.error && (
-                            <span className="text-xs text-red-400 truncate max-w-[200px]">
-                              {job.error}
-                            </span>
-                          )}
-                          <button
-                            onClick={() => removeJob(job.id)}
-                            className="p-1 opacity-0 hover:opacity-100 hover:bg-[var(--bg-tertiary)] rounded transition-all"
+                          <div 
+                            className="flex items-center gap-3 p-3 cursor-pointer hover:bg-[var(--bg-secondary)] transition-colors"
+                            onClick={() => setExpandedJobId(expandedJobId === job.id ? null : job.id)}
                           >
-                            <X className="w-3 h-3 text-[var(--text-muted)]" />
-                          </button>
+                            {statusIcons[job.status]}
+                            <div className="flex-1 min-w-0">
+                              <span className="text-sm text-[var(--text-secondary)]">
+                                {jobTypeLabels[job.type] || job.type}
+                              </span>
+                            </div>
+                            {job.error && (
+                              <span className="text-xs text-red-400 truncate max-w-[200px]">
+                                {job.error.slice(0, 50)}...
+                              </span>
+                            )}
+                            {expandedJobId === job.id ? (
+                              <ChevronUp className="w-3 h-3 text-[var(--text-muted)]" />
+                            ) : (
+                              <ChevronDown className="w-3 h-3 text-[var(--text-muted)]" />
+                            )}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); removeJob(job.id); }}
+                              className="p-1 opacity-50 hover:opacity-100 hover:bg-[var(--bg-tertiary)] rounded transition-all"
+                            >
+                              <X className="w-3 h-3 text-[var(--text-muted)]" />
+                            </button>
+                          </div>
+                          
+                          {/* Expanded error details */}
+                          <AnimatePresence>
+                            {expandedJobId === job.id && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="bg-[var(--bg-secondary)] border-t border-[var(--border-color)]"
+                              >
+                                <div className="p-3 space-y-2 text-sm">
+                                  <div>
+                                    <span className="text-[var(--text-muted)] text-xs">ID</span>
+                                    <p className="font-mono text-[10px] text-[var(--text-secondary)]">{job.id}</p>
+                                  </div>
+                                  {job.error && (
+                                    <div>
+                                      <span className="text-[var(--text-muted)] text-xs">Erreur</span>
+                                      <p className="text-xs text-red-400 bg-red-500/10 p-2 rounded mt-1 break-all">
+                                        {job.error}
+                                      </p>
+                                    </div>
+                                  )}
+                                  {job.projectId && (
+                                    <button
+                                      onClick={() => {
+                                        setJobDrawerOpen(false);
+                                        navigate(`/project/${job.projectId}`);
+                                      }}
+                                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[var(--bg-tertiary)] text-[var(--text-secondary)] rounded-lg hover:bg-[var(--bg-primary)] transition-colors"
+                                    >
+                                      <ExternalLink className="w-3 h-3" />
+                                      Voir le projet
+                                    </button>
+                                  )}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </motion.div>
                       ))}
                     </div>

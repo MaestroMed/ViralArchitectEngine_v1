@@ -30,6 +30,7 @@ class Project(Base):
     # Generated files
     proxy_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     audio_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    thumbnail_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     
     # Status
     status: Mapped[str] = mapped_column(
@@ -78,6 +79,7 @@ class Project(Base):
             "audioTracks": self.audio_tracks,
             "proxyPath": self.proxy_path,
             "audioPath": self.audio_path,
+            "thumbnailPath": self.thumbnail_path,
             "status": self.status,
             "errorMessage": self.error_message,
             "profileId": self.profile_id,

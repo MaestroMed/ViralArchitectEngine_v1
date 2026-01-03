@@ -32,11 +32,46 @@ async def get_capabilities() -> dict:
         "encoders": [],
     }
     
-    # Check Whisper
+    # Check Whisper - get actual device info via ctranslate2 (what faster-whisper actually uses)
+    whisper_device = "cpu"
+    whisper_compute_type = "float32"
+    cuda_available = False
+    
+    try:
+        import ctranslate2
+        cuda_count = ctranslate2.get_cuda_device_count()
+        if cuda_count > 0:
+            cuda_available = True
+            whisper_device = "cuda"
+            whisper_compute_type = settings.WHISPER_COMPUTE_TYPE
+    except (ImportError, Exception):
+        pass
+    
+    # Fallback to torch if available
+    if not cuda_available:
+        try:
+            import torch
+            if torch.cuda.is_available():
+                whisper_device = "cuda"
+                whisper_compute_type = settings.WHISPER_COMPUTE_TYPE
+        except ImportError:
+            pass
+    
+    # Check if model is loaded (singleton check)
+    model_loaded = False
+    try:
+        singleton_transcription = TranscriptionService.get_instance() if hasattr(TranscriptionService, 'get_instance') else transcription
+        model_loaded = singleton_transcription._model is not None if hasattr(singleton_transcription, '_model') else False
+    except Exception:
+        pass
+    
     whisper_info = {
         "available": transcription.is_available(),
         "models": ["tiny", "base", "small", "medium", "large", "large-v2", "large-v3"],
         "currentModel": settings.WHISPER_MODEL,
+        "device": whisper_device,
+        "computeType": whisper_compute_type,
+        "modelLoaded": model_loaded,
     }
     
     # Check GPU via CTranslate2 (used by faster-whisper)

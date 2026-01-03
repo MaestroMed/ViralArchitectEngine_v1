@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Upload, Search, Sparkles, Download } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { api } from '@/lib/api';
-import { useJobsStore, useToastStore, useUIStore } from '@/store';
+import { useJobsStore, useToastStore, useUIStore, useProjectsStore } from '@/store';
 import { useShallow } from 'zustand/react/shallow';
 import IngestPanel from '@/components/project/IngestPanel';
 import AnalyzePanel from '@/components/project/AnalyzePanel';
@@ -53,13 +53,19 @@ export default function ProjectPage() {
     )
   );
 
+  // Get project updates from WebSocket store
+  const storeProject = useProjectsStore(
+    useShallow((state) => state.projects.find((p) => p.id === id))
+  );
+
   // Watch for job completion via WebSocket (no polling needed)
   useEffect(() => {
     projectJobs.forEach((job) => {
       const prevStatus = previousJobStatusRef.current[job.id];
       
-      // Job just completed
-      if (prevStatus === 'running' && job.status === 'completed') {
+      // Job just completed (check pending->completed too for fast jobs)
+      const wasNotComplete = !prevStatus || prevStatus === 'running' || prevStatus === 'pending';
+      if (wasNotComplete && job.status === 'completed') {
         loadProject();
         
         // Auto-advance to next panel
@@ -73,6 +79,17 @@ export default function ProjectPage() {
       previousJobStatusRef.current[job.id] = job.status;
     });
   }, [projectJobs]);
+
+  // Sync project status from WebSocket updates
+  useEffect(() => {
+    if (storeProject && project) {
+      // If status changed, reload full project data
+      if (storeProject.status !== project.status) {
+        console.log('Project status changed via WebSocket:', storeProject.status);
+        loadProject();
+      }
+    }
+  }, [storeProject?.status]);
 
   const loadProject = useCallback(async () => {
     if (!id) return;

@@ -94,6 +94,30 @@ def job_update_listener(job: Job):
         logger.warning("Cannot broadcast job update: no main loop available")
 
 
+def broadcast_project_update(project_data: dict):
+    """Broadcast project status change to all connected clients."""
+    message = {
+        "type": "PROJECT_UPDATE",
+        "payload": project_data
+    }
+    
+    # Try to get the running loop first (if we're in main thread)
+    try:
+        loop = asyncio.get_running_loop()
+        logger.info("Broadcasting project update: %s -> %s", project_data.get("id", "?")[:8], project_data.get("status", "?"))
+        loop.create_task(manager.broadcast(message))
+        return
+    except RuntimeError:
+        pass
+    
+    # We're in a worker thread - use the stored main loop
+    if _main_loop and _main_loop.is_running():
+        logger.info("Broadcasting project update (from thread): %s -> %s", project_data.get("id", "?")[:8], project_data.get("status", "?"))
+        asyncio.run_coroutine_threadsafe(manager.broadcast(message), _main_loop)
+    else:
+        logger.warning("Cannot broadcast project update: no main loop available")
+
+
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)

@@ -14,6 +14,7 @@ from forge_engine.core.jobs import Job, JobManager
 from forge_engine.models import Project, Segment, Artifact, Template
 from forge_engine.services.render import RenderService
 from forge_engine.services.captions import CaptionEngine
+from forge_engine.services.intro import IntroEngine
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,7 @@ class ExportService:
     def __init__(self):
         self.render = RenderService()
         self.captions = CaptionEngine()
+        self.intro = IntroEngine()
     
     async def run_export(
         self,
@@ -34,10 +36,14 @@ class ExportService:
         template_id: Optional[str] = None,
         platform: str = "tiktok",
         include_captions: bool = True,
+        burn_subtitles: bool = True,
         include_cover: bool = True,
         include_metadata: bool = True,
         include_post: bool = True,
-        use_nvenc: bool = True
+        use_nvenc: bool = True,
+        caption_style: Optional[Dict[str, Any]] = None,
+        layout_config: Optional[Dict[str, Any]] = None,
+        intro_config: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Run the export pipeline."""
         job_manager = JobManager.get_instance()
@@ -82,33 +88,86 @@ class ExportService:
                     transcript_data = json.load(f)
                 
                 # Filter to segment time range
+                all_segments = transcript_data.get("segments", [])
                 transcript_segments = [
-                    seg for seg in transcript_data.get("segments", [])
+                    seg for seg in all_segments
                     if segment.start_time <= seg.get("start", 0) <= segment.end_time
                 ]
+                logger.info(f"Loaded {len(all_segments)} total transcript segments, filtered to {len(transcript_segments)} for clip range {segment.start_time}-{segment.end_time}")
             
             job_manager.update_progress(job, 5, "setup", "Preparing export...")
             
-            # Build layout config
-            layout_config = {
-                "facecam_rect": segment.facecam_rect,
-                "content_rect": segment.content_rect,
-                "facecam_ratio": 0.4,
-                "background_blur": True,
-            }
+            # Get actual video dimensions from project metadata or probe
+            video_width = project.width or 1920
+            video_height = project.height or 1080
+            logger.info(f"Source video dimensions: {video_width}x{video_height}")
+            
+            # Build layout config - use edited zones from frontend if provided
+            if layout_config and layout_config.get("facecam") and layout_config.get("content"):
+                # Use frontend-edited zones with sourceCrop
+                fc = layout_config["facecam"]
+                cc = layout_config["content"]
+                
+                # Convert sourceCrop (0-1 normalized) to pixel values based on ACTUAL video size
+                facecam_source = fc.get("sourceCrop", {"x": 0, "y": 0, "width": 1, "height": 1})
+                content_source = cc.get("sourceCrop", {"x": 0, "y": 0, "width": 1, "height": 1})
+                
+                # Ensure crop values are within bounds
+                def clamp_crop(crop, max_w, max_h):
+                    x = max(0, min(crop["x"], 0.99))
+                    y = max(0, min(crop["y"], 0.99))
+                    w = max(0.01, min(crop["width"], 1 - x))
+                    h = max(0.01, min(crop["height"], 1 - y))
+                    return {
+                        "x": int(x * max_w),
+                        "y": int(y * max_h),
+                        "width": max(2, int(w * max_w)),  # FFmpeg requires even dimensions
+                        "height": max(2, int(h * max_h)),
+                    }
+                
+                render_layout_config = {
+                    "facecam_rect": clamp_crop(facecam_source, video_width, video_height),
+                    "content_rect": clamp_crop(content_source, video_width, video_height),
+                    "facecam_ratio": layout_config.get("facecamRatio", 0.4),
+                    "background_blur": True,
+                }
+                logger.info(f"Layout config: facecam={render_layout_config['facecam_rect']}, content={render_layout_config['content_rect']}")
+            else:
+                # Fallback to segment's detected zones
+                render_layout_config = {
+                    "facecam_rect": segment.facecam_rect,
+                    "content_rect": segment.content_rect,
+                    "facecam_ratio": 0.4,
+                    "background_blur": True,
+                }
             
             if template and template.layout:
-                layout_config.update(template.layout)
+                render_layout_config.update(template.layout)
             
-            # Build caption config
+            # Build caption config from custom style or template
             caption_config = {
-                "style": "forge_minimal",
+                "style": "custom" if caption_style else "forge_minimal",
                 "word_level": True,
-                "max_words_per_line": 6,
+                "max_words_per_line": caption_style.get("wordsPerLine", 6) if caption_style else 6,
                 "max_lines": 2,
             }
             
-            if template and template.caption_style:
+            # If custom style provided, add it to caption config
+            if caption_style:
+                caption_config["custom_style"] = {
+                    "font_family": caption_style.get("fontFamily", "Inter"),
+                    "font_size": caption_style.get("fontSize", 48),
+                    "font_weight": caption_style.get("fontWeight", 700),
+                    "color": caption_style.get("color", "#FFFFFF"),
+                    "background_color": caption_style.get("backgroundColor", "transparent"),
+                    "outline_color": caption_style.get("outlineColor", "#000000"),
+                    "outline_width": caption_style.get("outlineWidth", 2),
+                    "position": caption_style.get("position", "bottom"),
+                    "position_y": caption_style.get("positionY"),  # Custom Y position
+                    "animation": caption_style.get("animation", "none"),
+                    "highlight_color": caption_style.get("highlightColor", "#FFD700"),
+                }
+            elif template and template.caption_style:
                 caption_config.update(template.caption_style)
             
             # Render video
@@ -116,19 +175,62 @@ class ExportService:
             
             video_path = exports_dir / f"{base_name}.mp4"
             
+            # If intro is enabled, render to temp file first
+            if intro_config and intro_config.get("enabled"):
+                temp_clip_path = exports_dir / f"{base_name}_clip_temp.mp4"
+                actual_video_path = temp_clip_path
+            else:
+                actual_video_path = video_path
+            
             render_result = await self.render.render_clip(
                 source_path=project.source_path,
-                output_path=str(video_path),
+                output_path=str(actual_video_path),
                 start_time=segment.start_time,
                 duration=segment.duration,
-                layout_config=layout_config,
+                layout_config=render_layout_config,
                 caption_config=caption_config if include_captions else None,
                 transcript_segments=transcript_segments if include_captions else None,
                 use_nvenc=use_nvenc,
                 progress_callback=lambda p: job_manager.update_progress(
-                    job, 10 + p * 0.6, "render", f"Rendering: {p:.0f}%"
+                    job, 10 + p * 0.5, "render", f"Rendering: {p:.0f}%"
                 )
             )
+            
+            # If intro is enabled, render intro and concatenate
+            if intro_config and intro_config.get("enabled"):
+                job_manager.update_progress(job, 60, "intro", "Generating intro...")
+                
+                intro_path = exports_dir / f"{base_name}_intro_temp.mp4"
+                
+                # Set title from segment if not provided
+                if not intro_config.get("title"):
+                    intro_config["title"] = segment.topic_label or "Untitled"
+                
+                await self.intro.render_intro(
+                    source_path=project.source_path,
+                    output_path=str(intro_path),
+                    start_time=segment.start_time,
+                    duration=intro_config.get("duration", 2.0),
+                    config=intro_config,
+                    progress_callback=lambda p: job_manager.update_progress(
+                        job, 60 + p * 0.1, "intro", f"Intro: {p:.0f}%"
+                    )
+                )
+                
+                job_manager.update_progress(job, 70, "concat", "Concatenating intro + clip...")
+                
+                await self.intro.concat_intro_with_clip(
+                    intro_path=str(intro_path),
+                    clip_path=str(temp_clip_path),
+                    output_path=str(video_path),
+                )
+                
+                # Cleanup temp files
+                try:
+                    intro_path.unlink()
+                    temp_clip_path.unlink()
+                except Exception as e:
+                    logger.warning(f"Could not delete temp files: {e}")
             
             # Record video artifact
             video_artifact = Artifact(
@@ -171,9 +273,10 @@ class ExportService:
                     db.add(cover_artifact)
                     artifacts.append(cover_artifact)
             
-            # Generate standalone captions
-            if include_captions and transcript_segments:
-                job_manager.update_progress(job, 80, "captions", "Generating captions...")
+            # Generate standalone caption files only if NOT burning subtitles
+            # (when burning, subtitles are embedded in video - no need for separate files)
+            if include_captions and transcript_segments and not burn_subtitles:
+                job_manager.update_progress(job, 80, "captions", "Generating caption files...")
                 
                 # Adjust times to be relative to clip start
                 adjusted_segments = [

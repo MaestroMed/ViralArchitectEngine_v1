@@ -52,13 +52,36 @@ class TranscriptionService:
             compute_type = self.compute_type
             
             if device == "auto":
+                # Use ctranslate2 directly for CUDA detection (what faster-whisper uses)
                 try:
                     import ctranslate2
-                    devices = ctranslate2.get_supported_devices()
-                    device = "cuda" if "cuda" in devices else "cpu"
-                    logger.info("ctranslate2 supported devices: %s, using: %s", devices, device)
+                    cuda_count = ctranslate2.get_cuda_device_count()
+                    if cuda_count > 0:
+                        device = "cuda"
+                        # Get GPU name via nvidia-smi
+                        try:
+                            import subprocess
+                            result = subprocess.run(
+                                ["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader,nounits"],
+                                capture_output=True, text=True, timeout=5
+                            )
+                            if result.returncode == 0:
+                                gpu_info = result.stdout.strip().split(',')
+                                gpu_name = gpu_info[0].strip() if gpu_info else "NVIDIA GPU"
+                                gpu_memory = float(gpu_info[1].strip()) / 1024 if len(gpu_info) > 1 else 0
+                                logger.info("CUDA available via ctranslate2: %s (%.1f GB VRAM)", gpu_name, gpu_memory)
+                            else:
+                                logger.info("CUDA available via ctranslate2: %d device(s)", cuda_count)
+                        except Exception:
+                            logger.info("CUDA available via ctranslate2: %d device(s)", cuda_count)
+                    else:
+                        device = "cpu"
+                        logger.info("No CUDA devices found, using CPU")
+                except ImportError:
+                    logger.warning("ctranslate2 not installed, falling back to CPU")
+                    device = "cpu"
                 except Exception as e:
-                    logger.warning("Failed to detect CUDA via ctranslate2: %s", e)
+                    logger.warning("CUDA detection failed: %s, using CPU", e)
                     device = "cpu"
             
             if device == "cpu":

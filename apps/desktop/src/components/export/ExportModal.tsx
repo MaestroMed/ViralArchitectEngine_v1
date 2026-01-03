@@ -14,6 +14,22 @@ import {
   Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { useSubtitleStyleStore } from '@/store';
+
+interface CaptionStyle {
+  fontFamily: string;
+  fontSize: number;
+  fontWeight: number;
+  color: string;
+  backgroundColor: string;
+  outlineColor: string;
+  outlineWidth: number;
+  position: 'bottom' | 'center' | 'top';
+  positionY?: number;
+  animation: string;
+  highlightColor: string;
+  wordsPerLine: number;
+}
 
 interface ExportOptions {
   format: 'mp4' | 'mov' | 'webm';
@@ -27,6 +43,7 @@ interface ExportOptions {
   exportCover: boolean;
   exportMetadata: boolean;
   outputDir?: string;
+  captionStyle?: CaptionStyle;
 }
 
 interface ExportModalProps {
@@ -62,6 +79,8 @@ export function ExportModal({
   duration,
   onExport,
 }: ExportModalProps) {
+  const subtitleStyle = useSubtitleStyleStore((s) => s.style);
+  
   const [options, setOptions] = useState<ExportOptions>({
     format: 'mp4',
     resolution: '1080x1920',
@@ -70,9 +89,10 @@ export function ExportModal({
     codec: 'h264',
     includeSubtitles: true,
     burnSubtitles: true,
-    exportSrt: true,
-    exportCover: true,
-    exportMetadata: true,
+    exportSrt: false,      // Default: no separate caption files
+    exportCover: false,    // Default: only video file
+    exportMetadata: false, // Default: only video file
+    captionStyle: subtitleStyle,
   });
 
   const [exporting, setExporting] = useState(false);

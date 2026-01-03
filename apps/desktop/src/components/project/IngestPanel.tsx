@@ -43,6 +43,7 @@ export default function IngestPanel({ project, onJobStart, onComplete }: IngestP
     extractAudio: true,
     audioTrack: 0,
     normalizeAudio: true,
+    autoAnalyze: true,  // Automatically start analysis after ingest
   });
 
   const isIngested = ['ingested', 'analyzing', 'analyzed', 'ready'].includes(project.status);
@@ -172,7 +173,7 @@ export default function IngestPanel({ project, onJobStart, onComplete }: IngestP
                   }
                 />
 
-                {options.extractAudio && (
+                    {options.extractAudio && (
                   <>
                     <OptionToggle
                       label="Normaliser l'audio"
@@ -208,6 +209,17 @@ export default function IngestPanel({ project, onJobStart, onComplete }: IngestP
                     )}
                   </>
                 )}
+
+                <div className="border-t border-[var(--border-color)] pt-4 mt-4">
+                  <OptionToggle
+                    label="🚀 Analyse automatique"
+                    description="Lancer automatiquement l'analyse après l'ingestion (transcription, détection facecam, scoring)"
+                    checked={options.autoAnalyze}
+                    onChange={(checked) =>
+                      setOptions((o) => ({ ...o, autoAnalyze: checked }))
+                    }
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>

@@ -228,13 +228,22 @@ export const useClipEditorStore = create<ClipEditorState>((set) => ({
 }));
 
 // Layout Editor store  
-interface LayoutZone {
-  id: string;
-  type: 'facecam' | 'content' | 'custom';
-  x: number;
+interface SourceCrop {
+  x: number;      // Normalized 0-1 position in source video
   y: number;
   width: number;
   height: number;
+}
+
+interface LayoutZone {
+  id: string;
+  type: 'facecam' | 'content' | 'custom';
+  x: number;           // Target position in 9:16 canvas (%)
+  y: number;
+  width: number;
+  height: number;
+  sourceCrop?: SourceCrop;  // Source crop region in 16:9 video (normalized)
+  autoTrack?: boolean;      // Enable auto-reframe for this zone
 }
 
 interface LayoutEditorState {
@@ -250,23 +259,32 @@ interface LayoutEditorState {
 
 const LAYOUT_PRESETS: Record<string, LayoutZone[]> = {
   'facecam-top': [
-    { id: 'facecam', type: 'facecam', x: 0, y: 0, width: 100, height: 35 },
-    { id: 'content', type: 'content', x: 0, y: 35, width: 100, height: 65 },
+    { id: 'facecam', type: 'facecam', x: 0, y: 0, width: 100, height: 35, 
+      sourceCrop: { x: 0.7, y: 0, width: 0.3, height: 0.35 }, autoTrack: false },
+    { id: 'content', type: 'content', x: 0, y: 35, width: 100, height: 65,
+      sourceCrop: { x: 0, y: 0.25, width: 1, height: 0.75 }, autoTrack: false },
   ],
   'facecam-bottom': [
-    { id: 'content', type: 'content', x: 0, y: 0, width: 100, height: 65 },
-    { id: 'facecam', type: 'facecam', x: 0, y: 65, width: 100, height: 35 },
+    { id: 'content', type: 'content', x: 0, y: 0, width: 100, height: 65,
+      sourceCrop: { x: 0, y: 0, width: 1, height: 0.75 }, autoTrack: false },
+    { id: 'facecam', type: 'facecam', x: 0, y: 65, width: 100, height: 35,
+      sourceCrop: { x: 0.7, y: 0, width: 0.3, height: 0.35 }, autoTrack: false },
   ],
   'split-50-50': [
-    { id: 'facecam', type: 'facecam', x: 0, y: 0, width: 100, height: 50 },
-    { id: 'content', type: 'content', x: 0, y: 50, width: 100, height: 50 },
+    { id: 'facecam', type: 'facecam', x: 0, y: 0, width: 100, height: 50,
+      sourceCrop: { x: 0.6, y: 0, width: 0.4, height: 0.5 }, autoTrack: false },
+    { id: 'content', type: 'content', x: 0, y: 50, width: 100, height: 50,
+      sourceCrop: { x: 0, y: 0.3, width: 1, height: 0.7 }, autoTrack: false },
   ],
   'pip-corner': [
-    { id: 'content', type: 'content', x: 0, y: 0, width: 100, height: 100 },
-    { id: 'facecam', type: 'facecam', x: 65, y: 5, width: 30, height: 25 },
+    { id: 'content', type: 'content', x: 0, y: 0, width: 100, height: 100,
+      sourceCrop: { x: 0, y: 0, width: 1, height: 1 }, autoTrack: false },
+    { id: 'facecam', type: 'facecam', x: 65, y: 5, width: 30, height: 25,
+      sourceCrop: { x: 0.7, y: 0, width: 0.3, height: 0.3 }, autoTrack: false },
   ],
   'content-only': [
-    { id: 'content', type: 'content', x: 0, y: 0, width: 100, height: 100 },
+    { id: 'content', type: 'content', x: 0, y: 0, width: 100, height: 100,
+      sourceCrop: { x: 0, y: 0, width: 1, height: 1 }, autoTrack: false },
   ],
 };
 
@@ -304,8 +322,10 @@ interface SubtitleStyle {
   outlineColor: string;
   outlineWidth: number;
   position: 'bottom' | 'center' | 'top';
-  animation: 'none' | 'fade' | 'pop' | 'bounce' | 'typewriter';
+  positionY?: number;  // Custom Y position (0-1920, overrides position preset)
+  animation: 'none' | 'fade' | 'pop' | 'bounce' | 'glow' | 'wave' | 'typewriter';
   highlightColor: string;
+  wordsPerLine: number;  // Max words to show at once (karaoke style)
 }
 
 interface SubtitleStyleState {
@@ -327,6 +347,7 @@ const SUBTITLE_PRESETS: Record<string, SubtitleStyle> = {
     position: 'bottom',
     animation: 'none',
     highlightColor: '#FFD700',
+    wordsPerLine: 6,
   },
   'mrbeast': {
     fontFamily: 'Impact',
@@ -339,6 +360,7 @@ const SUBTITLE_PRESETS: Record<string, SubtitleStyle> = {
     position: 'center',
     animation: 'pop',
     highlightColor: '#FF0000',
+    wordsPerLine: 4,
   },
   'minimalist': {
     fontFamily: 'Inter',
@@ -351,9 +373,10 @@ const SUBTITLE_PRESETS: Record<string, SubtitleStyle> = {
     position: 'bottom',
     animation: 'fade',
     highlightColor: '#00FF00',
+    wordsPerLine: 8,
   },
   'karaoke': {
-    fontFamily: 'Inter',
+    fontFamily: 'Montserrat',
     fontSize: 52,
     fontWeight: 800,
     color: '#FFFFFF',
@@ -361,8 +384,35 @@ const SUBTITLE_PRESETS: Record<string, SubtitleStyle> = {
     outlineColor: '#000000',
     outlineWidth: 3,
     position: 'bottom',
-    animation: 'typewriter',
+    animation: 'bounce',
     highlightColor: '#00BFFF',
+    wordsPerLine: 5,
+  },
+  'viral-glow': {
+    fontFamily: 'Poppins',
+    fontSize: 54,
+    fontWeight: 900,
+    color: '#FFFFFF',
+    backgroundColor: 'transparent',
+    outlineColor: '#FF00FF',
+    outlineWidth: 2,
+    position: 'center',
+    animation: 'glow',
+    highlightColor: '#00FF88',
+    wordsPerLine: 4,
+  },
+  'wave-gradient': {
+    fontFamily: 'Inter',
+    fontSize: 50,
+    fontWeight: 700,
+    color: '#FFFFFF',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    outlineColor: '#000000',
+    outlineWidth: 1,
+    position: 'bottom',
+    animation: 'wave',
+    highlightColor: '#FFD700',
+    wordsPerLine: 5,
   },
 };
 
@@ -376,6 +426,53 @@ export const useSubtitleStyleStore = create<SubtitleStyleState>((set) => ({
     style: SUBTITLE_PRESETS[preset] || SUBTITLE_PRESETS['default'],
     presetName: preset,
   }),
+}));
+
+// Projects store - synced via WebSocket
+export interface Project {
+  id: string;
+  name: string;
+  status: string;
+  sourcePath?: string;
+  proxyPath?: string;
+  width?: number;
+  height?: number;
+  duration?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+interface ProjectsState {
+  projects: Project[];
+  lastUpdate: number;
+  setProjects: (projects: Project[]) => void;
+  updateProject: (project: Partial<Project> & { id: string }) => void;
+  addProject: (project: Project) => void;
+  removeProject: (id: string) => void;
+}
+
+export const useProjectsStore = create<ProjectsState>((set) => ({
+  projects: [],
+  lastUpdate: 0,
+  setProjects: (projects) => set({ projects, lastUpdate: Date.now() }),
+  updateProject: (project) => set((state) => {
+    const index = state.projects.findIndex((p) => p.id === project.id);
+    if (index >= 0) {
+      const newProjects = [...state.projects];
+      newProjects[index] = { ...newProjects[index], ...project };
+      return { projects: newProjects, lastUpdate: Date.now() };
+    }
+    // Project not in list yet, add it
+    return { projects: [...state.projects, project as Project], lastUpdate: Date.now() };
+  }),
+  addProject: (project) => set((state) => ({
+    projects: [...state.projects, project],
+    lastUpdate: Date.now(),
+  })),
+  removeProject: (id) => set((state) => ({
+    projects: state.projects.filter((p) => p.id !== id),
+    lastUpdate: Date.now(),
+  })),
 }));
 
 // WebSocket store
@@ -420,6 +517,7 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => {
   const handleMessage = (event: MessageEvent) => {
     try {
       const data = JSON.parse(event.data);
+      
       if (data.type === 'JOB_UPDATE') {
         const job = data.payload;
         const prevJob = useJobsStore.getState().jobs.find((j) => j.id === job.id);
@@ -428,7 +526,9 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => {
         useJobsStore.getState().upsertJob(job);
         
         // Check for job completion to trigger notifications
-        if (prevJob?.status === 'running' && job.status === 'completed') {
+        // Now also trigger on pending -> completed (for fast jobs)
+        const wasNotComplete = !prevJob || prevJob.status === 'running' || prevJob.status === 'pending';
+        if (wasNotComplete && job.status === 'completed') {
           // Desktop notification
           if ('Notification' in window && Notification.permission === 'granted') {
             new Notification('FORGE LAB', {
@@ -442,7 +542,7 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => {
             title: 'Tâche terminée',
             message: `${getJobTypeLabel(job.type)} complété`,
           });
-        } else if (prevJob?.status === 'running' && job.status === 'failed') {
+        } else if (wasNotComplete && job.status === 'failed') {
           // Desktop notification for failure
           if ('Notification' in window && Notification.permission === 'granted') {
             new Notification('FORGE LAB', {
@@ -455,6 +555,28 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => {
             type: 'error',
             title: 'Erreur',
             message: job.error || `${getJobTypeLabel(job.type)} a échoué`,
+          });
+        }
+      } else if (data.type === 'PROJECT_UPDATE') {
+        // Handle project status updates
+        const project = data.payload;
+        console.log('Project update received:', project.id, '->', project.status);
+        
+        // Update projects store
+        useProjectsStore.getState().updateProject(project);
+        
+        // Show toast for status changes
+        const statusMessages: Record<string, string> = {
+          ingested: 'Ingestion terminée',
+          analyzed: 'Analyse terminée',
+          error: 'Erreur sur le projet',
+        };
+        
+        if (statusMessages[project.status]) {
+          useToastStore.getState().addToast({
+            type: project.status === 'error' ? 'error' : 'info',
+            title: statusMessages[project.status],
+            message: project.name || project.id.slice(0, 8),
           });
         }
       }
@@ -518,3 +640,99 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => {
     }
   };
 });
+
+// Intro configuration store
+export interface IntroConfig {
+  enabled: boolean;
+  duration: number; // seconds (1-5)
+  title: string;
+  badgeText: string; // e.g. "@etostark"
+  backgroundBlur: number; // 0-30
+  titleFont: string;
+  titleSize: number;
+  titleColor: string;
+  badgeColor: string;
+  animation: 'fade' | 'slide' | 'zoom' | 'bounce';
+}
+
+interface IntroState {
+  config: IntroConfig;
+  setConfig: (config: Partial<IntroConfig>) => void;
+  setEnabled: (enabled: boolean) => void;
+  resetConfig: () => void;
+  applyPreset: (presetName: string) => void;
+}
+
+const DEFAULT_INTRO_CONFIG: IntroConfig = {
+  enabled: false,
+  duration: 2,
+  title: '',
+  badgeText: '',
+  backgroundBlur: 15,
+  titleFont: 'Montserrat',
+  titleSize: 72,
+  titleColor: '#FFFFFF',
+  badgeColor: '#00FF88',
+  animation: 'fade',
+};
+
+export const INTRO_PRESETS: Record<string, Partial<IntroConfig>> = {
+  minimal: {
+    backgroundBlur: 20,
+    titleFont: 'Inter',
+    titleSize: 64,
+    titleColor: '#FFFFFF',
+    badgeColor: '#888888',
+    animation: 'fade',
+    duration: 2,
+  },
+  neon: {
+    backgroundBlur: 15,
+    titleFont: 'Space Grotesk',
+    titleSize: 72,
+    titleColor: '#00FFFF',
+    badgeColor: '#FF00FF',
+    animation: 'swoosh',
+    duration: 2.5,
+  },
+  gaming: {
+    backgroundBlur: 10,
+    titleFont: 'Montserrat',
+    titleSize: 80,
+    titleColor: '#00FF88',
+    badgeColor: '#FF0080',
+    animation: 'zoom',
+    duration: 2,
+  },
+  elegant: {
+    backgroundBlur: 25,
+    titleFont: 'Playfair Display',
+    titleSize: 60,
+    titleColor: '#FFD700',
+    badgeColor: '#FFFFFF',
+    animation: 'swoosh',
+    duration: 3,
+  },
+};
+
+export const useIntroStore = create<IntroState>((set) => ({
+  config: DEFAULT_INTRO_CONFIG,
+  
+  setConfig: (updates) => set((state) => ({
+    config: { ...state.config, ...updates },
+  })),
+  
+  setEnabled: (enabled) => set((state) => ({
+    config: { ...state.config, enabled },
+  })),
+  
+  resetConfig: () => set({ config: DEFAULT_INTRO_CONFIG }),
+  
+  applyPreset: (presetName) => set((state) => {
+    const preset = INTRO_PRESETS[presetName];
+    if (preset) {
+      return { config: { ...state.config, ...preset, enabled: true } };
+    }
+    return state;
+  }),
+}));

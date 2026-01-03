@@ -45,11 +45,11 @@ class ViralityScorer:
     ]
     
     def __init__(self):
-        # TikTok monetization requires 1 minute minimum
-        self.min_duration = 60      # Minimum 60s for monetization
-        self.max_duration = 180     # Max 3 minutes
-        self.optimal_duration = 90  # Sweet spot for engagement
-        self.target_durations = [60, 75, 90, 120, 150, 180]  # Sliding windows
+        # Clip duration range: 30s to 3min30
+        self.min_duration = 30       # Minimum 30s
+        self.max_duration = 210      # Max 3min30
+        self.optimal_duration = 60   # Sweet spot for TikTok
+        self.target_durations = [30, 45, 60, 75, 90, 120, 150, 180, 210]  # Sliding windows
     
     def generate_segments(
         self,

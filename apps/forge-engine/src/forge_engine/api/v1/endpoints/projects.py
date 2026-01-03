@@ -3,7 +3,7 @@
 import os
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,6 +30,7 @@ class IngestRequest(BaseModel):
     extract_audio: bool = True
     audio_track: int = 0
     normalize_audio: bool = True
+    auto_analyze: bool = True  # Automatically start analysis after ingest
 
 
 class AnalyzeRequest(BaseModel):
@@ -43,16 +44,69 @@ class AnalyzeRequest(BaseModel):
     custom_dictionary: Optional[list[str]] = None
 
 
+class CaptionStyleRequest(BaseModel):
+    fontFamily: str = "Inter"
+    fontSize: int = 48
+    fontWeight: int = 700
+    color: str = "#FFFFFF"
+    backgroundColor: str = "transparent"
+    outlineColor: str = "#000000"
+    outlineWidth: int = 2
+    position: str = "bottom"  # bottom, center, top
+    positionY: Optional[int] = None  # Custom Y position (0-1920, overrides position)
+    animation: str = "none"  # none, fade, pop, bounce, glow, wave
+    highlightColor: str = "#FFD700"
+    wordsPerLine: int = 6
+
+
+class SourceCropRequest(BaseModel):
+    x: float = 0
+    y: float = 0
+    width: float = 1
+    height: float = 1
+
+
+class LayoutZoneRequest(BaseModel):
+    x: float  # % position on 9:16 canvas
+    y: float
+    width: float
+    height: float
+    sourceCrop: Optional[SourceCropRequest] = None
+
+
+class LayoutConfigRequest(BaseModel):
+    facecam: Optional[LayoutZoneRequest] = None
+    content: Optional[LayoutZoneRequest] = None
+    facecamRatio: float = 0.4
+
+
+class IntroConfigRequest(BaseModel):
+    enabled: bool = False
+    duration: float = 2.0
+    title: str = ""
+    badgeText: str = ""
+    backgroundBlur: int = 15
+    titleFont: str = "Montserrat"
+    titleSize: int = 72
+    titleColor: str = "#FFFFFF"
+    badgeColor: str = "#00FF88"
+    animation: str = "fade"  # fade, slide, zoom, bounce
+
+
 class ExportRequest(BaseModel):
     segment_id: str
     variant: str = "A"
     template_id: Optional[str] = None
     platform: str = "tiktok"
     include_captions: bool = True
-    include_cover: bool = True
-    include_metadata: bool = True
-    include_post: bool = True
+    burn_subtitles: bool = True
+    include_cover: bool = False  # Default: only video file
+    include_metadata: bool = False  # Default: only video file
+    include_post: bool = False  # Default: only video file
     use_nvenc: bool = True
+    caption_style: Optional[CaptionStyleRequest] = None
+    layout_config: Optional[LayoutConfigRequest] = None
+    intro_config: Optional[IntroConfigRequest] = None
 
 
 class GenerateVariantsRequest(BaseModel):
@@ -65,6 +119,13 @@ class ApiResponse(BaseModel):
     data: Optional[dict] = None
     error: Optional[str] = None
     message: Optional[str] = None
+
+
+class ImportUrlRequest(BaseModel):
+    url: str
+    quality: str = "best"  # best, 1080, 720, 480
+    auto_ingest: bool = True
+    auto_analyze: bool = True
 
 
 # Endpoints
@@ -94,6 +155,151 @@ async def create_project(
     return {"success": True, "data": project.to_dict()}
 
 
+@router.post("/import-url")
+async def import_from_url(
+    request: ImportUrlRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db)
+) -> dict:
+    """Import a video from YouTube or Twitch URL."""
+    from forge_engine.services.youtube_dl import YouTubeDLService
+    
+    yt_service = YouTubeDLService.get_instance()
+    
+    # Validate URL
+    if not yt_service.is_valid_url(request.url):
+        raise HTTPException(status_code=400, detail="URL non valide (YouTube ou Twitch requis)")
+    
+    # Get video info first
+    info = await yt_service.get_video_info(request.url)
+    if not info:
+        raise HTTPException(status_code=400, detail="Impossible de récupérer les informations de la vidéo")
+    
+    # Create project with placeholder
+    project = Project(
+        name=info.title,
+        source_path="",  # Will be updated after download
+        source_filename=f"{info.title}.mp4",
+        status="downloading",
+        project_meta={
+            "importUrl": request.url,
+            "platform": info.platform,
+            "channel": info.channel,
+            "uploadDate": info.upload_date,
+            "viewCount": info.view_count,
+        }
+    )
+    
+    db.add(project)
+    await db.commit()
+    await db.refresh(project)
+    
+    # Create download job
+    job_manager = JobManager.get_instance()
+    
+    async def download_handler(job, **kwargs):
+        """Handle video download."""
+        from forge_engine.api.v1.endpoints.websockets import broadcast_project_update
+        
+        project_id = kwargs.get("project_id")
+        url = kwargs.get("url")
+        quality = kwargs.get("quality", "best")
+        auto_ingest = kwargs.get("auto_ingest", True)
+        auto_analyze = kwargs.get("auto_analyze", True)
+        
+        async with async_session_maker() as session:
+            result = await session.execute(select(Project).where(Project.id == project_id))
+            proj = result.scalar_one_or_none()
+            
+            if not proj:
+                raise ValueError(f"Project not found: {project_id}")
+            
+            yt = YouTubeDLService.get_instance()
+            
+            def progress_cb(pct, msg):
+                job_manager.update_progress(job, pct * 0.9, "download", msg)
+            
+            # Download to project directory
+            project_dir = settings.LIBRARY_PATH / "projects" / project_id
+            project_dir.mkdir(parents=True, exist_ok=True)
+            source_dir = project_dir / "source"
+            source_dir.mkdir(parents=True, exist_ok=True)
+            
+            downloaded_path = await yt.download_video(url, source_dir, quality, progress_cb)
+            
+            if not downloaded_path:
+                proj.status = "error"
+                proj.error_message = "Échec du téléchargement"
+                await session.commit()
+                raise ValueError("Download failed")
+            
+            # Update project
+            proj.source_path = str(downloaded_path)
+            proj.source_filename = downloaded_path.name
+            proj.status = "created"
+            await session.commit()
+            
+            broadcast_project_update({
+                "id": proj.id,
+                "status": "created",
+                "name": proj.name,
+                "sourcePath": str(downloaded_path),
+            })
+            
+            job_manager.update_progress(job, 100, "complete", "Téléchargement terminé")
+            
+            # Auto-chain to ingest if enabled
+            if auto_ingest:
+                ingest_service = IngestService()
+                await job_manager.create_job(
+                    job_type=JobType.INGEST,
+                    handler=ingest_service.run_ingest,
+                    project_id=project_id,
+                    auto_analyze=auto_analyze,
+                )
+            
+            return {"downloaded_path": str(downloaded_path)}
+    
+    # Create job
+    from forge_engine.core.database import async_session_maker
+    
+    job = await job_manager.create_job(
+        job_type=JobType.INGEST,  # Reuse ingest type for now
+        handler=download_handler,
+        project_id=project.id,
+        url=request.url,
+        quality=request.quality,
+        auto_ingest=request.auto_ingest,
+        auto_analyze=request.auto_analyze,
+    )
+    
+    return {
+        "success": True,
+        "data": {
+            "project": project.to_dict(),
+            "jobId": job.id,
+            "videoInfo": info.to_dict(),
+        }
+    }
+
+
+@router.post("/url-info")
+async def get_url_info(request: ImportUrlRequest) -> dict:
+    """Get video info from URL without downloading."""
+    from forge_engine.services.youtube_dl import YouTubeDLService
+    
+    yt_service = YouTubeDLService.get_instance()
+    
+    if not yt_service.is_valid_url(request.url):
+        raise HTTPException(status_code=400, detail="URL non valide")
+    
+    info = await yt_service.get_video_info(request.url)
+    if not info:
+        raise HTTPException(status_code=400, detail="Impossible de récupérer les informations")
+    
+    return {"success": True, "data": info.to_dict()}
+
+
 @router.get("")
 async def list_projects(
     page: int = Query(1, ge=1),
@@ -102,7 +308,7 @@ async def list_projects(
     status: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ) -> dict:
-    """List all projects."""
+    """List all projects with segment counts and average scores."""
     query = select(Project)
     
     if search:
@@ -127,10 +333,29 @@ async def list_projects(
     result = await db.execute(query)
     projects = result.scalars().all()
     
+    # Enrich with segment stats
+    enriched_items = []
+    for p in projects:
+        item = p.to_dict()
+        
+        # Get segment count and average score
+        stats_query = select(
+            func.count(Segment.id).label("count"),
+            func.avg(Segment.score_total).label("avg_score")
+        ).where(Segment.project_id == p.id)
+        
+        stats_result = await db.execute(stats_query)
+        stats = stats_result.first()
+        
+        item["segmentsCount"] = stats.count if stats else 0
+        item["averageScore"] = round(stats.avg_score, 1) if stats and stats.avg_score else 0
+        
+        enriched_items.append(item)
+    
     return {
         "success": True,
         "data": {
-            "items": [p.to_dict() for p in projects],
+            "items": enriched_items,
             "total": total,
             "page": page,
             "pageSize": page_size,
@@ -179,6 +404,7 @@ async def ingest_project(
         extract_audio=request.extract_audio,
         audio_track=request.audio_track,
         normalize_audio=request.normalize_audio,
+        auto_analyze=request.auto_analyze,  # Pass to service for chaining
     )
     
     # Update project status
@@ -419,10 +645,14 @@ async def export_segment(
         template_id=request.template_id,
         platform=request.platform,
         include_captions=request.include_captions,
+        burn_subtitles=request.burn_subtitles,
         include_cover=request.include_cover,
         include_metadata=request.include_metadata,
         include_post=request.include_post,
         use_nvenc=request.use_nvenc,
+        caption_style=request.caption_style.model_dump() if request.caption_style else None,
+        layout_config=request.layout_config.model_dump() if request.layout_config else None,
+        intro_config=request.intro_config.model_dump() if request.intro_config else None,
     )
     
     return {"success": True, "data": {"jobId": job.id}}

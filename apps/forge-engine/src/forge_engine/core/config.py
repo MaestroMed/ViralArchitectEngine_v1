@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     # App info
     VERSION: str = "1.0.0"
     APP_NAME: str = "FORGE Engine"
-    DEBUG: bool = False
+    DEBUG: bool = True  # Dev mode
     
     # Server
     HOST: str = "127.0.0.1"
@@ -30,9 +30,9 @@ class Settings(BaseSettings):
     FFPROBE_PATH: str = "ffprobe"
     FORCE_CPU: bool = False
     
-    # Whisper - "medium" is 3x faster than large-v3, good enough for viral clips
-    WHISPER_MODEL: str = "medium"
-    WHISPER_DEVICE: str = "cuda"  # cuda, cpu, auto
+    # Whisper - large-v3 for best quality (slower but ~10GB VRAM)
+    WHISPER_MODEL: str = "large-v3"
+    WHISPER_DEVICE: str = "cuda"  # GPU activé - CUDA 12 installé
     WHISPER_COMPUTE_TYPE: str = "float16"  # float16, int8, float32
     
     # Processing

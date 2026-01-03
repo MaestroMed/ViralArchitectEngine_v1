@@ -30,7 +30,8 @@ class IngestService:
         create_proxy: bool = True,
         extract_audio: bool = True,
         audio_track: int = 0,
-        normalize_audio: bool = True
+        normalize_audio: bool = True,
+        auto_analyze: bool = True
     ) -> Dict[str, Any]:
         """Run the ingestion pipeline."""
         job_manager = JobManager.get_instance()
@@ -87,6 +88,27 @@ class IngestService:
             
             job_manager.update_progress(job, 10, "probe", f"Video: {video_info['width']}x{video_info['height']}, {video_info['duration']:.1f}s")
             
+            # Extract thumbnail
+            job_manager.update_progress(job, 12, "thumbnail", "Extracting thumbnail...")
+            thumbnail_path = project_dir / "thumbnail.jpg"
+            
+            try:
+                success = await self.ffmpeg.extract_thumbnail(
+                    source_path,
+                    str(thumbnail_path),
+                    time_percent=0.1,  # 10% into the video
+                    width=640,
+                    height=360
+                )
+                if success:
+                    project.thumbnail_path = str(thumbnail_path)
+                    await db.commit()
+                    logger.info("Thumbnail extracted: %s", thumbnail_path)
+                else:
+                    logger.warning("Thumbnail extraction failed, continuing without thumbnail")
+            except Exception as e:
+                logger.warning("Thumbnail extraction error: %s", e)
+            
             # Create proxy
             if create_proxy:
                 job_manager.update_progress(job, 15, "proxy", "Creating preview proxy...")
@@ -140,13 +162,59 @@ class IngestService:
             project.status = "ingested"
             await db.commit()
             
+            # Broadcast project update via WebSocket
+            from forge_engine.api.v1.endpoints.websockets import broadcast_project_update
+            broadcast_project_update({
+                "id": project.id,
+                "status": project.status,
+                "name": project.name,
+                "width": project.width,
+                "height": project.height,
+                "duration": project.duration,
+                "updatedAt": project.updated_at.isoformat() if project.updated_at else None,
+            })
+            
             job_manager.update_progress(job, 100, "complete", "Ingestion complete")
+            
+            # Auto-chain to analysis if enabled
+            if auto_analyze:
+                logger.info("Auto-chaining to analysis for project %s", project_id)
+                from forge_engine.services.analysis import AnalysisService
+                from forge_engine.core.jobs import JobType
+                
+                analysis_service = AnalysisService()
+                
+                # Update project status
+                project.status = "analyzing"
+                await db.commit()
+                
+                broadcast_project_update({
+                    "id": project.id,
+                    "status": "analyzing",
+                    "name": project.name,
+                })
+                
+                # Create analysis job
+                await job_manager.create_job(
+                    job_type=JobType.ANALYZE,
+                    handler=analysis_service.run_analysis,
+                    project_id=project_id,
+                    transcribe=True,
+                    whisper_model="large-v3",
+                    language=None,
+                    detect_scenes=True,
+                    analyze_audio=True,
+                    detect_faces=True,
+                    score_segments=True,
+                )
+                logger.info("Analysis job created for project %s", project_id)
             
             return {
                 "project_id": project_id,
                 "proxy_path": project.proxy_path,
                 "audio_path": project.audio_path,
                 "video_info": video_info,
+                "auto_analyze": auto_analyze,
             }
 
 

@@ -6,6 +6,8 @@ import HomePage from '@/pages/HomePage';
 import ProjectPage from '@/pages/ProjectPage';
 import SettingsPage from '@/pages/SettingsPage';
 import ClipEditorPage from '@/pages/ClipEditorPage';
+import SurveillancePage from '@/pages/SurveillancePage';
+import AdminPage from '@/pages/AdminPage';
 import { useEngineStatus } from '@/hooks/useEngineStatus';
 import { useWebSocketStore } from '@/store';
 import { useEffect } from 'react';
@@ -33,6 +35,8 @@ export default function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/project/:id/*" element={<ProjectPage />} />
             <Route path="/editor/:projectId" element={<ClipEditorPage />} />
+            <Route path="/surveillance" element={<SurveillancePage />} />
+            <Route path="/admin" element={<AdminPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </AnimatePresence>

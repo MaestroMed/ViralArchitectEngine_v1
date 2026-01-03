@@ -211,7 +211,8 @@ class JobManager:
                 job._kwargs = args
 
             if job._handler:
-                result = await job._handler(job=job, **job._kwargs)
+                # Pass project_id explicitly since it's stored separately from kwargs
+                result = await job._handler(job=job, project_id=job.project_id, **job._kwargs)
                 
                 # Update success
                 async with async_session_maker() as db:
@@ -358,6 +359,16 @@ class JobManager:
         job.stage = stage
         job.message = message
         
+        # Notify L'ŒIL monitor for health tracking
+        try:
+            from forge_engine.services.monitor import MonitorService
+            monitor = MonitorService.get_instance()
+            job_type = job.type.value if isinstance(job.type, JobType) else job.type
+            status = job.status.value if isinstance(job.status, JobStatus) else str(job.status)
+            monitor.update_job_health(job.id, job_type, status, progress, job.started_at)
+        except Exception:
+            pass  # Don't fail job update if monitor fails
+        
         # Notify listeners (including WebSocket)
         self._notify_listeners(job)
         
@@ -402,6 +413,41 @@ class JobManager:
             await db.commit()
         return True
 
+    async def get_running_jobs_count(self) -> int:
+        """Get count of currently running jobs."""
+        async with async_session_maker() as db:
+            from sqlalchemy import func
+            result = await db.execute(
+                select(func.count(JobRecord.id))
+                .where(JobRecord.status == JobStatus.RUNNING.value)
+            )
+            return result.scalar() or 0
+    
+    async def get_pending_jobs_count(self) -> int:
+        """Get count of pending jobs."""
+        async with async_session_maker() as db:
+            from sqlalchemy import func
+            result = await db.execute(
+                select(func.count(JobRecord.id))
+                .where(JobRecord.status == JobStatus.PENDING.value)
+            )
+            return result.scalar() or 0
+    
+    async def get_jobs_stats(self) -> dict:
+        """Get job statistics."""
+        async with async_session_maker() as db:
+            from sqlalchemy import func
+            result = await db.execute(
+                select(
+                    JobRecord.status,
+                    func.count(JobRecord.id).label("count")
+                ).group_by(JobRecord.status)
+            )
+            stats = {"pending": 0, "running": 0, "completed": 0, "failed": 0, "cancelled": 0}
+            for row in result.all():
+                stats[row.status] = row.count
+            return stats
+    
     def register_global_listener(self, callback: Callable[[Job], None]) -> None:
         """Register a listener for ALL job updates."""
         if "global" not in self._listeners:

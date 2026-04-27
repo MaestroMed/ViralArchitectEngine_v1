@@ -20,7 +20,7 @@ aiofiles>=23.2.0
 
 # Minimal ML (pure Python, no CUDA needed)
 numpy>=1.26.0
-scikit-learn>=1.3.0
+scikit-learn>=1.8.0
 
 # Testing
 pytest>=7.4.0

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Empty for now: we only need local-network access, which is granted
+       via Info.plist NSAppTransportSecurity + NSLocalNetworkUsageDescription
+       at first use. No CloudKit, no push, no app groups. -->
+</dict>
+</plist>

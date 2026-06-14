@@ -190,8 +190,13 @@ async def clip_bundle(clip_id: str) -> StreamingResponse:
 
     # ZIP is built in-memory — clip bundles are <50 MB in practice, no need
     # for the complexity of a generator that opens the file twice.
+    # Use ZIP_STORED on purpose: the .mp4 is already H.264-compressed, so
+    # deflate adds CPU + a tiny size win. STORED also keeps the iOS reader
+    # trivial (no need to depend on Compression.framework's deflate, which
+    # is awkward for raw DEFLATE streams). See apps/ios/ForgeLab/Services/
+    # ZipReader.swift for the matching consumer.
     buf = io.BytesIO()
-    with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED, compresslevel=1) as zf:
+    with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_STORED) as zf:
         zf.write(video, arcname="clip.mp4")
         if cover and cover.exists():
             zf.write(cover, arcname=f"cover{cover.suffix.lower() or '.jpg'}")

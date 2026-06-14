@@ -1,0 +1,242 @@
+import AVKit
+import SwiftUI
+
+/// Preview + the morning workflow's terminal actions: Download to Photos
+/// (with caption copied to clipboard) and Open TikTok. Single Approve / Reject
+/// pair as well, because reviewing the clip and deciding usually happens in
+/// the same swipe.
+struct ClipDetailView: View {
+    let api: ForgeAPI
+    let clip: Clip
+    @Environment(\.dismiss) var dismiss
+
+    @StateObject private var model: DetailModel
+
+    init(api: ForgeAPI, clip: Clip) {
+        self.api = api
+        self.clip = clip
+        _model = StateObject(wrappedValue: DetailModel(api: api, clip: clip))
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                playerCard
+                metadata
+                actions
+                if let outcome = model.lastOutcome {
+                    OutcomeBanner(outcome: outcome)
+                        .transition(.opacity)
+                }
+            }
+            .padding()
+        }
+        .background(Theme.background)
+        .navigationTitle(clip.title ?? "Clip")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var playerCard: some View {
+        VideoPlayer(player: model.player)
+            .aspectRatio(9 / 16, contentMode: .fit)
+            .frame(maxWidth: .infinity)
+            .background(Color.black)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .onAppear { model.player.play() }
+            .onDisappear { model.player.pause() }
+    }
+
+    private var metadata: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                ScoreBadge(score: clip.viralScore)
+                Spacer()
+                Label(formatDuration(clip.duration), systemImage: "clock")
+                    .font(.caption)
+                    .foregroundStyle(Theme.textSecondary)
+            }
+            if let desc = clip.description, !desc.isEmpty {
+                Text(desc)
+                    .font(.body)
+                    .foregroundStyle(Theme.textPrimary)
+            }
+            if !clip.hashtags.isEmpty {
+                HashtagFlow(tags: clip.hashtags.map { $0.hasPrefix("#") ? $0 : "#\($0)" })
+            }
+        }
+        .padding()
+        .background(Theme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    private var actions: some View {
+        VStack(spacing: 12) {
+            Button {
+                Task { await model.downloadAndOpen() }
+            } label: {
+                if model.busy { ProgressView().tint(.white) }
+                else {
+                    Label("Télécharger + ouvrir TikTok", systemImage: "arrow.down.to.line")
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(Theme.accent)
+            .foregroundStyle(.white)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .disabled(model.busy)
+
+            HStack(spacing: 12) {
+                Button {
+                    Task { await model.reject() }
+                } label: {
+                    Label("Rejeter", systemImage: "xmark")
+                        .frame(maxWidth: .infinity)
+                }
+                .padding()
+                .background(Theme.surface)
+                .foregroundStyle(Theme.danger)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .disabled(model.busy)
+
+                Button {
+                    Task { await model.approve() }
+                } label: {
+                    Label("Approuver", systemImage: "checkmark")
+                        .frame(maxWidth: .infinity)
+                }
+                .padding()
+                .background(Theme.surface)
+                .foregroundStyle(Theme.success)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .disabled(model.busy)
+            }
+        }
+    }
+
+    private func formatDuration(_ d: Double) -> String {
+        let total = Int(d.rounded())
+        return String(format: "%d:%02d", total / 60, total % 60)
+    }
+}
+
+@MainActor
+final class DetailModel: ObservableObject {
+    let api: ForgeAPI
+    let clip: Clip
+    let player: AVPlayer
+    private let downloader: BundleDownloader
+
+    @Published var busy = false
+    @Published var lastOutcome: BundleDownloader.Outcome?
+
+    init(api: ForgeAPI, clip: Clip) {
+        self.api = api
+        self.clip = clip
+        // We pass the API key via a custom URLProtocol so AVPlayer can fetch
+        // the video without exposing headers in the URL. See note below.
+        let asset = AVURLAsset(
+            url: api.videoURL(clipId: clip.id),
+            options: ["AVURLAssetHTTPHeaderFieldsKey": ["X-API-Key": api.apiKey]],
+        )
+        let item = AVPlayerItem(asset: asset)
+        self.player = AVPlayer(playerItem: item)
+        self.downloader = BundleDownloader(api: api)
+    }
+
+    func downloadAndOpen() async {
+        busy = true; defer { busy = false }
+        do {
+            let outcome = try await downloader.saveToPhotosAndShare(clip: clip)
+            lastOutcome = outcome
+            _ = downloader.openTikTokOrShare(from: nil)
+            if outcome.savedToPhotos {
+                try? await api.approve(clipId: clip.id)
+            }
+        } catch {
+            lastOutcome = .init(savedToPhotos: false, captionCopied: false,
+                                photosError: error.localizedDescription)
+        }
+    }
+
+    func approve() async {
+        busy = true; defer { busy = false }
+        try? await api.approve(clipId: clip.id)
+    }
+
+    func reject() async {
+        busy = true; defer { busy = false }
+        try? await api.reject(clipId: clip.id)
+    }
+}
+
+private struct HashtagFlow: View {
+    let tags: [String]
+    var body: some View {
+        // SwiftUI doesn't ship a true flow layout pre-iOS 17. We get away with
+        // it here because hashtags are short — wrap with HStacks of fixed-ish
+        // width strings via TextLayoutGuide.
+        FlexibleHStack(tags: tags) { tag in
+            Text(tag)
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Theme.accentSoft)
+                .foregroundStyle(Theme.accent)
+                .clipShape(Capsule())
+        }
+    }
+}
+
+private struct FlexibleHStack<Content: View>: View {
+    let tags: [String]
+    @ViewBuilder let content: (String) -> Content
+    var body: some View {
+        // Naive wrap: iOS 17+ has `Layout` we could use; iOS 17 is our minimum
+        // so `Grid` works too. Keep simple: a vertical stack of HStacks bucketed
+        // by approximate width — good enough for ≤10 tags.
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(rows(), id: \.self) { row in
+                HStack(spacing: 6) { ForEach(row, id: \.self) { content($0) } }
+            }
+        }
+    }
+    private func rows() -> [[String]] {
+        var out: [[String]] = [[]]
+        var currentWidth: CGFloat = 0
+        let maxWidth: CGFloat = 320
+        for tag in tags {
+            // Rough char-based width estimate, sufficient for hashtags.
+            let w = CGFloat(tag.count) * 8 + 24
+            if currentWidth + w > maxWidth {
+                out.append([tag]); currentWidth = w
+            } else {
+                out[out.count - 1].append(tag); currentWidth += w
+            }
+        }
+        return out
+    }
+}
+
+private struct OutcomeBanner: View {
+    let outcome: BundleDownloader.Outcome
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if outcome.savedToPhotos {
+                Label("Clip enregistré dans Photos", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(Theme.success)
+            }
+            if outcome.captionCopied {
+                Label("Légende copiée — colle dans TikTok", systemImage: "doc.on.clipboard")
+                    .foregroundStyle(Theme.textPrimary)
+            }
+            if let err = outcome.photosError {
+                Label(err, systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(Theme.danger)
+            }
+        }
+        .padding()
+        .background(Theme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+}

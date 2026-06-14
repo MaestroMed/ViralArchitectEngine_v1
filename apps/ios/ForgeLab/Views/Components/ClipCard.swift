@@ -1,0 +1,125 @@
+import SwiftUI
+
+/// A single clip in the queue feed: cover, title, score badge, duration.
+/// Selection state is rendered as a coloured ring + check icon overlay.
+struct ClipCard: View {
+    let clip: Clip
+    let api: ForgeAPI
+    let selected: Bool
+    let selectMode: Bool
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            cover
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    if let title = clip.title, !title.isEmpty {
+                        Text(title)
+                            .font(.headline)
+                            .foregroundStyle(Theme.textPrimary)
+                            .lineLimit(2)
+                    } else {
+                        Text("Clip \(clip.id.prefix(6))")
+                            .font(.headline)
+                            .foregroundStyle(Theme.textSecondary)
+                    }
+                }
+                if let desc = clip.description, !desc.isEmpty {
+                    Text(desc)
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.textSecondary)
+                        .lineLimit(2)
+                }
+                HStack(spacing: 8) {
+                    ScoreBadge(score: clip.viralScore)
+                    Label(formatDuration(clip.duration), systemImage: "clock")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.textSecondary)
+                    if clip.status != "pending_review" {
+                        Text(statusLabel(clip.status))
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(statusColor(clip.status))
+                            .clipShape(Capsule())
+                    }
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(Theme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(selected ? Theme.accent : .clear, lineWidth: 2),
+        )
+        .overlay(alignment: .topTrailing) {
+            if selectMode {
+                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(selected ? Theme.accent : Theme.textSecondary)
+                    .padding(8)
+            }
+        }
+    }
+
+    private var cover: some View {
+        AsyncImage(url: api.coverURL(clipId: clip.id)) { phase in
+            switch phase {
+            case .empty:
+                Rectangle()
+                    .fill(Theme.background)
+                    .overlay(ProgressView())
+            case .success(let img):
+                img.resizable().aspectRatio(contentMode: .fill)
+            case .failure:
+                Rectangle()
+                    .fill(Theme.background)
+                    .overlay(Image(systemName: "photo").foregroundStyle(Theme.textSecondary))
+            @unknown default:
+                Rectangle().fill(Theme.background)
+            }
+        }
+        .frame(width: 80, height: 142)
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
+    private func formatDuration(_ d: Double) -> String {
+        let total = Int(d.rounded())
+        return String(format: "%d:%02d", total / 60, total % 60)
+    }
+
+    private func statusLabel(_ s: String) -> String {
+        switch s {
+        case "approved": return "Approuvé"
+        case "rejected": return "Rejeté"
+        case "scheduled": return "Programmé"
+        case "published": return "Posté"
+        case "failed": return "Échec"
+        default: return s
+        }
+    }
+
+    private func statusColor(_ s: String) -> Color {
+        switch s {
+        case "approved", "scheduled", "published": return Theme.success
+        case "rejected", "failed": return Theme.danger
+        default: return Theme.textSecondary
+        }
+    }
+}
+
+struct ScoreBadge: View {
+    let score: Double
+    var body: some View {
+        Text("\(Int(score.rounded()))")
+            .font(.caption.weight(.bold).monospacedDigit())
+            .foregroundStyle(.white)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(Theme.scoreColor(score))
+            .clipShape(Capsule())
+    }
+}

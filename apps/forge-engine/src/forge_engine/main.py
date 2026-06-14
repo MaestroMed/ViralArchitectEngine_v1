@@ -5,7 +5,7 @@ import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -256,42 +256,34 @@ def create_app() -> FastAPI:
         logger.info("Library mount disabled (auth required); use /clips and /media endpoints")
 
     # Serve clip queue videos (for mobile review app). Gated by the same API
-    # key check as /v1 so a phone on the LAN cannot just stream every clip.
+    # key check as /v1. Uses a real Range-aware streamer so AVPlayer on iOS
+    # can scrub without re-downloading the whole file every time.
     @app.get("/clips/{clip_id}/video")
     async def serve_clip_video(
         clip_id: str,
+        request: Request,
         _auth=Depends(require_api_key),
     ):
-        """Serve a queued clip's video file for mobile streaming."""
+        """Serve a queued clip's video file with HTTP Range support."""
         from pathlib import Path
 
         from fastapi import HTTPException
         from sqlalchemy import select
 
         from forge_engine.core.database import async_session_maker
+        from forge_engine.core.range_response import serve_file_with_range
         from forge_engine.models.review import ClipQueue
 
         async with async_session_maker() as db:
             result = await db.execute(
-                select(ClipQueue).where(ClipQueue.id == clip_id)
+                select(ClipQueue.video_path).where(ClipQueue.id == clip_id)
             )
-            clip = result.scalar_one_or_none()
+            row = result.first()
 
-            if not clip:
-                raise HTTPException(status_code=404, detail="Clip not found")
-
-            video_path = Path(clip.video_path)
-            if not video_path.exists():
-                raise HTTPException(status_code=404, detail="Video file not found")
-
-            return FileResponse(
-                video_path,
-                media_type="video/mp4",
-                headers={
-                    "Accept-Ranges": "bytes",
-                    "Cache-Control": "public, max-age=3600",
-                }
-            )
+        if row is None:
+            raise HTTPException(status_code=404, detail="Clip not found")
+        video_path = Path(row[0])
+        return serve_file_with_range(request, video_path, media_type="video/mp4")
 
     # Serve project files
     ALLOWED_MEDIA_TYPES = {"proxy", "audio"}

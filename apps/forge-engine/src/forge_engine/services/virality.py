@@ -715,7 +715,7 @@ class ViralityScorer:
             if re.search(pattern, transcript, re.IGNORECASE):
                 tags.add(tag)
 
-        return {
+        result = {
             "total": min(total, 100),
             "hook_strength": hook_score,
             "payoff": payoff_score,
@@ -726,6 +726,12 @@ class ViralityScorer:
             "reasons": reasons[:5],  # Limit to top 5 reasons
             "tags": list(tags),
         }
+
+        # Apply v2 quality boosters (recalibrated duration, filler penalty,
+        # lead-silence detection, combo bonus). Toggle with FORGE_VIRALITY_QUALITY_V2.
+        from forge_engine.services.virality_quality import apply_quality_boosters
+
+        return apply_quality_boosters(result, segment)
 
     def _generate_topic_label(self, segment: dict[str, Any]) -> str:
         """Generate a short topic label for the segment."""

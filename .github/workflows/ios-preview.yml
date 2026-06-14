@@ -1,0 +1,104 @@
+name: iOS Preview Screenshots
+
+# Builds the SwiftUI app for the iOS Simulator (no code signing needed for the
+# simulator) and captures real screenshots of the three screens, uploaded as
+# artifacts. This is how we "see the app in the simulator" without anyone
+# touching Xcode — GitHub's macOS runner does it.
+#
+# Trigger manually (Actions tab → "iOS Preview Screenshots" → Run workflow),
+# or it runs automatically when the iOS app changes on main.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "apps/ios/**"
+      - ".github/workflows/ios-preview.yml"
+
+jobs:
+  screenshots:
+    name: Build + screenshot (Simulator)
+    runs-on: macos-14
+    timeout-minutes: 30
+    env:
+      SIMULATOR: "iPhone 15 Pro"
+      BUNDLE_ID: "com.maestromed.forgelab"
+      APP_DIR: apps/ios
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 15.4
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ${{ env.APP_DIR }}
+        run: xcodegen
+
+      - name: Build for Simulator (unsigned)
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project ForgeLab.xcodeproj \
+            -scheme ForgeLab \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination "platform=iOS Simulator,name=$SIMULATOR" \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            build | xcbeautify || xcodebuild \
+            -project ForgeLab.xcodeproj \
+            -scheme ForgeLab \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination "platform=iOS Simulator,name=$SIMULATOR" \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Locate built .app
+        id: locate
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          APP_PATH="$(find build/Build/Products -name 'ForgeLab.app' -type d | head -1)"
+          if [ -z "$APP_PATH" ]; then echo "ForgeLab.app not found"; exit 1; fi
+          echo "app_path=$APP_DIR/$APP_PATH" >> "$GITHUB_OUTPUT"
+          echo "Built: $APP_PATH"
+
+      - name: Boot simulator
+        run: |
+          xcrun simctl boot "$SIMULATOR" || true
+          xcrun simctl bootstatus "$SIMULATOR" -b
+
+      - name: Install app
+        run: xcrun simctl install booted "${{ steps.locate.outputs.app_path }}"
+
+      - name: Capture screenshots
+        run: |
+          mkdir -p screenshots
+          shoot() {  # $1 = name, $2... = launch args
+            local name="$1"; shift
+            xcrun simctl terminate booted "$BUNDLE_ID" 2>/dev/null || true
+            xcrun simctl launch booted "$BUNDLE_ID" "$@"
+            sleep 6
+            xcrun simctl io booted screenshot "screenshots/$name.png"
+            echo "captured $name.png"
+          }
+          # 1. Onboarding / Settings (fresh launch, no demo flag).
+          shoot "1-settings"
+          # 2. Queue populated with DemoData.
+          shoot "2-queue" --demo
+          # 3. Clip detail.
+          shoot "3-detail" --demo --demo-screen detail
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator-screenshots
+          path: screenshots/*.png
+          retention-days: 30

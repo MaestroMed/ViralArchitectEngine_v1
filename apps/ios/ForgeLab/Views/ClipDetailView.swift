@@ -8,14 +8,16 @@ import SwiftUI
 struct ClipDetailView: View {
     let api: ForgeAPI
     let clip: Clip
+    let demo: Bool
     @Environment(\.dismiss) var dismiss
 
     @StateObject private var model: DetailModel
 
-    init(api: ForgeAPI, clip: Clip) {
+    init(api: ForgeAPI, clip: Clip, demo: Bool = false) {
         self.api = api
         self.clip = clip
-        _model = StateObject(wrappedValue: DetailModel(api: api, clip: clip))
+        self.demo = demo
+        _model = StateObject(wrappedValue: DetailModel(api: api, clip: clip, demo: demo))
     }
 
     var body: some View {
@@ -36,14 +38,28 @@ struct ClipDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
+    @ViewBuilder
     private var playerCard: some View {
-        VideoPlayer(player: model.player)
-            .aspectRatio(9 / 16, contentMode: .fit)
-            .frame(maxWidth: .infinity)
-            .background(Color.black)
-            .clipShape(RoundedRectangle(cornerRadius: 20))
-            .onAppear { model.player.play() }
-            .onDisappear { model.player.pause() }
+        if demo || model.player == nil {
+            // Demo / no-player: static 9:16 placeholder so screenshots and
+            // offline states still look intentional.
+            RoundedRectangle(cornerRadius: 20)
+                .fill(LinearGradient(
+                    colors: [Color(red: 0.09, green: 0.20, blue: 0.31), Color.black],
+                    startPoint: .top, endPoint: .bottom,
+                ))
+                .aspectRatio(9 / 16, contentMode: .fit)
+                .frame(maxWidth: .infinity)
+                .overlay(Image(systemName: "play.circle.fill").font(.system(size: 56)).foregroundStyle(.white.opacity(0.9)))
+        } else if let player = model.player {
+            VideoPlayer(player: player)
+                .aspectRatio(9 / 16, contentMode: .fit)
+                .frame(maxWidth: .infinity)
+                .background(Color.black)
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+                .onAppear { player.play() }
+                .onDisappear { player.pause() }
+        }
     }
 
     private var metadata: some View {
@@ -124,23 +140,27 @@ struct ClipDetailView: View {
 final class DetailModel: ObservableObject {
     let api: ForgeAPI
     let clip: Clip
-    let player: AVPlayer
+    /// nil in demo mode (no network player); the view renders a placeholder.
+    let player: AVPlayer?
     private let downloader: BundleDownloader
 
     @Published var busy = false
     @Published var lastOutcome: BundleDownloader.Outcome?
 
-    init(api: ForgeAPI, clip: Clip) {
+    init(api: ForgeAPI, clip: Clip, demo: Bool = false) {
         self.api = api
         self.clip = clip
-        // We pass the API key via a custom URLProtocol so AVPlayer can fetch
-        // the video without exposing headers in the URL. See note below.
-        let asset = AVURLAsset(
-            url: api.videoURL(clipId: clip.id),
-            options: ["AVURLAssetHTTPHeaderFieldsKey": ["X-API-Key": api.apiKey]],
-        )
-        let item = AVPlayerItem(asset: asset)
-        self.player = AVPlayer(playerItem: item)
+        if demo {
+            self.player = nil
+        } else {
+            // Pass the API key as an HTTP header so AVPlayer authenticates
+            // without leaking credentials into the URL.
+            let asset = AVURLAsset(
+                url: api.videoURL(clipId: clip.id),
+                options: ["AVURLAssetHTTPHeaderFieldsKey": ["X-API-Key": api.apiKey]],
+            )
+            self.player = AVPlayer(playerItem: AVPlayerItem(asset: asset))
+        }
         self.downloader = BundleDownloader(api: api)
     }
 

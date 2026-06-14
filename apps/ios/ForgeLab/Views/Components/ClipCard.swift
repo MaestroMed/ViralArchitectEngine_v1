@@ -7,6 +7,9 @@ struct ClipCard: View {
     let api: ForgeAPI
     let selected: Bool
     let selectMode: Bool
+    /// Demo mode renders a gradient cover instead of hitting the network, so
+    /// CI screenshots look right with no engine. Default false in production.
+    var demo: Bool = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -65,7 +68,32 @@ struct ClipCard: View {
         }
     }
 
+    @ViewBuilder
     private var cover: some View {
+        if demo {
+            demoCover
+        } else {
+            networkCover
+        }
+    }
+
+    /// Deterministic gradient keyed off the clip id — gives each demo card a
+    /// distinct cover without any assets.
+    private var demoCover: some View {
+        let palettes: [[Color]] = [
+            [Color(red: 0.11, green: 0.23, blue: 0.42), Color(red: 0.04, green: 0.09, blue: 0.19)],
+            [Color(red: 0.14, green: 0.27, blue: 0.20), Color(red: 0.05, green: 0.10, blue: 0.08)],
+            [Color(red: 0.36, green: 0.13, blue: 0.19), Color(red: 0.10, green: 0.04, blue: 0.06)],
+            [Color(red: 0.30, green: 0.22, blue: 0.06), Color(red: 0.10, green: 0.07, blue: 0.02)],
+        ]
+        let idx = abs(clip.id.hashValue) % palettes.count
+        return LinearGradient(colors: palettes[idx], startPoint: .topLeading, endPoint: .bottomTrailing)
+            .overlay(Image(systemName: "play.fill").foregroundStyle(.white.opacity(0.85)).font(.title2))
+            .frame(width: 80, height: 142)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
+    private var networkCover: some View {
         AsyncImage(url: api.coverURL(clipId: clip.id)) { phase in
             switch phase {
             case .empty:

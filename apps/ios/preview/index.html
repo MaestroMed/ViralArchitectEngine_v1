@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FORGE LAB — aperçu iOS</title>
+<!--
+  Mockup FIDÈLE (pas un screenshot du vrai build Swift) des écrans de
+  apps/ios/ForgeLab. Couleurs reprises 1:1 de Theme.swift, layout et copie
+  identiques aux Views SwiftUI. Sert d'aperçu instantané ; les vrais
+  screenshots du simulateur sont produits par .github/workflows/ios-preview.yml.
+-->
+<style>
+  :root {
+    --bg: #0F1214;        /* Theme.background  rgb(15,18,20)  */
+    --surface: #1A1C21;   /* Theme.surface     rgb(26,28,33)  */
+    --accent: #F26633;    /* Theme.accent      rgb(242,102,51) */
+    --accent-soft: rgba(242,102,51,0.18);
+    --text: #FFFFFF;
+    --text2: rgba(255,255,255,0.55);
+    --success: #4DCC73;   /* rgb(77,204,115) */
+    --danger: #F24D4D;    /* rgb(242,77,77)  */
+    --score-mid: #F2BF4D; /* rgb(242,191,77) */
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+  body {
+    background: #050608;
+    font-family: -apple-system, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+    color: var(--text);
+    padding: 40px 20px 80px;
+  }
+  h1.page-title { text-align:center; font-weight:700; font-size:22px; margin-bottom:6px; letter-spacing:.5px; }
+  p.sub { text-align:center; color:var(--text2); font-size:13px; margin-bottom:36px; }
+  .row { display:flex; gap:32px; justify-content:center; flex-wrap:wrap; align-items:flex-start; }
+  .frame {
+    width: 320px; height: 693px; background: var(--bg);
+    border-radius: 44px; padding: 12px; position: relative;
+    box-shadow: 0 0 0 11px #1c1c1e, 0 0 0 13px #000, 0 24px 60px rgba(0,0,0,.6);
+    overflow: hidden;
+  }
+  .notch { position:absolute; top:12px; left:50%; transform:translateX(-50%); width:120px; height:30px; background:#000; border-radius:0 0 18px 18px; z-index:10; }
+  .screen { width:100%; height:100%; border-radius:33px; overflow:hidden; display:flex; flex-direction:column; }
+  .statusbar { display:flex; justify-content:space-between; padding:14px 24px 4px; font-size:13px; font-weight:600; }
+  .caption { text-align:center; color:var(--text2); font-size:13px; margin-top:14px; font-weight:600; letter-spacing:.3px; }
+
+  /* nav bar */
+  .nav { display:flex; align-items:center; justify-content:space-between; padding:6px 18px 12px; }
+  .nav .title { font-size:26px; font-weight:800; }
+  .nav .pill { background:var(--surface); border-radius:9px; padding:5px 10px; font-size:13px; color:var(--text2); }
+  .nav .icon { color:var(--text2); font-size:20px; }
+
+  /* clip card */
+  .feed { padding:4px 16px; overflow:hidden; display:flex; flex-direction:column; gap:12px; }
+  .card { background:var(--surface); border-radius:16px; padding:12px; display:flex; gap:12px; }
+  .card.sel { box-shadow: inset 0 0 0 2px var(--accent); }
+  .cover { width:74px; height:132px; border-radius:10px; flex:0 0 auto; background:linear-gradient(160deg,#243 0%,#0c1a14 100%); position:relative; overflow:hidden; }
+  .cover.k { background:linear-gradient(160deg,#1b3a6b,#0a1730); }
+  .cover.r { background:linear-gradient(160deg,#5b2230,#1a0a10); }
+  .cover .play { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:26px; color:rgba(255,255,255,.85); }
+  .card .body { flex:1; min-width:0; display:flex; flex-direction:column; gap:6px; }
+  .card .t { font-size:15.5px; font-weight:700; line-height:1.2; }
+  .card .d { font-size:13px; color:var(--text2); line-height:1.25; }
+  .meta { display:flex; align-items:center; gap:8px; margin-top:2px; flex-wrap:wrap; }
+  .badge { font-size:12px; font-weight:800; color:#fff; padding:2px 8px; border-radius:20px; font-variant-numeric:tabular-nums; }
+  .dur { font-size:11px; color:var(--text2); }
+  .status { font-size:10.5px; font-weight:700; color:#fff; padding:2px 7px; border-radius:20px; }
+
+  /* detail */
+  .player { margin:8px 16px 0; aspect-ratio:9/16; background:#000; border-radius:20px; position:relative; overflow:hidden;
+            background-image:linear-gradient(150deg,#16324f,#0a1118); display:flex; align-items:flex-end; }
+  .player .ctrl { width:100%; padding:10px 14px; display:flex; align-items:center; gap:10px; background:linear-gradient(transparent,rgba(0,0,0,.55)); }
+  .player .ctrl .bar { flex:1; height:3px; background:rgba(255,255,255,.3); border-radius:3px; position:relative; }
+  .player .ctrl .bar::after { content:""; position:absolute; left:0; top:0; bottom:0; width:38%; background:#fff; border-radius:3px; }
+  .player .big { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:46px; color:rgba(255,255,255,.9); }
+  .dcard { background:var(--surface); border-radius:16px; margin:14px 16px 0; padding:14px; display:flex; flex-direction:column; gap:10px; }
+  .dcard .line { display:flex; justify-content:space-between; align-items:center; }
+  .tags { display:flex; flex-wrap:wrap; gap:6px; }
+  .tag { font-size:12px; font-weight:600; color:var(--accent); background:var(--accent-soft); padding:4px 9px; border-radius:20px; }
+  .actions { margin:14px 16px 0; display:flex; flex-direction:column; gap:10px; }
+  .btn-primary { background:var(--accent); color:#fff; font-weight:700; font-size:16px; text-align:center; padding:15px; border-radius:14px; }
+  .btn-row { display:flex; gap:10px; }
+  .btn-sec { flex:1; background:var(--surface); text-align:center; padding:14px; border-radius:14px; font-weight:600; }
+  .btn-sec.rej { color:var(--danger); }
+  .btn-sec.app { color:var(--success); }
+
+  /* settings */
+  .form { padding:6px 16px; display:flex; flex-direction:column; gap:18px; }
+  .section .lbl { font-size:12px; color:var(--text2); text-transform:uppercase; letter-spacing:.6px; margin:0 4px 7px; font-weight:700; }
+  .field { background:var(--surface); border-radius:12px; padding:13px 14px; font-size:15px; }
+  .field.ph { color:var(--text2); }
+  .foot { font-size:11.5px; color:var(--text2); margin:7px 6px 0; line-height:1.35; }
+  .ok { display:flex; align-items:center; gap:8px; color:var(--success); font-weight:600; font-size:14px; padding:0 6px; }
+  .save { background:var(--accent); color:#fff; font-weight:700; text-align:center; padding:14px; border-radius:12px; }
+  .testbtn { display:flex; align-items:center; gap:8px; color:var(--accent); font-weight:600; font-size:15px; padding:2px 6px; }
+</style>
+</head>
+<body>
+  <h1 class="page-title">FORGE LAB — app iOS (aperçu)</h1>
+  <p class="sub">Mockup fidèle à apps/ios/ForgeLab — couleurs &amp; layout repris de Theme.swift / les Views SwiftUI. Workflow du matin : review → download → TikTok.</p>
+
+  <div class="row">
+
+    <!-- ========== ÉCRAN 1 : RÉGLAGES ========== -->
+    <div>
+      <div class="frame"><div class="notch"></div><div class="screen">
+        <div class="statusbar"><span>9:41</span><span>5G&nbsp;&nbsp;100%</span></div>
+        <div class="nav"><div class="title" style="font-size:22px">Réglages</div></div>
+        <div class="form">
+          <div class="section">
+            <div class="lbl">Moteur</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div class="field">192.168.1.50</div>
+              <div class="field">8420</div>
+            </div>
+            <div class="foot">IP locale du PC qui fait tourner le moteur. Active FORGE_BIND_LAN=1 dans .env.</div>
+          </div>
+          <div class="section">
+            <div class="lbl">Clé API</div>
+            <div class="field">forge_••••••••••••••••••••</div>
+            <div class="foot">Génère-la : <code>python -m forge_engine.scripts.seed_api_key create 'iPhone Air'</code></div>
+          </div>
+          <div class="ok">✓&nbsp; Connexion OK</div>
+          <div class="testbtn">📡&nbsp; Tester la connexion</div>
+          <div class="save">Enregistrer</div>
+        </div>
+      </div></div>
+      <div class="caption">1 · Réglages (1er lancement)</div>
+    </div>
+
+    <!-- ========== ÉCRAN 2 : QUEUE ========== -->
+    <div>
+      <div class="frame"><div class="notch"></div><div class="screen">
+        <div class="statusbar"><span>9:41</span><span>5G&nbsp;&nbsp;100%</span></div>
+        <div class="nav">
+          <div class="pill">📅 13 juin</div>
+          <div class="title">Hier</div>
+          <div class="icon">⋯</div>
+        </div>
+        <div class="feed">
+          <div class="card">
+            <div class="cover k"><div class="play">▶</div></div>
+            <div class="body">
+              <div class="t">"Le outplay de Cabochard là c'est ILLÉGAL"</div>
+              <div class="d">KC vs G2, la diff top qui fait basculer la game</div>
+              <div class="meta">
+                <span class="badge" style="background:var(--success)">92</span>
+                <span class="dur">⏱ 0:34</span>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="cover"><div class="play">▶</div></div>
+            <div class="body">
+              <div class="t">"Attends attends ATTENDS il va pas faire ça"</div>
+              <div class="d">Le moment où tout le chat panique en live</div>
+              <div class="meta">
+                <span class="badge" style="background:var(--accent)">84</span>
+                <span class="dur">⏱ 0:28</span>
+              </div>
+            </div>
+          </div>
+          <div class="card sel">
+            <div class="cover r"><div class="play">▶</div></div>
+            <div class="body">
+              <div class="t">"Wesh mais c'est quoi ce clutch de malade"</div>
+              <div class="d">1v3 retourné, Saken en mode dieu</div>
+              <div class="meta">
+                <span class="badge" style="background:var(--accent)">79</span>
+                <span class="dur">⏱ 0:41</span>
+                <span style="margin-left:auto;color:var(--accent);font-size:18px">☑</span>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="cover"><div class="play">▶</div></div>
+            <div class="body">
+              <div class="t">"Jpp je suis mort de rire regardez ça"</div>
+              <div class="d">Le fail le plus drôle du stream</div>
+              <div class="meta">
+                <span class="badge" style="background:var(--score-mid)">68</span>
+                <span class="dur">⏱ 0:52</span>
+                <span class="status" style="background:var(--success)">Approuvé</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <div class="caption">2 · Queue — clips d'hier (tri score)</div>
+    </div>
+
+    <!-- ========== ÉCRAN 3 : DÉTAIL ========== -->
+    <div>
+      <div class="frame"><div class="notch"></div><div class="screen">
+        <div class="statusbar"><span>9:41</span><span>5G&nbsp;&nbsp;100%</span></div>
+        <div class="nav" style="justify-content:flex-start;gap:14px;padding-top:10px">
+          <span class="icon">‹</span>
+          <div class="title" style="font-size:16px">Le outplay de Cabochard…</div>
+        </div>
+        <div class="player">
+          <div class="big">▶</div>
+          <div class="ctrl"><span style="font-size:11px">0:12</span><div class="bar"></div><span style="font-size:11px">0:34</span></div>
+        </div>
+        <div class="dcard">
+          <div class="line">
+            <span class="badge" style="background:var(--success)">92</span>
+            <span class="dur">⏱ 0:34</span>
+          </div>
+          <div style="font-size:14px;line-height:1.3">KC vs G2, la diff top qui fait basculer la game complètement</div>
+          <div class="tags">
+            <span class="tag">#KCORP</span><span class="tag">#LEC</span>
+            <span class="tag">#Cabochard</span><span class="tag">#outplay</span><span class="tag">#viral</span>
+          </div>
+        </div>
+        <div class="actions">
+          <div class="btn-primary">⬇  Télécharger + ouvrir TikTok</div>
+          <div class="btn-row">
+            <div class="btn-sec rej">✕  Rejeter</div>
+            <div class="btn-sec app">✓  Approuver</div>
+          </div>
+        </div>
+      </div></div>
+      <div class="caption">3 · Détail — preview + actions</div>
+    </div>
+
+  </div>
+</body>
+</html>

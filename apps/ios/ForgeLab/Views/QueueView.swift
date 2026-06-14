@@ -4,6 +4,9 @@ import SwiftUI
 /// "hier" by default per the morning workflow, multi-select for batch approve.
 struct QueueView: View {
     let api: ForgeAPI
+    /// When set, the view renders these clips and skips all networking. Used by
+    /// the `--demo` launch path (CI screenshots). nil in normal operation.
+    var demoClips: [Clip]? = nil
     @EnvironmentObject var settings: Settings
 
     @State private var clips: [Clip] = []
@@ -53,13 +56,14 @@ struct QueueView: View {
             LazyVStack(spacing: 12) {
                 ForEach(clips) { clip in
                     NavigationLink {
-                        ClipDetailView(api: api, clip: clip)
+                        ClipDetailView(api: api, clip: clip, demo: demoClips != nil)
                     } label: {
                         ClipCard(
                             clip: clip,
                             api: api,
                             selected: selection.contains(clip.id),
                             selectMode: selectionMode,
+                            demo: demoClips != nil,
                         )
                     }
                     .buttonStyle(.plain)
@@ -144,6 +148,10 @@ struct QueueView: View {
     }
 
     private func load() async {
+        if let demoClips {
+            clips = demoClips
+            return
+        }
         loading = true
         error = nil
         defer { loading = false }

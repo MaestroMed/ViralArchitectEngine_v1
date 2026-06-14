@@ -15,6 +15,7 @@ from forge_engine.core.auth import auth_required, require_api_key
 from forge_engine.core.config import settings
 from forge_engine.core.database import close_db, init_db
 from forge_engine.core.jobs import JobManager
+from forge_engine.core.rate_limit import RateLimitMiddleware
 
 # Configure logging
 logging.basicConfig(
@@ -217,6 +218,10 @@ def create_app() -> FastAPI:
     if settings.BIND_LAN:
         cors_kwargs["allow_origin_regex"] = settings.LAN_CORS_REGEX
     app.add_middleware(CORSMiddleware, **cors_kwargs)
+
+    # Rate limit the GPU/LLM endpoints (see core/rate_limit.py for the policy).
+    # Registered after CORS so preflights pass through unhindered.
+    app.add_middleware(RateLimitMiddleware)
 
     # Health check endpoint
     @app.get("/health")

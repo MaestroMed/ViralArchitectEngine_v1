@@ -171,12 +171,17 @@ class LocalLLMService:
 Tu analyses des segments de stream/podcast pour évaluer leur potentiel viral.
 Tu dois répondre UNIQUEMENT en JSON valide, sans texte avant ou après."""
 
+        # Quote+escape user-controlled strings through json.dumps so a transcript
+        # containing quotes / braces / newlines can't break out of the JSON
+        # context and rewrite the prompt's instructions to the LLM.
+        transcript_json = json.dumps(transcript, ensure_ascii=False)
+        context_line = f"CONTEXTE: {json.dumps(context, ensure_ascii=False)}\n" if context else ""
+
         user_prompt = f"""Analyse ce segment de contenu et évalue son potentiel viral.
 
 TRANSCRIPT ({duration:.0f}s):
-"{transcript}"
-{f'CONTEXTE: {context}' if context else ''}
-
+{transcript_json}
+{context_line}
 Réponds UNIQUEMENT avec ce JSON (pas de markdown, pas de texte autour):
 {{
     "humor_score": <0-10 note humour/drôle>,
@@ -322,13 +327,16 @@ Réponds UNIQUEMENT avec ce JSON:
         system_prompt = """Tu analyses des accroches de vidéos virales.
 Réponds UNIQUEMENT en JSON valide."""
 
+        # See _score_segment for why we json.dumps user strings: same reason here.
+        opening_json = json.dumps(opening_text, ensure_ascii=False)
+        transcript_json = json.dumps(full_transcript[:800], ensure_ascii=False)
         user_prompt = f"""Analyse cette accroche de clip viral.
 
 ACCROCHE (premiers mots):
-"{opening_text}"
+{opening_json}
 
 CONTEXTE COMPLET:
-"{full_transcript[:800]}"
+{transcript_json}
 
 Réponds en JSON:
 {{

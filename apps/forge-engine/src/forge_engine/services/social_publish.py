@@ -106,6 +106,46 @@ class SocialPublishService:
 
         return True
 
+    # ── Methods consumed by the /v1/social endpoints (api/v1/endpoints/social.py)
+    # These thin wrappers map the HTTP surface to the existing primitives.
+
+    def get_connected_platforms(self) -> list[str]:
+        """Return the list of platforms with an active (non-expired) session."""
+        return [str(p) for p in self.credentials if self.is_authenticated(p)]
+
+    async def connect_account(
+        self, platform: str, credentials: dict[str, Any]
+    ) -> bool:
+        """Persist OAuth credentials for a platform after validating them."""
+        try:
+            plat = Platform(platform)
+        except ValueError:
+            return False
+        creds = PlatformCredentials(
+            platform=plat,
+            access_token=credentials.get("access_token", ""),
+            refresh_token=credentials.get("refresh_token"),
+            user_id=credentials.get("user_id"),
+            username=credentials.get("username"),
+        )
+        if not creds.access_token:
+            return False
+        return await self.authenticate(plat, creds)
+
+    async def disconnect_account(self, platform: str) -> bool:
+        """Forget a platform's session. Returns True iff one was present."""
+        try:
+            plat = Platform(platform)
+        except ValueError:
+            return False
+        return self.credentials.pop(plat, None) is not None
+
+    async def get_publish_status(self, job_id: str) -> dict[str, Any] | None:
+        """Compat alias for the endpoint module — the real method is
+        `get_publishing_status`. Kept here so /v1/social/publish/{id} works
+        without touching the route handler."""
+        return await self.get_publishing_status(job_id)
+
     async def authenticate(
         self,
         platform: Platform,

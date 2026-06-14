@@ -1,7 +1,6 @@
 """Project endpoints."""
 
 import logging
-import os
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
@@ -13,6 +12,7 @@ from forge_engine.core.database import get_db
 
 logger = logging.getLogger(__name__)
 from forge_engine.core.jobs import JobManager, JobType
+from forge_engine.core.security import SourcePathError, validate_source_path
 from forge_engine.models import Artifact, Project, Segment
 from forge_engine.services.analysis import AnalysisService
 from forge_engine.services.export import ExportService
@@ -156,15 +156,19 @@ async def create_project(
     db: AsyncSession = Depends(get_db)
 ) -> dict:
     """Create a new project."""
-    # Validate source path
-    if not os.path.exists(request.source_path):
-        raise HTTPException(status_code=400, detail="Source file not found")
+    # Validate source path: resolve symlinks, reject control chars / traversal,
+    # and enforce the import-root allowlist (prevents path-traversal + symlink
+    # escape through the public API surface).
+    try:
+        resolved_source = validate_source_path(request.source_path)
+    except SourcePathError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
     # Create project
     project = Project(
         name=request.name,
-        source_path=request.source_path,
-        source_filename=os.path.basename(request.source_path),
+        source_path=str(resolved_source),
+        source_filename=resolved_source.name,
         profile_id=request.profile_id,
         status="created",
     )

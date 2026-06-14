@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable, List
 
 from forge_engine.core.config import settings
 
@@ -16,15 +16,15 @@ class SourcePathError(ValueError):
     """Raised when a caller-supplied source path fails validation."""
 
 
-def _parse_roots_env(raw: str | None) -> List[Path]:
+def _parse_roots_env(raw: str | None) -> list[Path]:
     if not raw:
         return []
     # Accept OS-native separator (":" on POSIX, ";" on Windows) and also ","
     separators = [os.pathsep, ","]
-    parts: List[str] = [raw]
+    parts: list[str] = [raw]
     for sep in separators:
         parts = [segment for chunk in parts for segment in chunk.split(sep)]
-    roots: List[Path] = []
+    roots: list[Path] = []
     for p in parts:
         p = p.strip()
         if not p:
@@ -36,14 +36,14 @@ def _parse_roots_env(raw: str | None) -> List[Path]:
     return roots
 
 
-def allowed_import_roots() -> List[Path]:
+def allowed_import_roots() -> list[Path]:
     """Return the set of filesystem roots from which source videos may be imported.
 
     Always includes LIBRARY_PATH and the current user's home directory (this is a
     personal desktop tool). Additional roots may be configured via the
     FORGE_ALLOWED_IMPORT_ROOTS env var (OS-native path separator or comma).
     """
-    roots: List[Path] = []
+    roots: list[Path] = []
     try:
         roots.append(settings.LIBRARY_PATH.resolve())
     except (OSError, RuntimeError):
@@ -55,7 +55,7 @@ def allowed_import_roots() -> List[Path]:
     roots.extend(_parse_roots_env(os.environ.get("FORGE_ALLOWED_IMPORT_ROOTS")))
     # Dedupe while preserving order
     seen: set[str] = set()
-    deduped: List[Path] = []
+    deduped: list[Path] = []
     for r in roots:
         key = str(r)
         if key not in seen:

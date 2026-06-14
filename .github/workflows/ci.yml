@@ -2,7 +2,6 @@ name: CI
 
 on:
   push:
-<<<<<<< HEAD
     branches: [main, develop]
   pull_request:
     branches: [main, develop]
@@ -15,37 +14,19 @@ jobs:
   # ─── Frontend: TypeScript + ESLint ────────────────────────────────────────
   typecheck-desktop:
     name: Desktop — TypeScript
-=======
-    branches: [main]
-  pull_request:
-    branches: [main]
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-jobs:
-  node:
-    name: Node — lint, typecheck, test
->>>>>>> origin/main
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v3
         with:
-<<<<<<< HEAD
           version: 9
-=======
-          version: 8
->>>>>>> origin/main
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
 
-<<<<<<< HEAD
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -132,28 +113,11 @@ jobs:
       FORGE_FORCE_CPU: "1"
       FORGE_WHISPER_MODEL: tiny
       FORGE_DEBUG: "1"
-=======
-      - run: pnpm install --frozen-lockfile
-
-      - run: pnpm lint
-
-      - run: pnpm typecheck
-
-      - run: pnpm test
-
-  python:
-    name: Python — pytest
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/forge-engine
->>>>>>> origin/main
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-<<<<<<< HEAD
           python-version: "3.11"
           cache: pip
           cache-dependency-path: apps/forge-engine/requirements-ci.txt
@@ -186,19 +150,3 @@ jobs:
           name: coverage-report
           path: apps/forge-engine/coverage.xml
           retention-days: 7
-=======
-          python-version: '3.11'
-          cache: pip
-          cache-dependency-path: apps/forge-engine/requirements*.txt
-
-      - name: Install system deps
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
-
-      # requirements.txt pulls in heavy ML wheels (torch, faster-whisper).
-      # For CI correctness we use the minimal set; full wheels can be added
-      # later in a dedicated integration job.
-      - name: Install Python deps
-        run: pip install -r requirements-minimal.txt pytest pytest-asyncio
-
-      - run: pytest -q
->>>>>>> origin/main

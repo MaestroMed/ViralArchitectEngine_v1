@@ -19,18 +19,22 @@ on:
 jobs:
   screenshots:
     name: Build + screenshot (Simulator)
-    runs-on: macos-14
+    # macos-15's default Xcode is 16.x, which understands the project format
+    # XcodeGen emits (objectVersion 77). Pinning Xcode 15.4 previously failed
+    # with "future Xcode project file format (77)".
+    runs-on: macos-15
     timeout-minutes: 30
     env:
-      SIMULATOR: "iPhone 15 Pro"
       BUNDLE_ID: "com.maestromed.forgelab"
       APP_DIR: apps/ios
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Select Xcode 15.4
-        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          xcrun simctl list runtimes | grep iOS || true
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -42,21 +46,12 @@ jobs:
       - name: Build for Simulator (unsigned)
         working-directory: ${{ env.APP_DIR }}
         run: |
-          set -o pipefail
           xcodebuild \
             -project ForgeLab.xcodeproj \
             -scheme ForgeLab \
             -configuration Debug \
             -sdk iphonesimulator \
-            -destination "platform=iOS Simulator,name=$SIMULATOR" \
-            -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO \
-            build | xcbeautify || xcodebuild \
-            -project ForgeLab.xcodeproj \
-            -scheme ForgeLab \
-            -configuration Debug \
-            -sdk iphonesimulator \
-            -destination "platform=iOS Simulator,name=$SIMULATOR" \
+            -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
             build
@@ -70,31 +65,44 @@ jobs:
           echo "app_path=$APP_DIR/$APP_PATH" >> "$GITHUB_OUTPUT"
           echo "Built: $APP_PATH"
 
-      - name: Boot simulator
+      - name: Boot a simulator
+        id: sim
         run: |
-          xcrun simctl boot "$SIMULATOR" || true
-          xcrun simctl bootstatus "$SIMULATOR" -b
+          # Pick the first available modern iPhone simulator by UDID — names
+          # vary between Xcode versions, UDIDs don't.
+          UDID="$(xcrun simctl list devices available \
+            | grep -E 'iPhone 1[5-9]( Pro)?( Max)? \(' \
+            | head -1 \
+            | grep -oE '[0-9A-Fa-f-]{36}')"
+          if [ -z "$UDID" ]; then
+            echo "No modern iPhone simulator available; falling back to any iPhone"
+            UDID="$(xcrun simctl list devices available | grep -E 'iPhone .*\(' | head -1 | grep -oE '[0-9A-Fa-f-]{36}')"
+          fi
+          if [ -z "$UDID" ]; then echo "No iPhone simulator found"; exit 1; fi
+          echo "Using simulator $UDID"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
 
       - name: Install app
-        run: xcrun simctl install booted "${{ steps.locate.outputs.app_path }}"
+        run: xcrun simctl install "${{ steps.sim.outputs.udid }}" "${{ steps.locate.outputs.app_path }}"
 
       - name: Capture screenshots
         run: |
+          UDID="${{ steps.sim.outputs.udid }}"
           mkdir -p screenshots
-          shoot() {  # $1 = name, $2... = launch args
+          shoot() {  # $1 = name, rest = launch args
             local name="$1"; shift
-            xcrun simctl terminate booted "$BUNDLE_ID" 2>/dev/null || true
-            xcrun simctl launch booted "$BUNDLE_ID" "$@"
+            xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
+            xcrun simctl launch "$UDID" "$BUNDLE_ID" "$@"
             sleep 6
-            xcrun simctl io booted screenshot "screenshots/$name.png"
+            xcrun simctl io "$UDID" screenshot "screenshots/$name.png"
             echo "captured $name.png"
           }
-          # 1. Onboarding / Settings (fresh launch, no demo flag).
           shoot "1-settings"
-          # 2. Queue populated with DemoData.
           shoot "2-queue" --demo
-          # 3. Clip detail.
           shoot "3-detail" --demo --demo-screen detail
+          ls -la screenshots
 
       - name: Upload screenshots
         uses: actions/upload-artifact@v4

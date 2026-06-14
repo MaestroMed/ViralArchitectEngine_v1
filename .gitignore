@@ -11,6 +11,15 @@ release/
 *.AppImage
 *.deb
 *.rpm
+# Transpiled Electron main/preload sit alongside their .ts source — never commit.
+apps/desktop/electron/*.js
+apps/desktop/electron/*.d.ts
+# TypeScript incremental build caches.
+*.tsbuildinfo
+# Lock files: this is a pnpm workspace — npm/yarn lockfiles cause double-install
+# conflicts in CI.
+package-lock.json
+yarn.lock
 
 # Python
 __pycache__/

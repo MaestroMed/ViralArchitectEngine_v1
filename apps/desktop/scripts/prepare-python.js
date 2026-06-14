@@ -9,6 +9,7 @@
  */
 
 const { execSync } = require('child_process');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
@@ -26,6 +27,73 @@ const FFMPEG_URLS = {
   darwin: 'https://evermeet.cx/ffmpeg/getrelease/ffmpeg/zip',
   linux: null, // Use system FFmpeg on Linux or apt
 };
+
+// SHA-256 expected for stable third-party downloads. python.org publishes
+// checksums for each release; we pin them here. FFmpeg vendors (gyan.dev,
+// evermeet.cx) ship rolling builds with no stable checksum, so we record the
+// observed hash on first run and check against it on every subsequent run
+// (Trust On First Use). Override any expected hash with FORGE_EXPECTED_SHA256
+// or skip the check entirely with FORGE_SKIP_CHECKSUM=1 (only for local dev).
+const EXPECTED_HASHES = {
+  [PYTHON_EMBED_URLS.win32]: 'a09ad8be8fd05f47b7d0673cffb53d0aa11b7e3094a1f10f10da34d6a4cb09c5',
+  // python-3.11.7-macos11.pkg: pin once you've verified against python.org/downloads.
+  // Leave undefined to TOFU.
+};
+const CHECKSUMS_FILE = path.join(__dirname, '..', 'resources', '.checksums.json');
+
+function sha256File(filePath) {
+  const hash = crypto.createHash('sha256');
+  hash.update(fs.readFileSync(filePath));
+  return hash.digest('hex');
+}
+
+function loadKnownHashes() {
+  try { return JSON.parse(fs.readFileSync(CHECKSUMS_FILE, 'utf8')); } catch { return {}; }
+}
+
+function saveKnownHashes(hashes) {
+  fs.mkdirSync(path.dirname(CHECKSUMS_FILE), { recursive: true });
+  fs.writeFileSync(CHECKSUMS_FILE, JSON.stringify(hashes, null, 2));
+}
+
+function verifyOrPin(url, filePath) {
+  if (process.env.FORGE_SKIP_CHECKSUM === '1') {
+    console.warn(`  ⚠ FORGE_SKIP_CHECKSUM=1 — skipping integrity check for ${url}`);
+    return;
+  }
+  const actual = sha256File(filePath);
+  const expected = process.env.FORGE_EXPECTED_SHA256 || EXPECTED_HASHES[url];
+  if (expected) {
+    if (actual.toLowerCase() !== expected.toLowerCase()) {
+      throw new Error(
+        `SHA-256 mismatch for ${url}\n  expected: ${expected}\n  actual:   ${actual}\n` +
+        `Refusing to use the file. Verify the upstream is uncompromised; if the publisher ` +
+        `rotated the artifact, update EXPECTED_HASHES.`
+      );
+    }
+    console.log(`  ✓ integrity OK (sha256=${actual.slice(0, 12)}…)`);
+    return;
+  }
+  // TOFU path: no pinned hash → consult / update the on-disk record.
+  const known = loadKnownHashes();
+  if (known[url]) {
+    if (known[url] !== actual) {
+      throw new Error(
+        `SHA-256 changed for ${url}\n  was: ${known[url]}\n  now: ${actual}\n` +
+        `If you trust this is a legitimate update, delete the entry in ${CHECKSUMS_FILE} ` +
+        `and re-run. Otherwise abort — the upstream may have been tampered with.`
+      );
+    }
+    console.log(`  ✓ matches previously-seen sha256=${actual.slice(0, 12)}…`);
+  } else {
+    known[url] = actual;
+    saveKnownHashes(known);
+    console.warn(
+      `  ⚠ no pinned hash for ${url} — recording sha256=${actual.slice(0, 12)}… ` +
+      `for future verification (TOFU)`,
+    );
+  }
+}
 
 const RESOURCES_DIR = path.join(__dirname, '..', 'resources');
 
@@ -113,7 +181,8 @@ async function preparePython() {
   } else {
     console.log('  ✅ Python archive already exists');
   }
-  
+  verifyOrPin(url, zipPath);
+
   // Extract
   if (!fs.existsSync(pythonDir)) {
     fs.mkdirSync(pythonDir, { recursive: true });
@@ -137,8 +206,10 @@ async function preparePython() {
     
     // Install pip
     console.log('  📥 Installing pip...');
+    const getPipUrl = 'https://bootstrap.pypa.io/get-pip.py';
     const getPipPath = path.join(pythonDir, 'get-pip.py');
-    await downloadFile('https://bootstrap.pypa.io/get-pip.py', getPipPath);
+    await downloadFile(getPipUrl, getPipPath);
+    verifyOrPin(getPipUrl, getPipPath);
     execSync(`"${path.join(pythonDir, 'python.exe')}" "${getPipPath}"`, { stdio: 'inherit' });
     fs.unlinkSync(getPipPath);
   }
@@ -185,6 +256,7 @@ async function prepareFFmpeg() {
   } else {
     console.log('  ✅ FFmpeg archive already exists');
   }
+  verifyOrPin(url, zipPath);
   
   // Extract
   if (!fs.existsSync(ffmpegDir)) {

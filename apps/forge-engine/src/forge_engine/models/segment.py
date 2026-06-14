@@ -56,6 +56,11 @@ class Segment(Base):
 
     # Relationships
     project: Mapped["Project"] = relationship("Project", back_populates="segments")
+    # Lazy string ref + str-quoted Mapped target so SQLAlchemy doesn't need
+    # to resolve SegmentFeedback at class-body time (avoids circular imports).
+    feedback: Mapped[list["SegmentFeedback"]] = relationship(
+        "SegmentFeedback", back_populates="segment", cascade="all, delete-orphan"
+    )
 
     def to_dict(self) -> dict:
         """Convert to dictionary for API response."""
@@ -91,7 +96,8 @@ class Segment(Base):
 
 
 # Import at end to avoid circular imports
-from forge_engine.models.project import Project
+from forge_engine.models.project import Project  # noqa: E402,F401
+from forge_engine.models.training_data import SegmentFeedback  # noqa: E402,F401
 
 
 

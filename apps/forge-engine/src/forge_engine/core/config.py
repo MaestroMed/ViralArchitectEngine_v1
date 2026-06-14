@@ -18,6 +18,20 @@ class Settings(BaseSettings):
     HOST: str = "127.0.0.1"
     PORT: int = 8420
     CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:3000"]
+    # When BIND_LAN is on, main.py overrides HOST to 0.0.0.0 and the auth
+    # layer is forced on (see core/auth.py). The regex below is added to the
+    # CORS allowlist so that requests from phones/tablets on a private LAN are
+    # accepted. Tweak via FORGE_LAN_CORS_REGEX if your network uses a different
+    # subnet (e.g. 172.16.0.0/12).
+    BIND_LAN: bool = False
+    LAN_CORS_REGEX: str = (
+        r"https?://("
+        r"localhost|127\.0\.0\.1|"
+        r"10\.\d{1,3}\.\d{1,3}\.\d{1,3}|"
+        r"172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|"
+        r"192\.168\.\d{1,3}\.\d{1,3}"
+        r")(:\d+)?"
+    )
 
     # Paths
     LIBRARY_PATH: Path = Path.home() / "FORGE_LIBRARY"

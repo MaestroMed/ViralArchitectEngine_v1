@@ -5,12 +5,13 @@ import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from forge_engine.api.v1.router import api_router
+from forge_engine.core.auth import auth_required, require_api_key
 from forge_engine.core.config import settings
 from forge_engine.core.database import close_db, init_db
 from forge_engine.core.jobs import JobManager
@@ -195,7 +196,9 @@ def create_app() -> FastAPI:
 
     # CORS middleware. Wildcard origin + credentials is rejected by browsers per
     # the CORS spec, so we always send an explicit origin allowlist. DEBUG widens
-    # it to common local dev ports; production uses CORS_ORIGINS (FORGE_CORS_ORIGINS).
+    # it to common local dev ports; BIND_LAN widens it to private-LAN regex
+    # (10/8, 172.16/12, 192.168/16) so phones on the home network are accepted.
+    # Production uses CORS_ORIGINS (FORGE_CORS_ORIGINS).
     cors_origins = settings.CORS_ORIGINS
     if settings.DEBUG:
         cors_origins = list({
@@ -205,13 +208,15 @@ def create_app() -> FastAPI:
             "http://127.0.0.1:3000",
             "http://127.0.0.1:5173",
         })
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=cors_origins,
-        allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["*"],
-    )
+    cors_kwargs: dict = {
+        "allow_origins": cors_origins,
+        "allow_credentials": True,
+        "allow_methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        "allow_headers": ["*"],
+    }
+    if settings.BIND_LAN:
+        cors_kwargs["allow_origin_regex"] = settings.LAN_CORS_REGEX
+    app.add_middleware(CORSMiddleware, **cors_kwargs)
 
     # Health check endpoint
     @app.get("/health")
@@ -233,18 +238,30 @@ def create_app() -> FastAPI:
             },
         }
 
-    # Include API router
-    app.include_router(api_router, prefix="/v1")
+    # Include API router. When auth is required (BIND_LAN or FORGE_REQUIRE_AUTH),
+    # every /v1/* route gets an X-API-Key check via the dependency below — this
+    # is the single chokepoint, no risk of forgetting it on a new endpoint.
+    v1_dependencies = [Depends(require_api_key)] if auth_required() else []
+    app.include_router(api_router, prefix="/v1", dependencies=v1_dependencies)
 
-    # Mount static files for library (video serving)
+    # Mount static files for library (video serving). DISABLED when auth is on:
+    # StaticFiles cannot be gated by a Depends() and the raw filesystem walk is
+    # exactly the kind of surface we want closed on a LAN-exposed engine. The
+    # dedicated /clips/{id}/video and /media/{id}/{type} endpoints remain.
     library_path = settings.LIBRARY_PATH
-    if library_path.exists():
+    if library_path.exists() and not auth_required():
         app.mount("/library", StaticFiles(directory=str(library_path)), name="library")
         logger.info("Library mounted at /library: %s", library_path)
+    elif library_path.exists():
+        logger.info("Library mount disabled (auth required); use /clips and /media endpoints")
 
-    # Serve clip queue videos (for mobile review app)
+    # Serve clip queue videos (for mobile review app). Gated by the same API
+    # key check as /v1 so a phone on the LAN cannot just stream every clip.
     @app.get("/clips/{clip_id}/video")
-    async def serve_clip_video(clip_id: str):
+    async def serve_clip_video(
+        clip_id: str,
+        _auth=Depends(require_api_key),
+    ):
         """Serve a queued clip's video file for mobile streaming."""
         from pathlib import Path
 
@@ -280,7 +297,11 @@ def create_app() -> FastAPI:
     ALLOWED_MEDIA_TYPES = {"proxy", "audio"}
 
     @app.get("/media/{project_id}/{file_type}")
-    async def serve_media(project_id: str, file_type: str):
+    async def serve_media(
+        project_id: str,
+        file_type: str,
+        _auth=Depends(require_api_key),
+    ):
         """Serve project media files (proxy, audio)."""
         import uuid as _uuid
         from pathlib import Path
@@ -345,9 +366,15 @@ def main():
     """Run the application."""
     import uvicorn
 
+    # When BIND_LAN is on, bind to every interface so phones/tablets on the
+    # home network can reach us. Auth is already forced on in this mode (see
+    # core/auth.py), so the wider bind never ships an unauthenticated API.
+    host = "0.0.0.0" if settings.BIND_LAN else settings.HOST  # noqa: S104
+    if settings.BIND_LAN:
+        logger.info("BIND_LAN=on — listening on 0.0.0.0:%d, auth REQUIRED", settings.PORT)
     uvicorn.run(
         "forge_engine.main:app",
-        host=settings.HOST,
+        host=host,
         port=settings.PORT,
         reload=settings.DEBUG,
         log_level="info",

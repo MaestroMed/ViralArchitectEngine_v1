@@ -35,6 +35,7 @@ async def init_db() -> None:
     """Initialize the database, creating tables if needed."""
     # Import all models so their tables are registered with Base.metadata
     from forge_engine.models import (  # noqa: F401
+        api_key,
         artifact,
         channel,
         job,
@@ -43,6 +44,7 @@ async def init_db() -> None:
         review,
         segment,
         template,
+        training_data,
     )
 
     async with engine.begin() as conn:

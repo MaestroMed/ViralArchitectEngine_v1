@@ -4,6 +4,7 @@ from fastapi import APIRouter
 
 from forge_engine.api.v1.endpoints import (
     analytics,
+    api_keys,
     assistant,
     audio,
     capabilities,
@@ -54,6 +55,7 @@ api_router.include_router(compilation.router, prefix="/compilation", tags=["Comp
 api_router.include_router(social.router, prefix="/social", tags=["Social Publishing"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
 api_router.include_router(reviews.router, prefix="/clips", tags=["Clip Review & Queue"])
+api_router.include_router(api_keys.router, prefix="/api-keys", tags=["API Keys"])
 
 
 

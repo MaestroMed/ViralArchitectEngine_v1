@@ -160,8 +160,10 @@ struct QueueView: View {
             clips = resp.items
         } catch let e as ApiError {
             error = e.errorDescription
-        } catch {
-            error = error.localizedDescription
+        } catch let other {
+            // Bind to `other`, not the implicit `error`, which would shadow the
+            // @State property of the same name and make the assignment illegal.
+            error = other.localizedDescription
         }
     }
 
@@ -175,8 +177,8 @@ struct QueueView: View {
             await load()
         } catch let e as ApiError {
             error = e.errorDescription
-        } catch {
-            error = error.localizedDescription
+        } catch let other {
+            error = other.localizedDescription
         }
     }
 

@@ -22,13 +22,15 @@ struct ClipDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
-                playerCard
-                metadata
-                actions
-                if let outcome = model.lastOutcome {
-                    OutcomeBanner(outcome: outcome)
-                        .transition(.opacity)
+            GlassEffectContainer(spacing: 16) {
+                VStack(spacing: 16) {
+                    playerCard
+                    metadata
+                    actions
+                    if let outcome = model.lastOutcome {
+                        OutcomeBanner(outcome: outcome)
+                            .transition(.opacity)
+                    }
                 }
             }
             .padding()
@@ -81,8 +83,7 @@ struct ClipDetailView: View {
             }
         }
         .padding()
-        .background(Theme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .forgeGlassCard(cornerRadius: 16)
     }
 
     private var actions: some View {
@@ -97,9 +98,8 @@ struct ClipDetailView: View {
             }
             .frame(maxWidth: .infinity)
             .padding()
-            .background(Theme.accent)
             .foregroundStyle(.white)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .forgeGlassAccent(cornerRadius: 16)
             .disabled(model.busy)
             .accessibilityIdentifier("download-button")
 
@@ -111,9 +111,8 @@ struct ClipDetailView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .padding()
-                .background(Theme.surface)
                 .foregroundStyle(Theme.danger)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .forgeGlassCard(cornerRadius: 14)
                 .disabled(model.busy)
 
                 Button {
@@ -123,9 +122,8 @@ struct ClipDetailView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .padding()
-                .background(Theme.surface)
                 .foregroundStyle(Theme.success)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .forgeGlassCard(cornerRadius: 14)
                 .disabled(model.busy)
             }
         }
@@ -257,7 +255,6 @@ private struct OutcomeBanner: View {
             }
         }
         .padding()
-        .background(Theme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .forgeGlassCard(cornerRadius: 14)
     }
 }

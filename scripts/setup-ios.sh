@@ -59,7 +59,9 @@ if [[ "$BUILD_ONLY" -eq 1 ]]; then
     -configuration "$CONFIGURATION" \
     -destination 'generic/platform=iOS' \
     -derivedDataPath "$BUILD_DIR/DerivedData" \
-    build
+    -allowProvisioningUpdates \
+    build \
+    DEVELOPMENT_TEAM="$FORGE_APPLE_TEAM_ID"
   echo "Build OK. Pour installer sur ton iPhone, relance sans --build-only."
   exit 0
 fi
@@ -85,6 +87,7 @@ xcodebuild \
   -destination "generic/platform=iOS" \
   -archivePath "$ARCHIVE_PATH" \
   -derivedDataPath "$BUILD_DIR/DerivedData" \
+  -allowProvisioningUpdates \
   archive \
   DEVELOPMENT_TEAM="$FORGE_APPLE_TEAM_ID"
 

@@ -902,7 +902,12 @@ class ExportService:
         cold_open_hook_end: float | None = None
         if cold_open_config and cold_open_config.get("enabled"):
             try:
-                # Timestamps must be relative to clip start (0-based)
+                # Timestamps must be relative to clip start (0-based) AND within
+                # the *effective* clip window (actual_duration may be trimmed to
+                # the platform max). Using segment.duration here let a hook past
+                # the trimmed window through → concat referenced frames beyond the
+                # input and FFmpeg crashed (rc=234, "Error reinitializing filters").
+                clip_end_abs = segment.start_time + actual_duration
                 adjusted_transcript = [
                     {
                         **seg,
@@ -910,9 +915,9 @@ class ExportService:
                         "end": seg["end"] - segment.start_time,
                     }
                     for seg in transcript_segments
-                    if segment.start_time <= seg.get("start", 0) <= segment.end_time
+                    if segment.start_time <= seg.get("start", 0) <= clip_end_abs
                 ]
-                segment_dict = {"start_time": 0.0, "end_time": segment.duration}
+                segment_dict = {"start_time": 0.0, "end_time": actual_duration}
                 language = cold_open_config.get("language", "fr")
                 variations = await self.cold_open.generate_cold_opens(
                     segment=segment_dict,
@@ -924,7 +929,7 @@ class ExportService:
                 if real_variations:
                     best = real_variations[0]
                     hs, he = best.hook.start_time, best.hook.end_time
-                    if hs >= 1.0 and he <= segment.duration - 1.0:
+                    if hs >= 1.0 and he <= actual_duration - 1.0:
                         cold_open_hook_start = hs
                         cold_open_hook_end = he
                         logger.info(

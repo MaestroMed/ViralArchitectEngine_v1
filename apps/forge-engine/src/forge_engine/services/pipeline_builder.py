@@ -174,13 +174,19 @@ class PipelineSinglePass:
             hs = cfg.cold_open_hook_start
             he = cfg.cold_open_hook_end
             # Segments: [hook][pre-hook][post-hook]
+            # A filter-pad output can only be consumed once — reading
+            # [current_v] three times made FFmpeg fail with "Error
+            # reinitializing filters" on the concat. split/asplit first so each
+            # trim reads its own copy of the source.
             filters.append(
-                f"[{current_v}]trim={hs:.4f}:{he:.4f},setpts=PTS-STARTPTS[co_v0];"
-                f"[{current_a}]atrim={hs:.4f}:{he:.4f},asetpts=PTS-STARTPTS[co_a0];"
-                f"[{current_v}]trim=0:{hs:.4f},setpts=PTS-STARTPTS[co_v1];"
-                f"[{current_a}]atrim=0:{hs:.4f},asetpts=PTS-STARTPTS[co_a1];"
-                f"[{current_v}]trim={he:.4f},setpts=PTS-STARTPTS[co_v2];"
-                f"[{current_a}]atrim={he:.4f},asetpts=PTS-STARTPTS[co_a2];"
+                f"[{current_v}]split=3[cosrc_v0][cosrc_v1][cosrc_v2];"
+                f"[{current_a}]asplit=3[cosrc_a0][cosrc_a1][cosrc_a2];"
+                f"[cosrc_v0]trim={hs:.4f}:{he:.4f},setpts=PTS-STARTPTS[co_v0];"
+                f"[cosrc_a0]atrim={hs:.4f}:{he:.4f},asetpts=PTS-STARTPTS[co_a0];"
+                f"[cosrc_v1]trim=0:{hs:.4f},setpts=PTS-STARTPTS[co_v1];"
+                f"[cosrc_a1]atrim=0:{hs:.4f},asetpts=PTS-STARTPTS[co_a1];"
+                f"[cosrc_v2]trim={he:.4f},setpts=PTS-STARTPTS[co_v2];"
+                f"[cosrc_a2]atrim={he:.4f},asetpts=PTS-STARTPTS[co_a2];"
                 f"[co_v0][co_a0][co_v1][co_a1][co_v2][co_a2]concat=n=3:v=1:a=1[co_v][co_a]"
             )
             current_v = "co_v"

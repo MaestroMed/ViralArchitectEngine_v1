@@ -41,8 +41,12 @@ Projet de test : `1ab8b274-…` (VOD etostark__ v2796529250, cache analyse prés
 - [x] **A3. Fenêtres serrées** ✅ : `_auto_export_top_clips` resserre chaque clip à
   `max_clip_seconds` (30s) centré sur le punch (`cold_open_start_time`, lead-in 5s)
   avant export. Vérifié : 12 clips à 30s, karaoké OK. Config `etostark` mise à jour.
-- [ ] **A4. Cold-open réparé** : le hook doit être recalé DANS la fenêtre 60s
-  (bug actuel : hook hors fenêtre → crash concat). Réactiver cold-open une fois sûr.
+- [x] **A4. Cold-open réparé** ✅ : deux bugs corrigés — (1) la gate du hook
+  utilisait `segment.duration` au lieu de `actual_duration` (durée effective
+  clampée au max plateforme) → hook hors fenêtre → crash ; (2) le concat lisait
+  `[composed_v]` 3× sans `split` (interdit) → "Error reinitializing filters".
+  Fix : gate sur `actual_duration` + `split=3`/`asplit=3`. Vérifié : 12/12 clips,
+  0 crash, cold-open (hook-first) appliqué sur les clips à hook fort.
 - [ ] **A5. Titres/légendes LLM** : lancer Ollama (ou fallback heuristique amélioré)
   → vraies accroches FR au lieu du transcript brut.
 - [ ] **A6. Re-render batch propre** de la VOD d'Eto avec A1-A5 → notifier Mehdi.

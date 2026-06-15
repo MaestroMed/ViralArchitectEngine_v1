@@ -777,8 +777,17 @@ class ExportService:
             }
 
         # ── Face tracking — animated SmartCrop ──────────────────────────
+        # NOTE: the single-pass pipeline builder composes a STATIC crop and does
+        # not consume keyframes, so tracking is wasted there. Skip it for the
+        # single-pass path and whenever the layout comes from an explicit
+        # layout_config (a deliberately fixed zone, e.g. a corner webcam).
         facecam_keyframes: list = []
-        if facecam_rect_norm:
+        _track_faces = (
+            facecam_rect_norm
+            and not layout_config
+            and not getattr(settings, "EXPORT_SINGLE_PASS", True)
+        )
+        if _track_faces:
             # Only run tracking when there's a dedicated facecam zone
             try:
                 from forge_engine.services.facecam_tracking import FacecamTracker

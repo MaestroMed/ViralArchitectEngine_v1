@@ -58,11 +58,13 @@ jobs:
       - name: Run unit + UI tests (drives the app in the simulator)
         id: tests
         working-directory: ${{ env.APP_DIR }}
-        # Don't abort the job on test failure — we still want the screenshots
-        # and video. The job's overall status reflects this step via the
-        # explicit check at the end.
-        continue-on-error: true
         run: |
+          # xcodebuild can exit non-zero on CoreSimulator teardown noise even
+          # when every test passed, so we judge success by the authoritative
+          # "** TEST SUCCEEDED **" marker in the log, not the exit code. This
+          # step always exits 0 so the screenshot/video steps still run; the
+          # final gate fails the job if the marker is absent.
+          set +e
           set -o pipefail
           xcodebuild test \
             -project ForgeLab.xcodeproj \
@@ -73,6 +75,14 @@ jobs:
             -resultBundlePath build/TestResults.xcresult \
             CODE_SIGNING_ALLOWED=NO \
             | tee build/test.log
+          if grep -qF "** TEST SUCCEEDED **" build/test.log; then
+            echo "result=success" >> "$GITHUB_OUTPUT"
+            echo "Tests passed (TEST SUCCEEDED marker present)."
+          else
+            echo "result=failure" >> "$GITHUB_OUTPUT"
+            echo "Tests did NOT report TEST SUCCEEDED."
+          fi
+          exit 0
 
       - name: Locate built .app
         id: locate
@@ -133,7 +143,7 @@ jobs:
           retention-days: 30
 
       - name: Reflect test result in job status
-        if: steps.tests.outcome != 'success'
+        if: steps.tests.outputs.result != 'success'
         run: |
-          echo "::error::iOS tests failed — see the test step log + TestResults.xcresult artifact"
+          echo "::error::iOS tests failed (no '** TEST SUCCEEDED **' marker) — see the test step log + TestResults.xcresult artifact"
           exit 1

@@ -15,6 +15,15 @@ import type {
   ExportOptionsSchema,
   VariantConfigSchema,
 } from './schemas';
+import type {
+  ClipSchema,
+  ClipStatusSchema,
+  ClipsByDateResponseSchema,
+  BatchApproveRequestSchema,
+  BatchApproveResponseSchema,
+  QueueSummaryResponseSchema,
+  MobileHealthResponseSchema,
+} from './schemas/mobile';
 
 // Inferred Types from Zod Schemas
 export type Project = z.infer<typeof ProjectSchema>;
@@ -31,6 +40,15 @@ export type IngestOptions = z.infer<typeof IngestOptionsSchema>;
 export type AnalyzeOptions = z.infer<typeof AnalyzeOptionsSchema>;
 export type ExportOptions = z.infer<typeof ExportOptionsSchema>;
 export type VariantConfig = z.infer<typeof VariantConfigSchema>;
+
+// Mobile (iOS) contract types — see ./schemas/mobile.ts
+export type Clip = z.infer<typeof ClipSchema>;
+export type ClipStatus = z.infer<typeof ClipStatusSchema>;
+export type ClipsByDateResponse = z.infer<typeof ClipsByDateResponseSchema>;
+export type BatchApproveRequest = z.infer<typeof BatchApproveRequestSchema>;
+export type BatchApproveResponse = z.infer<typeof BatchApproveResponseSchema>;
+export type QueueSummaryResponse = z.infer<typeof QueueSummaryResponseSchema>;
+export type MobileHealthResponse = z.infer<typeof MobileHealthResponseSchema>;
 
 // Utility Types
 export type JobStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';

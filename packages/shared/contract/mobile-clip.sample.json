@@ -1,0 +1,90 @@
+{
+  "_comment": "Auto-generated from ClipQueue.to_dict() — DO NOT hand-edit. Regenerate via apps/forge-engine/scripts/gen_contract_fixture.py. Single source of truth for the desktop<->backend<->iOS contract.",
+  "clip": {
+    "id": "a1b2c3d4-0000-4000-8000-000000000001",
+    "projectId": "b2c3d4e5-0000-4000-8000-000000000002",
+    "segmentId": "c3d4e5f6-0000-4000-8000-000000000003",
+    "artifactId": "d4e5f6a7-0000-4000-8000-000000000004",
+    "title": "\"Le outplay de Cabochard là c'est ILLÉGAL\"",
+    "description": "KC vs G2, la diff top qui fait basculer la game",
+    "hashtags": [
+      "lol",
+      "lec",
+      "karminecorp",
+      "etostark"
+    ],
+    "videoPath": "projects/b2c3d4e5/exports/clip_001_A.mp4",
+    "coverPath": "projects/b2c3d4e5/exports/clip_001_A.jpg",
+    "duration": 34.0,
+    "viralScore": 92.0,
+    "status": "pending_review",
+    "targetPlatform": null,
+    "scheduledAt": null,
+    "publishedAt": null,
+    "publishedUrl": null,
+    "publishError": null,
+    "channelName": "etostark",
+    "reviewId": null,
+    "createdAt": "2026-06-14T08:30:00.123456",
+    "updatedAt": "2026-06-14T08:30:00.123456"
+  },
+  "clipsByDateResponse": {
+    "date": "2026-06-14",
+    "count": 1,
+    "items": [
+      {
+        "id": "a1b2c3d4-0000-4000-8000-000000000001",
+        "projectId": "b2c3d4e5-0000-4000-8000-000000000002",
+        "segmentId": "c3d4e5f6-0000-4000-8000-000000000003",
+        "artifactId": "d4e5f6a7-0000-4000-8000-000000000004",
+        "title": "\"Le outplay de Cabochard là c'est ILLÉGAL\"",
+        "description": "KC vs G2, la diff top qui fait basculer la game",
+        "hashtags": [
+          "lol",
+          "lec",
+          "karminecorp",
+          "etostark"
+        ],
+        "videoPath": "projects/b2c3d4e5/exports/clip_001_A.mp4",
+        "coverPath": "projects/b2c3d4e5/exports/clip_001_A.jpg",
+        "duration": 34.0,
+        "viralScore": 92.0,
+        "status": "pending_review",
+        "targetPlatform": null,
+        "scheduledAt": null,
+        "publishedAt": null,
+        "publishedUrl": null,
+        "publishError": null,
+        "channelName": "etostark",
+        "reviewId": null,
+        "createdAt": "2026-06-14T08:30:00.123456",
+        "updatedAt": "2026-06-14T08:30:00.123456"
+      }
+    ]
+  },
+  "batchApproveRequest": {
+    "ids": [
+      "a1b2c3d4-0000-4000-8000-000000000001",
+      "e5f6a7b8-0000-4000-8000-000000000005"
+    ]
+  },
+  "batchApproveResponse": {
+    "requested": 2,
+    "approved": 1,
+    "skipped": [
+      "e5f6a7b8-0000-4000-8000-000000000005"
+    ]
+  },
+  "queueSummaryResponse": {
+    "counts": {
+      "pending_review": 4,
+      "approved": 1,
+      "published": 12
+    },
+    "total": 17
+  },
+  "health": {
+    "status": "healthy",
+    "version": "1.0.0"
+  }
+}

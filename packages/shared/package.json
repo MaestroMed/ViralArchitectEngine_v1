@@ -7,20 +7,21 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.js"
     },
     "./schemas": {
+      "types": "./dist/schemas/index.d.ts",
       "import": "./dist/schemas/index.mjs",
-      "require": "./dist/schemas/index.js",
-      "types": "./dist/schemas/index.d.ts"
+      "require": "./dist/schemas/index.js"
     }
   },
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
+    "test": "tsup --silent && node contract/check-contract.mjs",
     "clean": "rimraf dist"
   },
   "dependencies": {

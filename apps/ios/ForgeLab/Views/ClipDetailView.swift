@@ -101,6 +101,7 @@ struct ClipDetailView: View {
             .foregroundStyle(.white)
             .clipShape(RoundedRectangle(cornerRadius: 14))
             .disabled(model.busy)
+            .accessibilityIdentifier("download-button")
 
             HStack(spacing: 12) {
                 Button {

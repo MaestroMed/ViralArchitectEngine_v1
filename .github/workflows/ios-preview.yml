@@ -1,12 +1,12 @@
 name: iOS Preview Screenshots
 
-# Builds the SwiftUI app for the iOS Simulator (no code signing needed for the
-# simulator) and captures real screenshots of the three screens, uploaded as
-# artifacts. This is how we "see the app in the simulator" without anyone
-# touching Xcode — GitHub's macOS runner does it.
+# Builds the SwiftUI app for the iOS Simulator (no signing needed), RUNS the
+# unit + UI tests on a booted simulator (the UI tests actually drive the app),
+# then captures screenshots + a short screen-recording of the demo flow.
+# Everything is uploaded as artifacts. This is how we "see AND test the app in
+# the simulator" without anyone touching Xcode — GitHub's macOS runner does it.
 #
-# Trigger manually (Actions tab → "iOS Preview Screenshots" → Run workflow),
-# or it runs automatically when the iOS app changes on main.
+# Trigger manually (Actions tab → Run workflow) or on changes to the iOS app.
 
 on:
   workflow_dispatch:
@@ -17,13 +17,10 @@ on:
       - ".github/workflows/ios-preview.yml"
 
 jobs:
-  screenshots:
-    name: Build + screenshot (Simulator)
-    # macos-15's default Xcode is 16.x, which understands the project format
-    # XcodeGen emits (objectVersion 77). Pinning Xcode 15.4 previously failed
-    # with "future Xcode project file format (77)".
+  simulator:
+    name: Build · Test · Capture (Simulator)
     runs-on: macos-15
-    timeout-minutes: 30
+    timeout-minutes: 40
     env:
       BUNDLE_ID: "com.maestromed.forgelab"
       APP_DIR: apps/ios
@@ -43,39 +40,13 @@ jobs:
         working-directory: ${{ env.APP_DIR }}
         run: xcodegen
 
-      - name: Build for Simulator (unsigned)
-        working-directory: ${{ env.APP_DIR }}
-        run: |
-          xcodebuild \
-            -project ForgeLab.xcodeproj \
-            -scheme ForgeLab \
-            -configuration Debug \
-            -sdk iphonesimulator \
-            -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO \
-            build
-
-      - name: Locate built .app
-        id: locate
-        working-directory: ${{ env.APP_DIR }}
-        run: |
-          APP_PATH="$(find build/Build/Products -name 'ForgeLab.app' -type d | head -1)"
-          if [ -z "$APP_PATH" ]; then echo "ForgeLab.app not found"; exit 1; fi
-          echo "app_path=$APP_DIR/$APP_PATH" >> "$GITHUB_OUTPUT"
-          echo "Built: $APP_PATH"
-
-      - name: Boot a simulator
+      - name: Resolve + boot a simulator
         id: sim
         run: |
-          # Pick the first available modern iPhone simulator by UDID — names
-          # vary between Xcode versions, UDIDs don't.
           UDID="$(xcrun simctl list devices available \
-            | grep -E 'iPhone 1[5-9]( Pro)?( Max)? \(' \
-            | head -1 \
+            | grep -E 'iPhone 1[5-9]( Pro)?( Max)? \(' | head -1 \
             | grep -oE '[0-9A-Fa-f-]{36}')"
           if [ -z "$UDID" ]; then
-            echo "No modern iPhone simulator available; falling back to any iPhone"
             UDID="$(xcrun simctl list devices available | grep -E 'iPhone .*\(' | head -1 | grep -oE '[0-9A-Fa-f-]{36}')"
           fi
           if [ -z "$UDID" ]; then echo "No iPhone simulator found"; exit 1; fi
@@ -84,29 +55,85 @@ jobs:
           xcrun simctl bootstatus "$UDID" -b
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
 
+      - name: Run unit + UI tests (drives the app in the simulator)
+        id: tests
+        working-directory: ${{ env.APP_DIR }}
+        # Don't abort the job on test failure — we still want the screenshots
+        # and video. The job's overall status reflects this step via the
+        # explicit check at the end.
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project ForgeLab.xcodeproj \
+            -scheme ForgeLab \
+            -configuration Debug \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath build \
+            -resultBundlePath build/TestResults.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            | tee build/test.log
+
+      - name: Locate built .app
+        id: locate
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          APP_PATH="$(find build/Build/Products -name 'ForgeLab.app' -type d | head -1)"
+          if [ -z "$APP_PATH" ]; then echo "ForgeLab.app not found"; exit 1; fi
+          echo "app_path=$APP_DIR/$APP_PATH" >> "$GITHUB_OUTPUT"
+
       - name: Install app
         run: xcrun simctl install "${{ steps.sim.outputs.udid }}" "${{ steps.locate.outputs.app_path }}"
 
       - name: Capture screenshots
         run: |
           UDID="${{ steps.sim.outputs.udid }}"
-          mkdir -p screenshots
-          shoot() {  # $1 = name, rest = launch args
+          mkdir -p artifacts
+          shoot() {
             local name="$1"; shift
             xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
             xcrun simctl launch "$UDID" "$BUNDLE_ID" "$@"
             sleep 6
-            xcrun simctl io "$UDID" screenshot "screenshots/$name.png"
-            echo "captured $name.png"
+            xcrun simctl io "$UDID" screenshot "artifacts/$name.png"
           }
           shoot "1-settings"
           shoot "2-queue" --demo
           shoot "3-detail" --demo --demo-screen detail
-          ls -la screenshots
+          ls -la artifacts
 
-      - name: Upload screenshots
+      - name: Record demo video (queue → detail)
+        run: |
+          UDID="${{ steps.sim.outputs.udid }}"
+          xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
+          xcrun simctl io "$UDID" recordVideo --codec h264 --force "artifacts/demo.mp4" &
+          REC_PID=$!
+          sleep 1
+          xcrun simctl launch "$UDID" "$BUNDLE_ID" --demo;            sleep 5
+          xcrun simctl terminate "$UDID" "$BUNDLE_ID";                sleep 1
+          xcrun simctl launch "$UDID" "$BUNDLE_ID" --demo --demo-screen detail; sleep 5
+          kill -INT "$REC_PID" 2>/dev/null || true
+          wait "$REC_PID" 2>/dev/null || true
+          ls -la artifacts
+
+      - name: Zip xcresult (UI test trail)
+        if: always()
+        run: |
+          mkdir -p artifacts
+          RESULT="apps/ios/build/TestResults.xcresult"
+          if [ -d "$RESULT" ]; then
+            ( cd apps/ios/build && zip -qr "$GITHUB_WORKSPACE/artifacts/TestResults.xcresult.zip" TestResults.xcresult )
+          fi
+
+      - name: Upload artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ios-simulator-screenshots
-          path: screenshots/*.png
+          name: ios-simulator-preview
+          path: artifacts/*
           retention-days: 30
+
+      - name: Reflect test result in job status
+        if: steps.tests.outcome != 'success'
+        run: |
+          echo "::error::iOS tests failed — see the test step log + TestResults.xcresult artifact"
+          exit 1

@@ -68,11 +68,13 @@ struct QueueView: View {
                     }
                     .buttonStyle(.plain)
                     .onLongPressGesture { toggleSelection(clip.id) }
+                    .accessibilityIdentifier("clip-\(clip.id)")
                 }
             }
             .padding(.horizontal)
             .padding(.bottom, selectionMode ? 80 : 12)
         }
+        .accessibilityIdentifier("queue-list")
         .overlay(alignment: .bottom) {
             if selectionMode { batchBar }
         }

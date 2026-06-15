@@ -62,3 +62,26 @@ targets:
       base:
         BUNDLE_LOADER: "$(TEST_HOST)"
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/ForgeLab.app/ForgeLab"
+
+  ForgeLabUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [ForgeLabUITests]
+    dependencies:
+      - target: ForgeLab
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.maestromed.forgelab.uitests
+
+schemes:
+  ForgeLab:
+    build:
+      targets:
+        ForgeLab: all
+        ForgeLabTests: [test]
+        ForgeLabUITests: [test]
+    test:
+      targets:
+        - ForgeLabTests
+        - ForgeLabUITests
+      gatherCoverageData: false

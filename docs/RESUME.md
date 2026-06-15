@@ -86,9 +86,19 @@ Puis dans l'app : IP du PC + port 8420 + la clé → Tester → Enregistrer.
 4. ✅ **FAIT** — **Migration Alembic** : `alembic/` (env.py sync SQLite ciblant `Base.metadata`, URL via `$FORGE_DATABASE_URL`/`DATABASE_PATH`), migration initiale = schéma complet (15 tables, upgrade+downgrade vérifiés). `tests/test_migrations.py` : upgrade crée toutes les tables + **garde anti-drift** (0 diff modèles↔migrations) + downgrade réversible. `create_all` gardé pour le 1er boot (note + README : `alembic stamp head` pour une DB existante). Dép `alembic>=1.13`.
 5. ✅ **FAIT** — **`test_pipeline_e2e.py` réparé** : 16/23 échouaient (imports périmés `Job`→`core.jobs`, préfixe `/v1`, signatures `ViralityScorer`, classes `AudioAnalyzer`/`SceneDetector`/`MonitorService`…). Désormais **23 passent** (ou skip propre via helper `_service()` si dep lourde absente). Reste `@e2e` (CI l'exclut toujours).
 
+## ▶️ Premier batch de clips réels (VOD etostark__ du 2026-06-14)
+- VOD `v2796529250` ("AFTER STARKKK WAITING ROOM COUPE DU MONDE", 1h56) téléchargée via yt-dlp, passée dans le pipeline complet **en local sur le Mac M5** (CPU, whisper `small` FR, scene detect, scoring viralité). Driver one-off : `/tmp/run_eto.py` puis `/tmp/export_only.py` (réutilisent les services testés ; transcription mise en cache par projet sous `~/FORGE_LIBRARY/projects/<id>/analysis/`).
+- Résultat : **12 clips verticaux 1080×1920 / 60s** (scores 61-72), en `ClipQueue` (status `pending_review`, channel `etostark`), avec cover + caption sidecar + post.txt. Projet `1ab8b274-3791-48b2-afd4-8cf481b285d0`.
+- Moteur lancé **LAN+auth** sur `0.0.0.0:8420` (IP Mac `192.168.1.11`), clé API "iPhone Air — etostark" créée (non commitée). `/v1/clips/queue/pending`, `/by-date`, `/queue/summary`, `/cover` vérifiés OK (12 clips, 401 sans clé). Re-lancer : `FORGE_BIND_LAN=1 FORGE_REQUIRE_AUTH=1 FORGE_FORCE_CPU=1 PYTHONPATH=src .venv-full/bin/python -m forge_engine.main`.
+- **Stack ML locale** : venv `apps/forge-engine/.venv-full` (py3.12 + faster-whisper, opencv, librosa, scenedetect, yt-dlp). Perf : transcription 1h56 ≈ 23 min CPU.
+- ⚠️ **Reste pour la qualité** : (a) ffmpeg Homebrew **sans libass** → karaoké burn-in impossible (clips rendus avec captions en sidecar ; installer un ffmpeg `--enable-libass` pour brûler) ; (b) **cold-open cassé** quand segment > cap 60s (le hook détecté hors fenêtre → crash concat FFmpeg) — désactivé pour ce batch ; (c) les segments sont longs (60-205s) trimés au premier 60s — affiner les fenêtres (`window_sizes` courts) pour des clips serrés sur le punch.
+
 ## Bugs de prod trouvés & corrigés cette session
 - **`get_publish_status`** (social_publish.py) appelait `get_publishing_status(job_id)` au lieu de `(platform, video_id)` → `TypeError` sur `/v1/social/publish/{id}`. Corrigé (décodage token `platform:video_id`) + tests (`test_social_publish_status.py`).
 - **`RateLimitMiddleware`** : défaut `policy=field(default_factory=list)` (mauvais usage hors dataclass) → `self._policy` = objet `Field` → `TypeError` sur **chaque** requête du vrai app (main.py ajoute le middleware sans policy). Corrigé (`None` → `DEFAULT_POLICY`) + régression CI dans `test_rate_limit.py`. Trouvé en testant le e2e contre le vrai app.
+- **`AudioAnalyzer._detect_laughter_patterns`** inexistant (appel mort) → analyse audio plantait, scoring privé du signal audio. Corrigé.
+- **Config `extra='forbid'`** → une clé `FORGE_*` hors-schéma dans `.env` (ex. `FORGE_REQUIRE_AUTH`) faisait crasher tout le moteur à l'import. Passé en `extra='ignore'`.
+- **Export captions/quoting** : appel `generate_ass(segments=…)` périmé (clips sans sous-titres) + path subtitles entre single-quotes littéraux → parser FFmpeg 8.x KO. Corrigés.
 
 Backend : **195 passed** (CI subset) + **23** e2e + **6** contrat. Reste éventuel : installer sur iPhone Air physique (signé, `FORGE_APPLE_TEAM_ID`).
 

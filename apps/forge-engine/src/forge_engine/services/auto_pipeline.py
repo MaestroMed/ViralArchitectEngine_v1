@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 # Default EtoStark configuration
 ETOSTARK_CONFIG = {
-    "channel_id": "etostark",
+    "channel_id": "etostark__",   # real Twitch handle (was "etostark")
     "channel_name": "EtoStark",
     "platform": "twitch",
     "check_interval": 1800,  # 30 minutes
@@ -193,12 +193,10 @@ class AutoPipelineService:
             if not channel.enabled:
                 return
 
-            # Check for new VODs using scraper
+            # Check for new VODs via yt-dlp (no headless-browser dependency).
             try:
-                from forge_engine.services.playwright_scraper import PlaywrightScraper
-                scraper = PlaywrightScraper.get_instance()
-
-                vods = await scraper.get_twitch_vods(channel.channel_id, limit=5)
+                from forge_engine.services import vod_detector
+                vods = await vod_detector.get_twitch_vods(channel.channel_id, limit=5)
             except Exception as e:
                 logger.warning(f"[AutoPipeline] VOD check failed: {e}")
                 return

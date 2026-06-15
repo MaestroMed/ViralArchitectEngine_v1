@@ -94,9 +94,11 @@ copier — repenser pour le tactile/petit écran).
 ## WS-D — Accès & infra (pour piloter de loin)
 - [ ] **D1. Accès distant durable** : remplacer le quick-tunnel cloudflared
   (URL éphémère) par un tunnel nommé stable ou Tailscale (action tel requise).
-- [ ] **D2. Auto-pipeline matinal réel** : brancher la détection VOD etostark__
-  (le scraper Playwright cible `etostark` au lieu de `etostark__`, et Playwright
-  n'est pas installé) → fiabiliser la découverte + traitement automatique.
+- [x] **D2. Auto-pipeline matinal réel** ✅ : `services/vod_detector.py`
+  (détection VOD via **yt-dlp**, plus de Playwright) branché dans
+  `_check_and_process` ; handle corrigé `etostark` → `etostark__`. Vérifié sur la
+  vraie chaîne (liste les 4 dernières VODs) + `test_vod_detector.py`. `check_now()`
+  détecte et traite désormais la dernière VOD automatiquement.
 
 ## État courant (2026-06-15)
 - ✅ Engine durci, app iOS livrée + installée iPhone Air, contrats partagés, Alembic, e2e, ARIA.

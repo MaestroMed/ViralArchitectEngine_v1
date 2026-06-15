@@ -199,8 +199,9 @@ class AudioAnalyzer:
         if progress_callback:
             progress_callback(90)
 
-        # Detect laughter-like patterns (high frequency bursts)
-        self._detect_laughter_patterns(y, sr)
+        # (Laughter is detected as part of _detect_audio_events below via
+        # _detect_laughter; a stray call to a non-existent
+        # _detect_laughter_patterns used to crash audio analysis here.)
 
         if progress_callback:
             progress_callback(100)

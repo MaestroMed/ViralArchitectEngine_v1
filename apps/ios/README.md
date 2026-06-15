@@ -8,6 +8,18 @@ App native SwiftUI pour le workflow du matin :
 Pas de dépendance API TikTok, pas d'OAuth tier. Tout passe par la pellicule
 et le Share Sheet du système.
 
+## Aperçu (vrais screenshots du simulateur iOS)
+
+Capturés automatiquement par `.github/workflows/ios-preview.yml` sur un runner
+macOS (iPhone simulator, Xcode 16) — régénérés à chaque changement de l'app.
+
+| Réglages | Queue (clips d'hier) | Détail |
+|----------|----------------------|--------|
+| ![Réglages](preview/screenshots/1-settings.png) | ![Queue](preview/screenshots/2-queue.png) | ![Détail](preview/screenshots/3-detail.png) |
+
+> Mockup HTML équivalent (sans build) : ouvre `preview/index.html` dans Safari.
+
+
 ## Pré-requis
 
 - macOS + **Xcode 15+** (16 recommandé)

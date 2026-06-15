@@ -204,10 +204,46 @@ class SocialPublishService:
         return removed
 
     async def get_publish_status(self, job_id: str) -> dict[str, Any] | None:
-        """Compat alias for the endpoint module — the real method is
-        `get_publishing_status`. Kept here so /v1/social/publish/{id} works
-        without touching the route handler."""
-        return await self.get_publishing_status(job_id)
+        """Resolve a publish-job token for the ``/v1/social/publish/{id}`` route.
+
+        The HTTP surface identifies a job by an opaque ``job_id``, but the
+        underlying primitive (:meth:`get_publishing_status`) keys off the
+        ``platform`` plus the platform-native ``video_id``. We encode both into
+        the token as ``"<platform>:<video_id>"`` and decode them here, then
+        flatten the platform-native payload into the flat shape that
+        ``PublishStatusResponse`` expects (``job_id`` / ``platform`` /
+        ``status`` / ``url`` / ``error``).
+
+        Returns ``None`` for a malformed/unknown token or a platform we can't
+        query, which the endpoint surfaces as a 404.
+        """
+        platform_name, _, video_id = job_id.partition(":")
+        if not video_id:
+            return None
+        try:
+            platform = Platform(platform_name)
+        except ValueError:
+            return None
+
+        raw = await self.get_publishing_status(platform, video_id)
+        if not raw:
+            return None
+
+        status = raw.get("status", {})
+        url = (
+            f"https://youtube.com/shorts/{video_id}"
+            if platform == Platform.YOUTUBE
+            else None
+        )
+        return {
+            "job_id": job_id,
+            "platform": str(platform),
+            "status": status.get("uploadStatus")
+            or status.get("privacyStatus")
+            or "unknown",
+            "url": url,
+            "error": status.get("failureReason") or status.get("rejectionReason"),
+        }
 
     async def authenticate(
         self,

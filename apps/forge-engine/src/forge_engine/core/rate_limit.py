@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from threading import Lock
 
 from fastapi import Request, status
@@ -123,7 +123,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     def __init__(
         self,
         app: ASGIApp,
-        policy: list[tuple[str, RateRule]] = field(default_factory=list),
+        policy: list[tuple[str, RateRule]] | None = None,
         registry: TokenBucketRegistry | None = None,
     ) -> None:
         super().__init__(app)

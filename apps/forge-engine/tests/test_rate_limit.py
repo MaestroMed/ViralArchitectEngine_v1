@@ -101,3 +101,21 @@ def test_default_policy_covers_heavy_endpoints():
         "/v1/social/",
     }
     assert must_cover.issubset(prefixes)
+
+
+def test_middleware_without_explicit_policy_serves_requests():
+    """Regression: main.py adds the middleware with no `policy` argument. The
+    default must resolve to DEFAULT_POLICY — it used to be a dataclasses.field()
+    sentinel, so `_match_rule` did `for ... in <Field>` and raised TypeError on
+    EVERY request through the real app."""
+    app = FastAPI()
+    app.add_middleware(RateLimitMiddleware)  # no policy → default path
+
+    @app.get("/health")
+    async def health():
+        return {"ok": True}
+
+    client = TestClient(app)
+    r = client.get("/health")
+    assert r.status_code == 200  # not 500 / TypeError
+    assert r.json() == {"ok": True}

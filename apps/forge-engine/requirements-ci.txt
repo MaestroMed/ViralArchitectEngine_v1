@@ -20,7 +20,7 @@ aiofiles>=23.2.0
 
 # System metrics — monitor.py imports psutil at module load, so any test that
 # imports the app or MonitorService (e.g. test_services.py) needs it.
-psutil>=5.9.0
+psutil>=7.2.2
 
 # Minimal ML (pure Python, no CUDA needed)
 numpy>=1.26.0

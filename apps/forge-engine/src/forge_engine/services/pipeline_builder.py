@@ -142,17 +142,24 @@ class PipelineSinglePass:
 
         # ── Step 2: Jump cuts ─────────────────────────────────────────────
         if cfg.keep_ranges:
-            segs_v = []
-            segs_a = []
+            n = len(cfg.keep_ranges)
+            # Split the source into N copies first: each trim must read its own
+            # pad (consuming [composed_v] N times crashes with "Error
+            # reinitializing filters").
+            vsplit = "".join(f"[jcsrc_v{i}]" for i in range(n))
+            asplit = "".join(f"[jcsrc_a{i}]" for i in range(n))
+            filters.append(
+                f"[{current_v}]split={n}{vsplit};[{current_a}]asplit={n}{asplit}"
+            )
             for i, (start, end) in enumerate(cfg.keep_ranges):
                 filters.append(
-                    f"[{current_v}]trim={start:.4f}:{end:.4f},setpts=PTS-STARTPTS[jv{i}];"
-                    f"[{current_a}]atrim={start:.4f}:{end:.4f},asetpts=PTS-STARTPTS[ja{i}]"
+                    f"[jcsrc_v{i}]trim={start:.4f}:{end:.4f},setpts=PTS-STARTPTS[jv{i}];"
+                    f"[jcsrc_a{i}]atrim={start:.4f}:{end:.4f},asetpts=PTS-STARTPTS[ja{i}]"
                 )
-                segs_v.append(f"[jv{i}]")
-                segs_a.append(f"[ja{i}]")
-            n = len(cfg.keep_ranges)
-            concat_in = "".join(segs_v + segs_a)
+            # concat with v=1:a=1 expects pads interleaved PER SEGMENT
+            # (v0,a0,v1,a1,…), NOT all videos then all audios — otherwise the
+            # filtergraph fails with a media-type mismatch.
+            concat_in = "".join(f"[jv{i}][ja{i}]" for i in range(n))
             filters.append(
                 f"{concat_in}concat=n={n}:v=1:a=1[jc_v][jc_a]"
             )

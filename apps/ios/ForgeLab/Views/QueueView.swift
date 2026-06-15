@@ -53,22 +53,24 @@ struct QueueView: View {
 
     private var list: some View {
         ScrollView {
-            LazyVStack(spacing: 12) {
-                ForEach(clips) { clip in
-                    NavigationLink {
-                        ClipDetailView(api: api, clip: clip, demo: demoClips != nil)
-                    } label: {
-                        ClipCard(
-                            clip: clip,
-                            api: api,
-                            selected: selection.contains(clip.id),
-                            selectMode: selectionMode,
-                            demo: demoClips != nil,
-                        )
+            GlassEffectContainer(spacing: 14) {
+                LazyVStack(spacing: 14) {
+                    ForEach(clips) { clip in
+                        NavigationLink {
+                            ClipDetailView(api: api, clip: clip, demo: demoClips != nil)
+                        } label: {
+                            ClipCard(
+                                clip: clip,
+                                api: api,
+                                selected: selection.contains(clip.id),
+                                selectMode: selectionMode,
+                                demo: demoClips != nil,
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .onLongPressGesture { toggleSelection(clip.id) }
+                        .accessibilityIdentifier("clip-\(clip.id)")
                     }
-                    .buttonStyle(.plain)
-                    .onLongPressGesture { toggleSelection(clip.id) }
-                    .accessibilityIdentifier("clip-\(clip.id)")
                 }
             }
             .padding(.horizontal)
@@ -95,12 +97,12 @@ struct QueueView: View {
             } label: {
                 if batchInFlight { ProgressView() } else { Label("Approuver", systemImage: "checkmark") }
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.glassProminent)
+            .tint(Theme.accent)
             .disabled(selection.isEmpty || batchInFlight)
         }
         .padding()
-        .background(Theme.surface)
-        .cornerRadius(16)
+        .forgeGlassBar(cornerRadius: 22)
         .padding()
     }
 

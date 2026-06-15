@@ -51,13 +51,8 @@ struct ClipCard: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(12)
-        .background(Theme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(selected ? Theme.accent : .clear, lineWidth: 2),
-        )
+        .padding(14)
+        .forgeGlassCard(cornerRadius: 18, selected: selected)
         .overlay(alignment: .topTrailing) {
             if selectMode {
                 Image(systemName: selected ? "checkmark.circle.fill" : "circle")

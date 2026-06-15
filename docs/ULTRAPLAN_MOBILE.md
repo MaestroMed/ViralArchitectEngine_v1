@@ -59,8 +59,11 @@ Projet de test : `1ab8b274-…` (VOD etostark__ v2796529250, cache analyse prés
 Cible : Xcode 26 / iOS 26, SwiftUI, APIs Liquid Glass (`glassEffect`, `GlassEffectContainer`,
 `buttonStyle(.glass)`, etc. — **vérifier les API réelles via le SDK avant usage**).
 
-- [ ] **B1. Design system** : tokens (couleurs/typo/espacements) + composants
-  Glass réutilisables (cartes, barres, boutons) ; thème sombre par défaut.
+- [x] **B1. Design system** ✅ : APIs Liquid Glass iOS 26 vérifiées (typecheck) ;
+  `Theme/Glass.swift` = modifiers réutilisables (`forgeGlassCard`/`forgeGlassBar`/
+  `forgeGlassAccent`) ; deployment target → iOS 26 ; `ClipCard` + barre de
+  sélection + `GlassEffectContainer` sur la liste. Build OK + screenshot simulateur
+  vérifié (cartes en verre). [B2 = appliquer aux autres écrans.]
 - [ ] **B2. Refonte des écrans existants** (RootView, QueueView, ClipDetailView,
   SettingsView) en Liquid Glass — garder les a11y identifiers + le workflow matin.
 - [ ] **B3. Navigation** : TabView/NavigationStack Liquid Glass cohérente.

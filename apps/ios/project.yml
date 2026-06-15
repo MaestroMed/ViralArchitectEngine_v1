@@ -43,10 +43,10 @@ targets:
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: false
           NSAllowsLocalNetworking: true
-    entitlements:
-      path: ForgeLab/ForgeLab.entitlements
-      properties:
-        com.apple.developer.networking.HotspotConfiguration: false
+    # No special entitlements: LAN access to the engine is granted at runtime
+    # via Info.plist NSAppTransportSecurity + NSLocalNetworkUsageDescription.
+    # (A HotspotConfiguration entitlement here broke automatic-signing archives:
+    # "Entitlement … not found and could not be included in profile.")
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.maestromed.forgelab

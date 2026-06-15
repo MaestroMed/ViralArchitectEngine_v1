@@ -74,7 +74,9 @@ if [[ -z "$DEVICE_LINE" ]]; then
   echo "Branche-le en USB, déverrouille-le, et accepte le prompt 'Trust this Mac'."
   err "Pas d'appareil iOS disponible."
 fi
-DEVICE_ID="$(echo "$DEVICE_LINE" | awk '{print $NF}' || true)"
+# Extract the device UUID from the Identifier column. `awk '{print $NF}'` is
+# wrong: the last field is the Model (e.g. "(iPhone18,4)"), not the UUID.
+DEVICE_ID="$(echo "$DEVICE_LINE" | grep -oE '[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}' | head -1 || true)"
 [[ -z "$DEVICE_ID" ]] && err "Impossible d'extraire l'identifiant de l'iPhone:\n$DEVICE_LINE"
 echo "    Appareil cible: $DEVICE_LINE"
 

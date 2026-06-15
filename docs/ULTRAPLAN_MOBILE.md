@@ -64,8 +64,10 @@ Cible : Xcode 26 / iOS 26, SwiftUI, APIs Liquid Glass (`glassEffect`, `GlassEffe
   `forgeGlassAccent`) ; deployment target → iOS 26 ; `ClipCard` + barre de
   sélection + `GlassEffectContainer` sur la liste. Build OK + screenshot simulateur
   vérifié (cartes en verre). [B2 = appliquer aux autres écrans.]
-- [ ] **B2. Refonte des écrans existants** (RootView, QueueView, ClipDetailView,
-  SettingsView) en Liquid Glass — garder les a11y identifiers + le workflow matin.
+- [x] **B2. Refonte des écrans existants** ✅ : QueueView (B1), ClipDetailView
+  (carte metadata + boutons glass), SettingsView (fond sombre + rangées/boutons
+  glass, route `--demo-screen settings` ajoutée). RootView ne fait que router.
+  a11y identifiers + flux test/save conservés. Build + screenshots vérifiés.
 - [ ] **B3. Navigation** : TabView/NavigationStack Liquid Glass cohérente.
 - [ ] **B4. Polish** : animations, haptiques, transitions, états vides/chargement.
 

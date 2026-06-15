@@ -63,6 +63,7 @@ struct SettingsView: View {
                         Label("Tester la connexion", systemImage: "antenna.radiowaves.left.and.right")
                     }
                 }
+                .buttonStyle(.glass)
                 .disabled(testing || !canTest)
 
                 Button {
@@ -72,7 +73,8 @@ struct SettingsView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .disabled(!canSave)
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
+                .tint(Theme.accent)
             }
 
             if settings.isConfigured {
@@ -89,6 +91,11 @@ struct SettingsView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Theme.background.ignoresSafeArea())
+        .listRowBackground(
+            Color.clear.glassEffect(.regular, in: .rect(cornerRadius: 12))
+        )
         .navigationTitle("Réglages")
         .onAppear(perform: hydrateFromSettings)
     }

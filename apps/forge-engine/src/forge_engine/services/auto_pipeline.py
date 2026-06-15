@@ -109,6 +109,18 @@ class AutoPipelineService:
 
             await asyncio.sleep(self._check_interval)
 
+    async def check_now(self):
+        """Run one immediate VOD check, outside the poll cadence.
+
+        Called by the Twitch stream.offline webhook so clips start processing
+        the moment a stream ends instead of waiting up to check_interval. Safe
+        to call even if the loop isn't running.
+        """
+        try:
+            await self._check_and_process()
+        except Exception as e:
+            logger.error(f"[AutoPipeline] check_now error: {e}")
+
     async def _check_and_process(self):
         """Check for new VODs and start processing pipeline."""
         from sqlalchemy import select
@@ -297,10 +309,34 @@ class AutoPipelineService:
         """Export top clips and add them to the review queue."""
         from sqlalchemy import select
 
+        from forge_engine.core.scheduling import (
+            export_window,
+            seconds_until_window,
+            should_export_now,
+        )
         from forge_engine.models import Segment
         from forge_engine.models.review import ClipQueue
         from forge_engine.services.content_generation import ContentGenerationService
         from forge_engine.services.export import ExportService
+
+        # Optional "clips ready by morning" gate: if FORGE_EXPORT_WINDOW is set
+        # (e.g. 05:00-07:00), hold the GPU-heavy export until that window so the
+        # queue is fresh at wake-up rather than rendered late at night. No
+        # window configured → export immediately (unchanged behaviour).
+        if not should_export_now():
+            window = export_window()
+            wait_s = seconds_until_window(window) if window else 0
+            logger.info(
+                "[AutoPipeline] Outside export window %s — deferring export of "
+                "project %s by %dm",
+                window, project_id[:8], wait_s // 60,
+            )
+            # Re-check periodically; cap the sleep so a stop() is responsive.
+            while self._running and not should_export_now():
+                await asyncio.sleep(min(300, max(30, wait_s)))
+                wait_s = 0
+            if not self._running:
+                return
 
         min_score = export_config.get("min_score", 65)
         max_clips = export_config.get("max_clips", 15)

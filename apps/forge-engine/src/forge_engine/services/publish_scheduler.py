@@ -79,7 +79,12 @@ class PublishSchedulerService:
 
     async def _check_and_publish(self):
         """Check if now is a good time to publish a clip."""
-        now = datetime.now()
+        # Timezone-aware: slots are defined in the configured local zone
+        # (FORGE_TIMEZONE, default Europe/Paris) rather than the server's
+        # system clock, which on a cloud host is usually UTC.
+        from forge_engine.core.scheduling import now_local
+
+        now = now_local()
         today = now.strftime("%Y-%m-%d")
 
         # Reset daily counter
@@ -169,7 +174,10 @@ class PublishSchedulerService:
                     clip.published_at = datetime.utcnow()
                     clip.published_url = result.video_url
                     self._posts_today += 1
-                    self._last_post_time = datetime.now()
+                    # Keep tz-aware to match `now` in _check_and_publish
+                    # (comparing aware vs naive datetimes raises TypeError).
+                    from forge_engine.core.scheduling import now_local
+                    self._last_post_time = now_local()
 
                     logger.info(f"[Scheduler] Published: {result.video_url}")
                 else:

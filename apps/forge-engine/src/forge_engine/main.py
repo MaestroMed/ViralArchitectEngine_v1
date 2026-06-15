@@ -243,6 +243,12 @@ def create_app() -> FastAPI:
             },
         }
 
+    # Inbound webhooks (Twitch EventSub) authenticate via HMAC signature, not
+    # the X-API-Key header (Twitch can't send custom headers). Mounted BEFORE
+    # the authed router and without the auth dependency.
+    from forge_engine.api.v1.endpoints import webhooks
+    app.include_router(webhooks.router, prefix="/v1/webhooks", tags=["Webhooks"])
+
     # Include API router. When auth is required (BIND_LAN or FORGE_REQUIRE_AUTH),
     # every /v1/* route gets an X-API-Key check via the dependency below — this
     # is the single chokepoint, no risk of forgetting it on a new endpoint.

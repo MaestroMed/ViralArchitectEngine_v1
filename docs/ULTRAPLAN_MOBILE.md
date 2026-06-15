@@ -24,23 +24,29 @@
 ## WS-A — Outputs clips parfaits (priorité immédiate, itératif sur la VOD d'Eto)
 Projet de test : `1ab8b274-…` (VOD etostark__ v2796529250, cache analyse présent).
 
-- [~] **A1. Cadrage facecam-en-haut** — EN COURS (itératif, voir note).
-  - ✅ Plomberie : `_run_single_pass_export` retombe sur `segment.facecam_rect`
-    quand pas de `layout_config` (gaté `stream_facecam`), donc l'export sait
-    composer le deux-zones aussi en auto-pipeline.
-  - ⚠️ **Détection trop grossière** : `layout.detect_layout` rend UN layout GLOBAL
-    pour toute la VOD (ici `podcast_irl` + facecam 120×120 unique). Sur une VOD
-    multi-scènes (on-cam + contenu produit plein écran), il faut une détection
-    **par segment/scène** + gating de confiance (deux-zones seulement si vraie
-    webcam détectée dans CE segment, sinon center-crop). Cette VOD "WAITING ROOM"
-    est surtout du contenu produit → peu/pas de webcam Eto à isoler.
-  - ➡️ TODO : détection facecam par-segment + valider sur une VOD où Eto est
-    bien on-cam (input Mehdi).
-- [ ] **A2. Robustesse layout** : fallback propre si pas de facecam stable
-  (talk_fullscreen / center-crop) ; ne jamais crasher l'export.
-- [x] **A3. Fenêtres serrées** ✅ : `_auto_export_top_clips` resserre chaque clip à
-  `max_clip_seconds` (30s) centré sur le punch (`cold_open_start_time`, lead-in 5s)
-  avant export. Vérifié : 12 clips à 30s, karaoké OK. Config `etostark` mise à jour.
+- [x] **A1. Cadrage facecam-en-haut** ✅ : layout deux-zones (cam d'Eto EN HAUT,
+  contenu en bas) rendu correctement via `vstack`. Crash corrigé (source lue 2×
+  + crops calculés sur dims de sortie au lieu de dims source). Ajout
+  `PipelineConfig.facecam_ratio` (hauteur zone cam) câblé depuis `facecamRatio`.
+  **Crops validés empiriquement** sur la vraie VOD (frames échantillonnées à
+  420/1500/2600/3700/5900/6600s — la cam est toujours en bas à droite, tête
+  centrée ~(0.83, 0.82)) : facecam x=0.70 y=0.71 w=0.255 h=0.29, content x=0.04
+  w=0.63, ratio 0.42. Frame de sortie inspectée = visage d'Eto net en haut,
+  contenu lisible en bas.
+- [x] **A2. Robustesse layout** ✅ : (1) fallback center-crop propre si pas de
+  layout_config (zone unique). (2) **Bug jump-cut corrigé** : avec ≥2 keep-ranges
+  le concat lisait `[composed_v]` N× sans `split` ET ordonnait les pads
+  all-video-puis-all-audio au lieu d'entrelacés par segment → crash rc=234
+  ("media type mismatch"). Fix `split=N`/`asplit=N` + concat entrelacé. Chaîne
+  complète (deux-zones + jump-cut + cold-open + sous-titres) testée rc=0.
+  `test_pipeline_builder.py` (6 cas) verrouille les règles de pad.
+- [x] **A3. Fenêtres serrées → durées variables** ✅ : remplacé "tout à 30s" par
+  un **clustering** (`_cluster_segments`) : le segmenteur émet des fenêtres
+  multi-échelle qui se chevauchent → on fusionne celles qui se chevauchent/sont
+  proches (`merge_gap` 25s) en UN clip par moment (union, plafonné à
+  `max_clip_seconds` 120s, centré sur le punch). Sur la VOD d'Eto : 6 fenêtres
+  30s redondantes → ~9 clips distincts de 17s à 2min. `min_score` 65→60.
+  `test_segment_clustering.py` (7 cas).
 - [x] **A4. Cold-open réparé** ✅ : deux bugs corrigés — (1) la gate du hook
   utilisait `segment.duration` au lieu de `actual_duration` (durée effective
   clampée au max plateforme) → hook hors fenêtre → crash ; (2) le concat lisait
@@ -50,10 +56,18 @@ Projet de test : `1ab8b274-…` (VOD etostark__ v2796529250, cache analyse prés
 - [x] **A5. Titres/légendes** ✅ (fallback) : Ollama absent → fallback FR amélioré
   (`_heuristic_caption`) = titre court entre guillemets = 1ère clause nettoyée +
   hashtags content-aware (#etostark #fail #esport #clutch…). Ex. `"Quand on fait
-  des 180 dehors"`. ➡️ Pour des accroches top-tier : installer Ollama (`brew
-  install ollama` + `ollama pull llama3.2` + `FORGE_LLM_ENABLED=1`) — le LLM prend
-  alors le relais automatiquement.
-- [ ] **A6. Re-render batch propre** de la VOD d'Eto avec A1-A5 → notifier Mehdi.
+  des 180 dehors"`. + Garde anti-hallucination sur le texte source du titre.
+  ➡️ Pour des accroches top-tier : installer Ollama (`brew install ollama` +
+  `ollama pull llama3.2` + `FORGE_LLM_ENABLED=1`) — le LLM prend le relais auto.
+- [x] **A7. Transcription propre ("bons modèles")** ✅ : cause des sous-titres
+  "Sous-titres réalisés par Amara.org" = VAD désactivé en mode CPU pour les VODs
+  > 1h → hallucinations sur les silences. **VAD toujours actif** (skip silences =
+  + propre ET + rapide) + filtre `_is_hallucinated_segment` (boilerplate FR/EN +
+  ghosts faible confiance) + `condition_on_previous_text=False`. Modèle **medium
+  + int8 CPU** (1.43× temps réel vs 0.88× float32, sortie identique) via
+  `WHISPER_CPU_COMPUTE_TYPE`. `test_transcription_hallucination.py` (16 cas).
+- [~] **A6. Re-render batch propre** de la VOD d'Eto avec A1-A5,A7 → notifier Mehdi.
+  EN COURS : re-transcription medium en cours, puis render des clips clusterisés.
 
 ## WS-B — App mobile : design Liquid Glass (iOS 26)
 Cible : Xcode 26 / iOS 26, SwiftUI, APIs Liquid Glass (`glassEffect`, `GlassEffectContainer`,
@@ -103,5 +117,10 @@ copier — repenser pour le tactile/petit écran).
 ## État courant (2026-06-15)
 - ✅ Engine durci, app iOS livrée + installée iPhone Air, contrats partagés, Alembic, e2e, ARIA.
 - ✅ 1er batch réel : 12 clips karaoké 9:16 de la VOD d'Eto, servis (LAN + tunnel), 6 envoyés au tel.
-- ✅ 8 bugs prod corrigés en conditions réelles (voir RESUME.md).
-- ▶️ **Prochaine tâche : A1 (cadrage facecam-en-haut).**
+- ✅ **WS-A quasi terminé** : facecam-en-haut validé (A1), robustesse + bug jump-cut
+  (A2), durées variables par clustering 17s–2min (A3), transcription propre
+  medium+VAD (A7). WS-B (Liquid Glass) terminé. WS-D2 (auto-pipeline yt-dlp) fait.
+- ▶️ **En cours : A6** — re-transcription medium → render batch des clips
+  clusterisés (cam-en-haut, durées variables, captions propres) → preview à Mehdi.
+- ⏭️ Ensuite : WS-C (features Electron→mobile) en attente des décisions produit ;
+  D1 (accès distant durable) en attente action tel/compte.

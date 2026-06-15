@@ -186,9 +186,19 @@ class PipelineSinglePass:
 
         # ── Step 4: Subtitle burn ─────────────────────────────────────────
         if cfg.ass_path and cfg.ass_path.exists():
-            ass_escaped = str(cfg.ass_path).replace("\\", "/").replace(":", "\\:")
+            # Escape for FFmpeg's filtergraph parser. The whole -filter_complex is
+            # passed as ONE subprocess arg (no shell), so the value must NOT be
+            # wrapped in literal single quotes — FFmpeg 8.x rejects
+            # subtitles='...' with "No option name near ...". Escape ':' and "'"
+            # instead.
+            ass_escaped = (
+                str(cfg.ass_path)
+                .replace("\\", "/")
+                .replace(":", "\\:")
+                .replace("'", "\\'")
+            )
             filters.append(
-                f"[{current_v}]subtitles='{ass_escaped}'[sub_v]"
+                f"[{current_v}]subtitles={ass_escaped}[sub_v]"
             )
             current_v = "sub_v"
 

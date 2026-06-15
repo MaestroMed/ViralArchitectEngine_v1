@@ -809,11 +809,15 @@ class ExportService:
                     for seg in transcript_segments
                 ]
                 ass_file = exports_dir / f"{base_name}.ass"
-                self.captions.generate_ass(
-                    segments=adjusted,
-                    output_path=str(ass_file),
-                    config=caption_config,
+                # generate_ass returns the ASS document as a string and takes
+                # `transcript_segments` + `custom_style` (it does NOT write a file
+                # nor accept segments=/output_path=/config= — that was a stale call
+                # that silently dropped subtitles on every export).
+                ass_content = self.captions.generate_ass(
+                    transcript_segments=adjusted,
+                    custom_style=caption_config,
                 )
+                ass_file.write_text(ass_content, encoding="utf-8")
                 if ass_file.exists():
                     ass_path = ass_file
                     logger.info(f"[SinglePass] Generated ASS subtitles: {ass_file}")

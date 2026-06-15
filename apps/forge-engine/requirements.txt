@@ -31,6 +31,9 @@ httpx>=0.25.0
 aiofiles>=23.2.0
 watchfiles>=0.21.0
 
+# Encryption at rest for social-publish OAuth tokens (core/crypto.py)
+cryptography>=42.0.0
+
 # System metrics (L'ŒIL monitor — imported at app startup via monitor.py)
 psutil>=5.9.0
 

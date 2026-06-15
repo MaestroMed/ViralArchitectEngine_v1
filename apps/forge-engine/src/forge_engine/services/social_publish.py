@@ -10,6 +10,8 @@ from typing import Any, Optional
 
 import httpx
 
+from forge_engine.services.credential_store import CredentialStore
+
 logger = logging.getLogger(__name__)
 
 
@@ -39,6 +41,43 @@ class PlatformCredentials:
     expires_at: datetime | None = None
     user_id: str | None = None
     username: str | None = None
+
+    def to_record(self) -> dict[str, Any]:
+        """Plain-dict form for the encrypted credential store."""
+        return {
+            "platform": str(self.platform),
+            "access_token": self.access_token,
+            "refresh_token": self.refresh_token,
+            "expires_at": self.expires_at.isoformat() if self.expires_at else None,
+            "user_id": self.user_id,
+            "username": self.username,
+        }
+
+    @classmethod
+    def from_record(cls, record: dict[str, Any]) -> "PlatformCredentials | None":
+        """Inverse of :meth:`to_record`; returns None on malformed input."""
+        try:
+            platform = Platform(record["platform"])
+            access_token = record["access_token"]
+        except (KeyError, ValueError):
+            return None
+        if not access_token:
+            return None
+        expires_raw = record.get("expires_at")
+        expires_at = None
+        if expires_raw:
+            try:
+                expires_at = datetime.fromisoformat(expires_raw)
+            except ValueError:
+                expires_at = None
+        return cls(
+            platform=platform,
+            access_token=access_token,
+            refresh_token=record.get("refresh_token"),
+            expires_at=expires_at,
+            user_id=record.get("user_id"),
+            username=record.get("username"),
+        )
 
 
 @dataclass
@@ -83,9 +122,11 @@ class SocialPublishService:
 
     _instance: Optional["SocialPublishService"] = None
 
-    def __init__(self):
+    def __init__(self, store: "CredentialStore | None" = None):
         self.credentials: dict[Platform, PlatformCredentials] = {}
         self._client = httpx.AsyncClient(timeout=60.0)
+        self._store = store or CredentialStore()
+        self._load_persisted()
 
     @classmethod
     def get_instance(cls) -> "SocialPublishService":
@@ -93,6 +134,25 @@ class SocialPublishService:
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
+
+    def _load_persisted(self) -> None:
+        """Restore credentials from the encrypted store at startup."""
+        for record in self._store.load():
+            cred = PlatformCredentials.from_record(record)
+            if cred is not None:
+                self.credentials[cred.platform] = cred
+        if self.credentials:
+            logger.info(
+                "Restored %d social credential(s) from encrypted store",
+                len(self.credentials),
+            )
+
+    def _persist(self) -> None:
+        """Write the current credentials to the encrypted store."""
+        try:
+            self._store.save([c.to_record() for c in self.credentials.values()])
+        except Exception as exc:  # never let persistence failure break a request
+            logger.error("Failed to persist social credentials: %s", exc)
 
     def is_authenticated(self, platform: Platform) -> bool:
         """Check if authenticated with a platform."""
@@ -138,7 +198,10 @@ class SocialPublishService:
             plat = Platform(platform)
         except ValueError:
             return False
-        return self.credentials.pop(plat, None) is not None
+        removed = self.credentials.pop(plat, None) is not None
+        if removed:
+            self._persist()
+        return removed
 
     async def get_publish_status(self, job_id: str) -> dict[str, Any] | None:
         """Compat alias for the endpoint module — the real method is
@@ -164,6 +227,7 @@ class SocialPublishService:
         self.credentials[platform] = credentials
 
         # Validate credentials by making a test API call
+        validated = False
         try:
             if platform == Platform.YOUTUBE:
                 # Test YouTube auth
@@ -177,7 +241,7 @@ class SocialPublishService:
                     if data.get("items"):
                         credentials.user_id = data["items"][0]["id"]
                         credentials.username = data["items"][0]["snippet"]["title"]
-                        return True
+                        validated = True
 
             elif platform == Platform.TIKTOK:
                 # Test TikTok auth
@@ -191,7 +255,7 @@ class SocialPublishService:
                         user = data["data"]["user"]
                         credentials.user_id = user.get("open_id")
                         credentials.username = user.get("display_name")
-                        return True
+                        validated = True
 
             elif platform == Platform.INSTAGRAM:
                 # Test Instagram auth
@@ -206,11 +270,18 @@ class SocialPublishService:
                     data = response.json()
                     credentials.user_id = data.get("id")
                     credentials.username = data.get("username")
-                    return True
+                    validated = True
 
         except Exception as e:
             logger.error(f"Authentication failed for {platform}: {e}")
 
+        if validated:
+            # Persist (encrypted) only the credentials we actually validated.
+            self._persist()
+            return True
+
+        # Validation failed — don't keep an unusable token in RAM.
+        self.credentials.pop(platform, None)
         return False
 
     async def publish(

@@ -18,6 +18,10 @@ sqlalchemy[asyncio]>=2.0.23
 httpx>=0.25.0
 aiofiles>=23.2.0
 
+# Encryption at rest for social-publish OAuth tokens (core/crypto.py).
+# Imported at app startup via social_publish → credential_store.
+cryptography>=42.0.0
+
 # System metrics — monitor.py imports psutil at module load, so any test that
 # imports the app or MonitorService (e.g. test_services.py) needs it.
 psutil>=5.9.0

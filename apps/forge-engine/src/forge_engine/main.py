@@ -22,6 +22,12 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
+# Redact OAuth tokens / API keys from every log line (httpx logs request URLs
+# at INFO, and some platforms pass the token as a query param). Must run after
+# basicConfig so the root handler exists to receive the filter.
+from forge_engine.core.log_scrub import install_secret_scrubbing  # noqa: E402
+
+install_secret_scrubbing()
 logger = logging.getLogger(__name__)
 
 

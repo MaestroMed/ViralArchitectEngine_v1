@@ -802,12 +802,29 @@ class ExportService:
                 elif template and template.caption_style:
                     caption_config.update(template.caption_style)
 
-                # Adjust timestamps to clip-relative (0-based)
-                adjusted = [
-                    {**seg, "start": seg["start"] - segment.start_time,
-                     "end": seg["end"] - segment.start_time}
-                    for seg in transcript_segments
-                ]
+                # Adjust timestamps to clip-relative (0-based). Must shift the
+                # per-WORD timestamps too: karaoke uses segment["words"][].start/
+                # end, and shifting only the segment start/end left every caption
+                # timed at its absolute VOD position (e.g. 0:53:03) — so none
+                # rendered within the trimmed clip.
+                _off = segment.start_time
+                adjusted = []
+                for seg in transcript_segments:
+                    new_seg = {
+                        **seg,
+                        "start": seg["start"] - _off,
+                        "end": seg["end"] - _off,
+                    }
+                    if seg.get("words"):
+                        new_seg["words"] = [
+                            {
+                                **w,
+                                "start": w.get("start", 0.0) - _off,
+                                "end": w.get("end", 0.0) - _off,
+                            }
+                            for w in seg["words"]
+                        ]
+                    adjusted.append(new_seg)
                 ass_file = exports_dir / f"{base_name}.ass"
                 # generate_ass returns the ASS document as a string and takes
                 # `transcript_segments` + `custom_style` (it does NOT write a file

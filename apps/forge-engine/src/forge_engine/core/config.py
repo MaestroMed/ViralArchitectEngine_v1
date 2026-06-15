@@ -53,6 +53,9 @@ class Settings(BaseSettings):
     WHISPER_MODEL: str = "large-v3"  # Use FORGE_WHISPER_MODEL=small in .env for fast testing
     WHISPER_DEVICE: str = "cuda"  # GPU enabled
     WHISPER_COMPUTE_TYPE: str = "int8_float16"  # INT8 quantization (faster + less VRAM)
+    # Compute type used when running on CPU (no CUDA). int8 is ~2x faster than
+    # float32 with negligible quality loss; set to "float32" for max fidelity.
+    WHISPER_CPU_COMPUTE_TYPE: str = "int8"
     WHISPER_LANGUAGE: str = "fr"  # Default language (FR for streaming content)
     WHISPER_NUM_WORKERS: int = 2  # Default, auto-detected based on VRAM
     WHISPER_BATCH_SIZE: int = 16  # Default, auto-detected based on VRAM
@@ -86,10 +89,10 @@ class Settings(BaseSettings):
     PLATFORM_PRESETS: dict = {
         "tiktok": {
             "width": 1080, "height": 1920, "fps": 30,
-            "max_duration": 60, "crf": 23,
+            "max_duration": 180, "crf": 23,  # TikTok allows long clips; cap at 3min
             "codec": "libx264", "audio_bitrate": "192k",
             "target_lufs": -14, "max_file_mb": 287,
-            "description": "TikTok (max 60s, 287MB)",
+            "description": "TikTok (max 180s, 287MB)",
         },
         "youtube_shorts": {
             "width": 1080, "height": 1920, "fps": 30,

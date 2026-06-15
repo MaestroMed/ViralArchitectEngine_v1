@@ -727,6 +727,14 @@ class ExportService:
 
         facecam_rect_norm = None
         content_rect_norm = None
+        # Fraction of output height for the facecam zone (two-zone vstack).
+        # Honors `facecamRatio` from the layout config when present.
+        facecam_ratio_val = 0.4
+        if layout_config and layout_config.get("facecamRatio"):
+            try:
+                facecam_ratio_val = float(layout_config["facecamRatio"])
+            except (TypeError, ValueError):
+                facecam_ratio_val = 0.4
 
         if layout_config and layout_config.get("facecam") and layout_config.get("content"):
             fc = layout_config["facecam"]
@@ -984,6 +992,7 @@ class ExportService:
             source_height=project.height or 1080,
             facecam_rect=facecam_rect_norm,
             content_rect=content_rect_norm,
+            facecam_ratio=facecam_ratio_val,
             facecam_keyframes=facecam_keyframes,
             ass_path=ass_path,
             keep_ranges=keep_ranges,

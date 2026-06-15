@@ -36,8 +36,22 @@ ETOSTARK_CONFIG = {
     "export_config": {
         "min_score": 65,
         "max_clips": 15,
-        "max_clip_seconds": 30,       # tight clips centered on the punch
-        "clip_lead_in_seconds": 5,    # seconds before the hook
+        # Variable clip length: keep a segment's natural duration, only trim
+        # to this ceiling (so clips run ~30s–2min, not all 30s).
+        "max_clip_seconds": 120,
+        "clip_lead_in_seconds": 8,
+        # EtoStark's webcam sits in the bottom-right corner the whole VOD →
+        # compose a vertical "reaction" layout: cam on top, content below.
+        # Normalized 0-1 source crops, validated empirically on the real VOD
+        # (frames sampled at 420s/1500s/2600s/3700s/5900s/6600s — cam is
+        # consistently bottom-right; head centered ~(0.83, 0.82)). The facecam
+        # crop frames Eto's head+shoulders; content is the left-center area
+        # (avoids the Twitch chat column at x≈0.66–0.88 and the cam itself).
+        "layout": {
+            "facecam": {"sourceCrop": {"x": 0.70, "y": 0.71, "width": 0.255, "height": 0.29}},
+            "content": {"sourceCrop": {"x": 0.04, "y": 0.0, "width": 0.63, "height": 1.0}},
+            "facecamRatio": 0.42,
+        },
         "platform": "tiktok",
         "include_captions": True,
         "burn_subtitles": True,
@@ -66,6 +80,15 @@ def _heuristic_caption(segment, idx: int, channel_name: str) -> tuple[str, str, 
     import re
 
     transcript = re.sub(r"\s+", " ", (getattr(segment, "transcript", None) or "")).strip()
+    # Guard against any whisper boilerplate hallucination leaking into a title
+    # (e.g. "Sous-titres réalisés par la communauté d'Amara.org"). Strip known
+    # markers before extracting the first clause.
+    try:
+        from forge_engine.services.transcription import _is_hallucinated_segment
+        if transcript and _is_hallucinated_segment(transcript, None):
+            transcript = ""
+    except Exception:
+        pass
     # First natural clause: stop at sentence/clause punctuation once we have a
     # few words, so we get "Je sais pas voilà" not a 90-char run-on.
     raw = ""
@@ -390,27 +413,36 @@ class AutoPipelineService:
                 logger.info(f"[AutoPipeline] No segments above {min_score} for project {project_id[:8]}")
                 return
 
-            # Tighten each clip to a short window centered on its punch
-            # (cold_open_start_time = absolute hook timestamp) instead of
-            # exporting the first 60s of a long analyzed segment. Off when
-            # max_clip_seconds is unset/0.
-            tight = export_config.get("max_clip_seconds")
-            if tight:
-                pre = export_config.get("clip_lead_in_seconds", 5.0)
+            # Variable clip length: keep each segment's NATURAL duration and
+            # only trim segments that exceed the ceiling — down to a `cap`-second
+            # window centered on the punch (cold_open_start_time). So clips run
+            # ~30s–2min instead of all being forced to one length.
+            cap = export_config.get("max_clip_seconds")
+            if cap:
+                pre = export_config.get("clip_lead_in_seconds", 8.0)
+                trimmed = 0
                 for s in segments:
                     orig_start = s.start_time
-                    orig_end = s.start_time + (s.duration or 0.0)
+                    orig_dur = s.duration or 0.0
+                    if orig_dur <= cap:
+                        continue  # already within the ceiling — keep natural length
+                    orig_end = orig_start + orig_dur
                     punch = s.cold_open_start_time
-                    new_start = max(orig_start, punch - pre) if (punch and orig_start <= punch <= orig_end) else orig_start
-                    new_dur = min(float(tight), orig_end - new_start)
-                    if new_dur < 12:  # window too short → take `tight`s from the start
-                        new_start = orig_start
-                        new_dur = min(float(tight), orig_end - orig_start)
+                    new_start = (
+                        max(orig_start, punch - pre)
+                        if (punch and orig_start <= punch <= orig_end)
+                        else orig_start
+                    )
+                    new_start = min(new_start, orig_end - cap)  # keep `cap`s inside the segment
                     s.start_time = new_start
-                    s.duration = new_dur
-                    s.end_time = new_start + new_dur
+                    s.duration = float(cap)
+                    s.end_time = new_start + float(cap)
+                    trimmed += 1
                 await db.commit()
-                logger.info(f"[AutoPipeline] Tightened {len(segments)} clips to ~{tight:g}s around the punch")
+                logger.info(
+                    f"[AutoPipeline] Clip length ≤{cap:g}s ({trimmed}/{len(segments)} long "
+                    "clips trimmed around the punch; shorter ones kept natural)"
+                )
 
             logger.info(f"[AutoPipeline] Found {len(segments)} clips to export (score >= {min_score})")
 
@@ -440,6 +472,7 @@ class AutoPipelineService:
                         burn_subtitles=export_config.get("burn_subtitles", True),
                         include_cover=export_config.get("include_cover", True),
                         use_nvenc=export_config.get("use_nvenc", True),
+                        layout_config=export_config.get("layout"),
                         jump_cut_config=export_config.get("jump_cut_config"),
                         cold_open_config=export_config.get("cold_open_config"),
                     )

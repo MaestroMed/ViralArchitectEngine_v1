@@ -18,6 +18,58 @@ from forge_engine.core.config import settings
 logger = logging.getLogger(__name__)
 
 
+# Known Whisper hallucination boilerplate (FR/EN). These phrases are emitted on
+# silence/music — almost never genuine speech in a stream VOD — so we drop any
+# segment whose text reduces to one of them. Matched on a normalized
+# (lowercased, punctuation-stripped) substring basis.
+_HALLUCINATION_MARKERS = (
+    "sous-titres realises par",
+    "sous-titres realises par la communaute",
+    "sous-titrage",
+    "amara.org",
+    "amara org",
+    "merci d'avoir regarde",
+    "merci d avoir regarde",
+    "abonnez-vous",
+    "abonnez vous",
+    "n'oubliez pas de vous abonner",
+    "thanks for watching",
+    "thank you for watching",
+    "please subscribe",
+    "subtitles by",
+    "© bbc",
+    "www.",
+)
+
+
+def _normalize_for_match(text: str) -> str:
+    """Lowercase, strip accents and punctuation for hallucination matching."""
+    import unicodedata
+
+    t = unicodedata.normalize("NFKD", text.lower())
+    t = "".join(c for c in t if not unicodedata.combining(c))
+    return "".join(c if c.isalnum() or c in " .'-" else " " for c in t).strip()
+
+
+def _is_hallucinated_segment(text: str, avg_confidence: float | None) -> bool:
+    """True if a segment looks like a Whisper non-speech hallucination.
+
+    A segment is dropped when its (normalized) text contains a known boilerplate
+    marker. As a softer signal, extremely low-confidence very short segments are
+    also dropped — those are the "ghost" lines VAD occasionally lets through.
+    """
+    norm = _normalize_for_match(text)
+    if not norm:
+        return True
+    for marker in _HALLUCINATION_MARKERS:
+        if marker in norm:
+            return True
+    # Very low confidence + trivial length → almost certainly noise.
+    if avg_confidence is not None and avg_confidence < 0.25 and len(norm) < 12:
+        return True
+    return False
+
+
 def auto_detect_batch_size(vram_gb: float) -> int:
     """Automatically detect optimal batch_size based on VRAM.
 
@@ -237,7 +289,12 @@ class TranscriptionService:
                     device = "cpu"
 
             if device == "cpu":
-                compute_type = "float32"
+                # int8 on CPU is ~2x faster than float32 via ctranslate2 with
+                # negligible quality loss — the right default for long VODs.
+                # Override with FORGE_WHISPER_COMPUTE_TYPE if a different CPU
+                # compute type is desired (e.g. float32 for max fidelity).
+                _cpu_compute = getattr(settings, "WHISPER_CPU_COMPUTE_TYPE", None)
+                compute_type = _cpu_compute or "int8"
 
             # Try loading model with fallback
             try:
@@ -279,7 +336,7 @@ class TranscriptionService:
                 if device == "cuda":
                     logger.warning("CUDA loading failed (%s), falling back to CPU", e)
                     device = "cpu"
-                    compute_type = "float32"
+                    compute_type = getattr(settings, "WHISPER_CPU_COMPUTE_TYPE", None) or "int8"
                     self._model = WhisperModel(
                         target_model,
                         device=device,
@@ -430,18 +487,23 @@ class TranscriptionService:
                 vad_parameters=vad_params,
             )
         else:
-            # Standard mode (fallback)
-            use_vad = audio_duration < 3600  # Only use VAD for videos < 1h in standard mode
-            logger.info("Standard mode: VAD=%s (duration: %.0fs)", use_vad, audio_duration)
+            # Standard mode (fallback). ALWAYS use VAD: on long streams (>1h)
+            # disabling it made whisper hallucinate boilerplate
+            # ("Sous-titres réalisés par la communauté d'Amara.org") over the
+            # many silent/music stretches. VAD skips non-speech, which both
+            # removes those hallucinations AND speeds up the transcription.
+            logger.info("Standard mode: VAD=on (duration: %.0fs)", audio_duration)
 
             segments, info = self._model.transcribe(
                 audio_path,
                 language=language,
                 word_timestamps=word_timestamps,
                 initial_prompt=prompt if prompt else None,
-                vad_filter=use_vad,
-                vad_parameters=vad_params if use_vad else None,
-                condition_on_previous_text=True,
+                vad_filter=True,
+                vad_parameters=vad_params,
+                # Don't carry context across VAD gaps — stops a hallucinated
+                # line from seeding the next segment.
+                condition_on_previous_text=False,
                 compression_ratio_threshold=2.4,
                 log_prob_threshold=-1.0,
                 no_speech_threshold=0.6
@@ -457,28 +519,44 @@ class TranscriptionService:
         segment_count = 0
         last_end = 0
         last_progress_log = 0
+        dropped_hallucinations = 0
 
         for segment in segments:
-            seg_data = {
-                "id": segment_count,
-                "start": segment.start,
-                "end": segment.end,
-                "text": segment.text.strip(),
-            }
+            seg_text = segment.text.strip()
 
+            words_list = None
             if word_timestamps and segment.words:
-                seg_data["words"] = [
+                words_list = [
                     {
                         "word": word.word,
                         "start": word.start,
                         "end": word.end,
-                        "confidence": word.probability
+                        "confidence": word.probability,
                     }
                     for word in segment.words
                 ]
 
+            # Drop known non-speech hallucinations (Amara.org boilerplate etc.).
+            _avg_conf = (
+                sum(w["confidence"] for w in words_list) / len(words_list)
+                if words_list else None
+            )
+            if _is_hallucinated_segment(seg_text, _avg_conf):
+                dropped_hallucinations += 1
+                last_end = segment.end
+                continue
+
+            seg_data = {
+                "id": segment_count,
+                "start": segment.start,
+                "end": segment.end,
+                "text": seg_text,
+            }
+            if words_list is not None:
+                seg_data["words"] = words_list
+
             result_segments.append(seg_data)
-            full_text_parts.append(segment.text.strip())
+            full_text_parts.append(seg_text)
             segment_count += 1
             last_end = segment.end
 
@@ -497,7 +575,10 @@ class TranscriptionService:
         if progress_callback:
             progress_callback(100)
 
-        logger.info("Transcription complete: %d segments, %.1fs duration", segment_count, info.duration)
+        logger.info(
+            "Transcription complete: %d segments, %.1fs duration (dropped %d hallucinated)",
+            segment_count, info.duration, dropped_hallucinations,
+        )
 
         return {
             "language": info.language,

@@ -25,6 +25,9 @@ class PipelineConfig:
     output_height: int = 1920
     facecam_rect: dict | None = None   # {x, y, w, h} normalized 0-1
     content_rect: dict | None = None
+    # Fraction of output height given to the facecam zone (top) in the
+    # two-zone vstack layout. Clamped to [0.2, 0.6] in build_command().
+    facecam_ratio: float = 0.4
 
     # Source dimensions (needed for animated face tracking crop)
     source_width: int = 1920
@@ -96,50 +99,37 @@ class PipelineSinglePass:
         out_w, out_h = cfg.output_width, cfg.output_height
 
         if cfg.facecam_rect and cfg.content_rect:
-            # Two-zone layout: content background + facecam overlay
-            fr = cfg.facecam_rect  # normalized {x, y, w, h}
-            cr = cfg.content_rect
+            # Two-zone vertical "reaction" layout: facecam crop stacked on top,
+            # content crop below. Crops are fractions of the SOURCE frame (not
+            # the output), and the source pad is split so each crop reads its own
+            # copy — reading [0:v] twice crashed FFmpeg ("Error reinitializing
+            # filters"). Heights are even and sum exactly to out_h for vstack.
+            sw = cfg.source_width or 1920
+            sh = cfg.source_height or 1080
 
-            # Pixel coords (force even dimensions for libx264)
-            c_x = int(cr["x"] * out_w)
-            c_y = int(cr["y"] * out_h)
-            c_w = int(cr["w"] * out_w) & ~1
-            c_h = int(cr["h"] * out_h) & ~1
-            f_x = int(fr["x"] * out_w)
-            f_y = int(fr["y"] * out_h)
-            f_w = int(fr["w"] * out_w) & ~1
-            f_h = int(fr["h"] * out_h) & ~1
+            def _crop_px(rect: dict) -> tuple[int, int, int, int]:
+                x = max(0, int(rect["x"] * sw)) & ~1
+                y = max(0, int(rect["y"] * sh)) & ~1
+                w = max(2, min(int(rect["w"] * sw), sw - x)) & ~1
+                h = max(2, min(int(rect["h"] * sh), sh - y)) & ~1
+                return x, y, w, h
 
-            # Facecam stream: animated tracking crop or static crop
-            if cfg.facecam_keyframes:
-                from forge_engine.services.facecam_tracking import FacecamTracker
-                _tracker = FacecamTracker()
-                facecam_filter = _tracker.generate_ffmpeg_filter(
-                    cfg.facecam_keyframes,
-                    input_width=cfg.source_width,
-                    input_height=cfg.source_height,
-                    output_width=f_w,
-                    output_height=f_h,
-                    fps=cfg.fps,
-                    segment_start=cfg.segment_start,
-                )
-                logger.debug("[Pipeline] Using animated face-tracking crop for facecam")
-            else:
-                facecam_filter = (
-                    f"crop={f_w}:{f_h}:{f_x}:{f_y},scale={f_w}:{f_h}"
-                )
+            f_x, f_y, f_w, f_h = _crop_px(cfg.facecam_rect)
+            c_x, c_y, c_w, c_h = _crop_px(cfg.content_rect)
+
+            ratio = max(0.2, min(cfg.facecam_ratio or 0.4, 0.6))
+            top_h = int(out_h * ratio) & ~1
+            bot_h = out_h - top_h  # out_h and top_h even → bot_h even
 
             filters.append(
-                # Black canvas
-                f"color=black:{out_w}x{out_h}:r={cfg.fps}[canvas];"
-                # Content zone — scale source crop to zone size
-                f"[{source_idx}:v]crop={c_w}:{c_h}:{c_x}:{c_y},"
-                f"scale={c_w}:{c_h}[content_scaled];"
-                # Facecam zone — animated tracking or static crop
-                f"[{source_idx}:v]{facecam_filter}[facecam_scaled];"
-                # Compose on canvas
-                f"[canvas][content_scaled]overlay={c_x}:{c_y}[with_content];"
-                f"[with_content][facecam_scaled]overlay={f_x}:{f_y}[composed_v]"
+                f"[{source_idx}:v]split=2[lz_f][lz_c];"
+                f"[lz_f]crop={f_w}:{f_h}:{f_x}:{f_y},"
+                f"scale={out_w}:{top_h}:force_original_aspect_ratio=increase,"
+                f"crop={out_w}:{top_h}[cam_z];"
+                f"[lz_c]crop={c_w}:{c_h}:{c_x}:{c_y},"
+                f"scale={out_w}:{bot_h}:force_original_aspect_ratio=increase,"
+                f"crop={out_w}:{bot_h}[content_z];"
+                f"[cam_z][content_z]vstack[composed_v]"
             )
         else:
             # Single zone: scale full source to output size

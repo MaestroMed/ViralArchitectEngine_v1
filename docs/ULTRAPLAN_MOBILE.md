@@ -24,11 +24,18 @@
 ## WS-A — Outputs clips parfaits (priorité immédiate, itératif sur la VOD d'Eto)
 Projet de test : `1ab8b274-…` (VOD etostark__ v2796529250, cache analyse présent).
 
-- [ ] **A1. Cadrage facecam-en-haut** : réactiver `detect_faces=True` (OpenCV Haar
-  cascade, déjà dispo) → peupler `facecamRect`/`contentRect` + `layoutType=stream_facecam`
-  sur les segments → l'export compose **facecam crop en haut + contenu en bas**
-  (déjà supporté dans `pipeline_builder`, step 1). Vérif : frame d'un clip montre
-  la cam d'Eto en haut.
+- [~] **A1. Cadrage facecam-en-haut** — EN COURS (itératif, voir note).
+  - ✅ Plomberie : `_run_single_pass_export` retombe sur `segment.facecam_rect`
+    quand pas de `layout_config` (gaté `stream_facecam`), donc l'export sait
+    composer le deux-zones aussi en auto-pipeline.
+  - ⚠️ **Détection trop grossière** : `layout.detect_layout` rend UN layout GLOBAL
+    pour toute la VOD (ici `podcast_irl` + facecam 120×120 unique). Sur une VOD
+    multi-scènes (on-cam + contenu produit plein écran), il faut une détection
+    **par segment/scène** + gating de confiance (deux-zones seulement si vraie
+    webcam détectée dans CE segment, sinon center-crop). Cette VOD "WAITING ROOM"
+    est surtout du contenu produit → peu/pas de webcam Eto à isoler.
+  - ➡️ TODO : détection facecam par-segment + valider sur une VOD où Eto est
+    bien on-cam (input Mehdi).
 - [ ] **A2. Robustesse layout** : fallback propre si pas de facecam stable
   (talk_fullscreen / center-crop) ; ne jamais crasher l'export.
 - [ ] **A3. Fenêtres serrées** : générer des segments courts (~20-45s) centrés sur

@@ -746,6 +746,27 @@ class ExportService:
                 "w": max(0.01, min(content_source["width"], 1.0)),
                 "h": max(0.01, min(content_source["height"], 1.0)),
             }
+        elif (
+            getattr(segment, "layout_type", None) == "stream_facecam"
+            and segment.facecam_rect
+            and segment.content_rect
+        ):
+            # No frontend layout passed (auto-pipeline path) — fall back to the
+            # facecam/content zones detected during analysis, normalized to 0-1.
+            # Gated to stream_facecam: produced/full-screen segments
+            # (podcast_irl, talk_fullscreen) keep the safe center-crop rather
+            # than a bogus two-zone built from a low-confidence facecam box.
+            _vw = float(project.width or 1920)
+            _vh = float(project.height or 1080)
+            _fr, _cr = segment.facecam_rect, segment.content_rect
+            facecam_rect_norm = {
+                "x": _fr["x"] / _vw, "y": _fr["y"] / _vh,
+                "w": _fr["width"] / _vw, "h": _fr["height"] / _vh,
+            }
+            content_rect_norm = {
+                "x": _cr["x"] / _vw, "y": _cr["y"] / _vh,
+                "w": _cr["width"] / _vw, "h": _cr["height"] / _vh,
+            }
 
         # ── Face tracking — animated SmartCrop ──────────────────────────
         facecam_keyframes: list = []

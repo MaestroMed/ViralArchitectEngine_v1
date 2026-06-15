@@ -17,6 +17,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
+from forge_engine.core.config import settings
 from forge_engine.core.database import async_session_maker
 from forge_engine.core.jobs import JobManager, JobType
 
@@ -53,6 +54,39 @@ ETOSTARK_CONFIG = {
         },
     },
 }
+
+
+def _heuristic_caption(segment, idx: int, channel_name: str) -> tuple[str, str, list[str]]:
+    """FR title/description/hashtags without an LLM (Ollama not available).
+
+    Builds a short, clean FR title from the first clause of the spoken line
+    (punchier than a long mid-sentence cut), quoted for a clip-title feel.
+    Real top-tier accroches need an LLM (Ollama) — this is the no-LLM fallback.
+    """
+    import re
+
+    transcript = re.sub(r"\s+", " ", (getattr(segment, "transcript", None) or "")).strip()
+    # First natural clause: stop at sentence/clause punctuation once we have a
+    # few words, so we get "Je sais pas voilà" not a 90-char run-on.
+    raw = ""
+    if transcript:
+        m = re.match(r"(.{12,55}?[.!?,;:])\s", transcript)
+        raw = (m.group(1) if m else transcript[:55]).strip(" -–—,;:\"'")
+    if raw:
+        raw = raw[0].upper() + raw[1:]
+        if len(raw) >= 55 and not raw.endswith((".", "!", "?")):
+            raw = raw.rstrip(",;: ") + "…"
+        title = f'"{raw}"'
+    else:
+        title = getattr(segment, "topic_label", None) or f"Clip #{idx + 1}"
+
+    handle = "#" + re.sub(r"[^a-z0-9]", "", (channel_name or "etostark").lower())
+    tags = [handle, "#twitch", "#stream", "#viral", "#fyp", "#pourtoi"]
+    for t in (getattr(segment, "score_tags", None) or [])[:3]:
+        tag = "#" + re.sub(r"[^a-z0-9]", "", str(t).lower())
+        if tag != "#" and tag not in tags:
+            tags.append(tag)
+    return title, "", tags
 
 
 class AutoPipelineService:
@@ -412,7 +446,8 @@ class AutoPipelineService:
                         cold_open_config=export_config.get("cold_open_config"),
                     )
 
-                    # Generate title/description
+                    # Generate title/description — LLM when available, else a
+                    # hook-based FR heuristic (no raw transcript opener).
                     try:
                         generated = await content_service.generate_for_segment(
                             segment={
@@ -424,13 +459,20 @@ class AutoPipelineService:
                             platform=export_config.get("platform", "tiktok"),
                             channel_name=channel_name,
                         )
-                        title = generated.titles[0] if generated.titles else segment.topic_label
-                        description = generated.description
-                        hashtags = generated.hashtags
                     except Exception:
-                        title = segment.topic_label or f"Clip #{idx+1}"
-                        description = ""
-                        hashtags = ["#etostark", "#gaming", "#viral", "#fyp"]
+                        generated = None
+                    h_title, h_desc, h_tags = _heuristic_caption(segment, idx, channel_name)
+                    if settings.LLM_ENABLED and generated and generated.titles:
+                        # Real LLM accroche.
+                        title = generated.titles[0]
+                        description = generated.description or ""
+                        hashtags = generated.hashtags or h_tags
+                    else:
+                        # No LLM: short hook-based FR title, but keep the
+                        # content service's content-aware hashtags if present.
+                        title = h_title
+                        description = (generated.description if generated else "") or h_desc
+                        hashtags = (generated.hashtags if generated and generated.hashtags else h_tags)
 
                     # Find video artifact path
                     video_path = ""

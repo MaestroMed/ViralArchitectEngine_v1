@@ -47,8 +47,12 @@ Projet de test : `1ab8b274-…` (VOD etostark__ v2796529250, cache analyse prés
   `[composed_v]` 3× sans `split` (interdit) → "Error reinitializing filters".
   Fix : gate sur `actual_duration` + `split=3`/`asplit=3`. Vérifié : 12/12 clips,
   0 crash, cold-open (hook-first) appliqué sur les clips à hook fort.
-- [ ] **A5. Titres/légendes LLM** : lancer Ollama (ou fallback heuristique amélioré)
-  → vraies accroches FR au lieu du transcript brut.
+- [x] **A5. Titres/légendes** ✅ (fallback) : Ollama absent → fallback FR amélioré
+  (`_heuristic_caption`) = titre court entre guillemets = 1ère clause nettoyée +
+  hashtags content-aware (#etostark #fail #esport #clutch…). Ex. `"Quand on fait
+  des 180 dehors"`. ➡️ Pour des accroches top-tier : installer Ollama (`brew
+  install ollama` + `ollama pull llama3.2` + `FORGE_LLM_ENABLED=1`) — le LLM prend
+  alors le relais automatiquement.
 - [ ] **A6. Re-render batch propre** de la VOD d'Eto avec A1-A5 → notifier Mehdi.
 
 ## WS-B — App mobile : design Liquid Glass (iOS 26)

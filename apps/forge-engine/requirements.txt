@@ -31,6 +31,9 @@ httpx>=0.25.0
 aiofiles>=23.2.0
 watchfiles>=0.21.0
 
+# System metrics (L'ŒIL monitor — imported at app startup via monitor.py)
+psutil>=5.9.0
+
 # AI/ML (Phase 1 - World Class)
 # Local LLM - Ollama client (uses HTTP, no extra deps needed)
 # Emotion detection (optional - install for face emotion features)

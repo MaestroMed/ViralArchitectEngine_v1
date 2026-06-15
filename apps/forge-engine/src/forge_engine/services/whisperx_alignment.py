@@ -1,6 +1,3 @@
-from __future__ import annotations
-from collections.abc import Callable
-from typing import Any
 """WhisperX Word-Level Alignment Service.
 
 Provides frame-accurate word-level timestamps using phoneme-based forced alignment.
@@ -22,8 +19,11 @@ Usage:
     aligned = await aligner.align_transcription(audio_path, transcription_result)
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
+from collections.abc import Callable
 from typing import Any, Optional
 
 from forge_engine.core.config import settings
@@ -41,7 +41,7 @@ class WhisperXAligner:
     - Batch processing for long files
     """
 
-    _instance: Optional["WhisperXAligner"] = None
+    _instance: WhisperXAligner | None = None
     _align_model = None
     _diarize_pipeline = None
     _current_language: str | None = None
@@ -67,7 +67,7 @@ class WhisperXAligner:
         self.compute_type = "float16" if self.device == "cuda" else "float32"
 
     @classmethod
-    def get_instance(cls) -> "WhisperXAligner":
+    def get_instance(cls) -> WhisperXAligner:
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
@@ -402,7 +402,7 @@ class WhisperXTranscriber:
     Note: Slower than faster-whisper's BatchedInferencePipeline but more accurate.
     """
 
-    _instance: Optional["WhisperXTranscriber"] = None
+    _instance: WhisperXTranscriber | None = None
     _model = None
 
     def __init__(self):
@@ -411,7 +411,7 @@ class WhisperXTranscriber:
         self.batch_size = 16 if self.device == "cuda" else 4
 
     @classmethod
-    def get_instance(cls) -> "WhisperXTranscriber":
+    def get_instance(cls) -> WhisperXTranscriber:
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance

@@ -1,6 +1,3 @@
-from __future__ import annotations
-from collections.abc import Callable
-from typing import Any
 """Transcription Provider Architecture.
 
 Abstraction layer for switching between transcription backends:
@@ -13,9 +10,12 @@ Usage:
     result = await provider.transcribe(audio_path, language="fr")
 """
 
+from __future__ import annotations
+
 import logging
 import os
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -574,7 +574,7 @@ class TranscriptionProviderManager:
         result = await manager.transcribe(audio_path, language="fr")
     """
 
-    _instance: Optional["TranscriptionProviderManager"] = None
+    _instance: TranscriptionProviderManager | None = None
 
     def __init__(self):
         self._providers: dict[ProviderType, TranscriptionProvider] = {}
@@ -582,7 +582,7 @@ class TranscriptionProviderManager:
         self._initialize_providers()
 
     @classmethod
-    def get_instance(cls) -> "TranscriptionProviderManager":
+    def get_instance(cls) -> TranscriptionProviderManager:
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance

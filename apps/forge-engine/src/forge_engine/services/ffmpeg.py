@@ -1,7 +1,6 @@
-from __future__ import annotations
-from collections.abc import Callable
-from typing import Any
 """FFmpeg service for video processing."""
+
+from __future__ import annotations
 
 import asyncio
 import json
@@ -9,6 +8,7 @@ import logging
 import re
 import tempfile
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Optional
 
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class FFmpegService:
     """Service for FFmpeg operations."""
 
-    _instance: Optional["FFmpegService"] = None
+    _instance: FFmpegService | None = None
     _initialized: bool = False
 
     def __init__(self):
@@ -35,7 +35,7 @@ class FFmpegService:
         self.available_decoders: list[str] = []
 
     @classmethod
-    def get_instance(cls) -> "FFmpegService":
+    def get_instance(cls) -> FFmpegService:
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance

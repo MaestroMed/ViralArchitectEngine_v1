@@ -1,6 +1,3 @@
-from __future__ import annotations
-from collections.abc import Callable
-from typing import Any
 """Continuous Facecam Tracking Service.
 
 Provides frame-by-frame face tracking for auto-reframe in 9:16 vertical videos.
@@ -19,8 +16,11 @@ Usage:
     detections = await tracker.track_faces(video_path, start_time, end_time)
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 

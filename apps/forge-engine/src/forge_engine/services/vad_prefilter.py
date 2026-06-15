@@ -1,6 +1,3 @@
-from __future__ import annotations
-from collections.abc import Callable
-from typing import Any
 """Voice Activity Detection pre-filter using Silero VAD.
 
 Pre-filters audio to detect speech segments BEFORE transcription.
@@ -12,9 +9,12 @@ This saves significant processing time by skipping:
 Gain: 30-50% reduction in transcription time for typical streams.
 """
 
+from __future__ import annotations
+
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ class VADPrefilterService:
     in parallel with downloads or other operations.
     """
 
-    _instance: Optional["VADPrefilterService"] = None
+    _instance: VADPrefilterService | None = None
     _model = None
     _utils = None
 
@@ -67,7 +67,7 @@ class VADPrefilterService:
         self._check_availability()
 
     @classmethod
-    def get_instance(cls) -> "VADPrefilterService":
+    def get_instance(cls) -> VADPrefilterService:
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance

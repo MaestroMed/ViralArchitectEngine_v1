@@ -1,6 +1,3 @@
-from __future__ import annotations
-from collections.abc import Callable
-from typing import Any
 """Sound Design Service.
 
 Provides SFX library, auto-ducking, and LUFS normalization for viral clips.
@@ -18,10 +15,13 @@ Usage:
     await sound.apply_sound_design(clip_path, output_path, config)
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import logging
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path

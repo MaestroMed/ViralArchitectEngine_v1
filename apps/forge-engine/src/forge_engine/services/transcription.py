@@ -1,6 +1,3 @@
-from __future__ import annotations
-from collections.abc import Callable
-from typing import Any
 """Transcription service using faster-whisper with batched inference.
 
 Features:
@@ -10,7 +7,10 @@ Features:
 - INT8 quantization for modern GPUs
 """
 
+from __future__ import annotations
+
 import logging
+from collections.abc import Callable
 from typing import Any, Optional
 
 from forge_engine.core.config import settings
@@ -64,7 +64,7 @@ class TranscriptionService:
     Uses BatchedInferencePipeline for 4-6x speedup on GPU.
     """
 
-    _instance: Optional["TranscriptionService"] = None
+    _instance: TranscriptionService | None = None
     _model = None
     _batched_model = None  # BatchedInferencePipeline for turbo mode
     _model_name: str | None = None
@@ -86,7 +86,7 @@ class TranscriptionService:
         self._auto_detect_gpu_settings()
 
     @classmethod
-    def get_instance(cls) -> "TranscriptionService":
+    def get_instance(cls) -> TranscriptionService:
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
@@ -385,6 +385,7 @@ class TranscriptionService:
         # Get audio duration for progress estimation
         try:
             import subprocess
+
             from forge_engine.core.config import settings as _s
             _ffprobe = getattr(_s, "FFPROBE_PATH", "ffprobe")
             result = subprocess.run(

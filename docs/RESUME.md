@@ -80,11 +80,16 @@ Puis dans l'app : IP du PC + port 8420 + la clé → Tester → Enregistrer.
 `GET /v1/clips/by-date?date=YYYY-MM-DD` · `GET /v1/clips/queue/pending` · `GET /v1/clips/queue/summary` · `GET /v1/clips/{id}/cover` · `GET /v1/clips/{id}/bundle.zip` · `GET /clips/{id}/video` (Range/206) · `POST /v1/clips/queue/{id}/approve|reject` · `POST /v1/clips/batch-approve` · `POST /v1/webhooks/twitch` (HMAC, hors-auth)
 
 ## Reste au plan (non bloquant pour le workflow Photos)
-1. **Persistance chiffrée des credentials sociaux** (`social_publish.py` les garde en RAM) + scrubbing des headers Authorization dans les logs httpx (`analytics.py`) — audit P0.
-2. Câblage `@forge-lab/shared` (contrats typés desktop↔backend↔iOS) + tests de contrat.
-3. Sweep ARIA desktop (web).
+1. ✅ **FAIT** — **Persistance chiffrée des credentials sociaux** : `core/crypto.py` (Fernet/MultiFernet, clé maître via `FORGE_SECRET_KEY` ou fichier `LIBRARY_PATH/.secret.key` mode 0600) + `services/credential_store.py` (blob `social_credentials.enc` chiffré, écriture atomique 0600) câblé dans `social_publish.py` (load au boot, persist après authenticate/disconnect). Scrubbing logs : `core/log_scrub.py` (filtre logging caviardant `access_token`/Bearer/Authorization/`X-API-Key`/`forge_…`) installé sur le handler root dans `main.py`. Tests : `test_crypto.py`, `test_credential_store.py`, `test_log_scrub.py`. Dép `cryptography>=42` ajoutée à requirements*/pyproject.
+2. ✅ **FAIT** — **Câblage `@forge-lab/shared`** : contrat mobile typé dans `packages/shared/src/schemas/mobile.ts` (`ClipSchema` + enveloppes + `ClipMobileViewSchema` + types inférés). Fixture source-de-vérité unique `packages/shared/contract/mobile-clip.sample.json` **générée du vrai `ClipQueue.to_dict()`** (`scripts/gen_contract_fixture.py`). Tests de contrat **3 surfaces** : Python `test_contract_mobile.py` (clés backend), zod `contract/check-contract.mjs` (`pnpm --filter @forge-lab/shared test`, job CI `contract-shared`), Swift `MobileContractTests.swift` (décode le même fixture). ⚠️ Note de contrat : le backend émet des ISO **naïfs** (sans `Z`) → schéma zod tolérant (pas `.datetime()`).
+3. ✅ **FAIT** — **Sweep ARIA desktop (web)** : ~38 correctifs (Sidebar nav+aria-current, ThemeToggle/AudioControls/toggles → aria-pressed/role=switch, Toaster→role=status/alert+aria-live, modals ShortcutsModal/JobDrawer/ExportModal/AIChat → role=dialog+aria-modal+aria-labelledby, lignes cliquables JobDrawer → role=button+clavier, Progress→progressbar, player SegmentPreview, forms SettingsPage/labels, OnboardingPage steps, SegmentFilterBar, TitleBar, web-review). Lint desktop : 0 erreur.
 4. Migration Alembic (les nouveaux modèles passent par `create_all`).
 5. Étoffer `test_pipeline_e2e.py` (rouge en sandbox par deps lourdes absentes ; le CI les ignore volontairement).
+
+## Environnement local (Mac M5 Pro)
+- Xcode 26.5 ; xcodegen, pnpm 8.12 (⚠️ le repo a un lockfile pnpm **v9** — utiliser pnpm 9 / corepack pour ne pas rétrograder `pnpm-lock.yaml`) ; venv backend : `apps/forge-engine/.venv` (Python 3.12 via brew, `requirements-ci.txt` + `cryptography` + `ruff`).
+- Simulateur : `name=iPhone 17` (booté) ou `iPhone Air`. Lancer : `xcrun simctl launch booted com.maestromed.forgelab --demo [--demo-screen detail]`. Tests iOS : nettoyer `build/` avant (`-derivedDataPath build`, par UDID) sinon échec d'injection du bundle.
+- Backend local : `cd apps/forge-engine && FORGE_LIBRARY_PATH=$(mktemp -d) .venv/bin/python -m pytest tests/ -m "not slow and not gpu and not e2e" --ignore=tests/test_pipeline_e2e.py --ignore=tests/test_export_real.py` → 182 passed.
 
 ## Vérif rapide en local
 ```bash

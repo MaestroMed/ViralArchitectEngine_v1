@@ -105,9 +105,11 @@ apps/desktop/resources/.checksums.json
 # iOS / Xcode
 apps/ios/ForgeLab.xcodeproj/
 apps/ios/.build/
+apps/ios/build/
 apps/ios/DerivedData/
 apps/ios/.swiftpm/
 apps/ios/*.xcworkspace/
+apps/ios/preview/local/
 *.xcuserstate
 xcuserdata/
 

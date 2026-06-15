@@ -34,12 +34,15 @@ ETOSTARK_CONFIG = {
     "auto_analyze": True,
     "auto_export": True,
     "export_config": {
-        "min_score": 65,
+        "min_score": 60,
         "max_clips": 15,
-        # Variable clip length: keep a segment's natural duration, only trim
-        # to this ceiling (so clips run ~30s–2min, not all 30s).
+        # Variable clip length: overlapping hot windows are merged into one clip
+        # per moment (see _cluster_segments), spanning their union up to this
+        # ceiling — so clips run ~20s–2min, not all 30s. merge_gap bridges
+        # windows within N seconds of each other (a brief setup between punches).
         "max_clip_seconds": 120,
         "clip_lead_in_seconds": 8,
+        "merge_gap_seconds": 25,
         # EtoStark's webcam sits in the bottom-right corner the whole VOD →
         # compose a vertical "reaction" layout: cam on top, content below.
         # Normalized 0-1 source crops, validated empirically on the real VOD
@@ -110,6 +113,66 @@ def _heuristic_caption(segment, idx: int, channel_name: str) -> tuple[str, str, 
         if tag != "#" and tag not in tags:
             tags.append(tag)
     return title, "", tags
+
+
+def _cluster_segments(
+    segments: list,
+    *,
+    merge_gap: float,
+    cap: float,
+    pre: float = 8.0,
+) -> list[dict]:
+    """Merge overlapping/adjacent high-score windows into one clip per moment.
+
+    The segmenter emits many overlapping multi-scale windows (30s, 90s, …) over
+    the same content, so the top-N-by-score are often near-duplicates of the
+    SAME moment (e.g. three 30s windows inside one 2-min exchange). Selecting
+    them verbatim yields redundant clips that are all ~30s.
+
+    This groups segments whose windows overlap or sit within `merge_gap` seconds
+    of each other into a single clip spanning their union (clamped to `cap`
+    seconds, centered on the best window's punch). The result is fewer,
+    non-redundant clips of NATURALLY VARYING length (some 20-40s, some 1-2min).
+
+    Returns clip specs ``{"start", "end", "duration", "score", "rep"}`` sorted by
+    score descending. ``rep`` is the highest-scoring member (used for the punch,
+    transcript and metadata).
+    """
+    if not segments:
+        return []
+
+    ordered = sorted(segments, key=lambda s: s.start_time)
+    clusters: list[dict] = []
+    for seg in ordered:
+        st, en = seg.start_time, seg.end_time
+        if clusters and st <= clusters[-1]["end"] + merge_gap:
+            clusters[-1]["end"] = max(clusters[-1]["end"], en)
+            clusters[-1]["members"].append(seg)
+        else:
+            clusters.append({"start": st, "end": en, "members": [seg]})
+
+    specs: list[dict] = []
+    for c in clusters:
+        members = c["members"]
+        best = max(members, key=lambda s: s.score_total or 0)
+        start, end = c["start"], c["end"]
+        if end - start > cap:
+            # Too long → keep a `cap`-second window centered on the punch.
+            punch = getattr(best, "cold_open_start_time", None)
+            if punch and start <= punch <= end:
+                start = max(start, punch - pre)
+            start = min(start, end - cap)
+            end = start + cap
+        specs.append({
+            "start": start,
+            "end": end,
+            "duration": end - start,
+            "score": max(s.score_total or 0 for s in members),
+            "rep": best,
+        })
+
+    specs.sort(key=lambda x: x["score"], reverse=True)
+    return specs
 
 
 class AutoPipelineService:
@@ -398,53 +461,48 @@ class AutoPipelineService:
         min_score = export_config.get("min_score", 65)
         max_clips = export_config.get("max_clips", 15)
 
+        cap = export_config.get("max_clip_seconds") or 120.0
+        pre = export_config.get("clip_lead_in_seconds", 8.0)
+        merge_gap = export_config.get("merge_gap_seconds", 25.0)
+
         async with async_session_maker() as db:
-            # Get top segments
+            # Fetch ALL segments above the score floor (the segmenter emits many
+            # overlapping multi-scale windows over the same content, so we
+            # cluster rather than take the top-N verbatim — see _cluster_segments).
             result = await db.execute(
                 select(Segment)
                 .where(Segment.project_id == project_id)
                 .where(Segment.score_total >= min_score)
-                .order_by(Segment.score_total.desc())
-                .limit(max_clips)
             )
-            segments = result.scalars().all()
+            candidates = result.scalars().all()
 
-            if not segments:
+            if not candidates:
                 logger.info(f"[AutoPipeline] No segments above {min_score} for project {project_id[:8]}")
                 return
 
-            # Variable clip length: keep each segment's NATURAL duration and
-            # only trim segments that exceed the ceiling — down to a `cap`-second
-            # window centered on the punch (cold_open_start_time). So clips run
-            # ~30s–2min instead of all being forced to one length.
-            cap = export_config.get("max_clip_seconds")
-            if cap:
-                pre = export_config.get("clip_lead_in_seconds", 8.0)
-                trimmed = 0
-                for s in segments:
-                    orig_start = s.start_time
-                    orig_dur = s.duration or 0.0
-                    if orig_dur <= cap:
-                        continue  # already within the ceiling — keep natural length
-                    orig_end = orig_start + orig_dur
-                    punch = s.cold_open_start_time
-                    new_start = (
-                        max(orig_start, punch - pre)
-                        if (punch and orig_start <= punch <= orig_end)
-                        else orig_start
-                    )
-                    new_start = min(new_start, orig_end - cap)  # keep `cap`s inside the segment
-                    s.start_time = new_start
-                    s.duration = float(cap)
-                    s.end_time = new_start + float(cap)
-                    trimmed += 1
-                await db.commit()
-                logger.info(
-                    f"[AutoPipeline] Clip length ≤{cap:g}s ({trimmed}/{len(segments)} long "
-                    "clips trimmed around the punch; shorter ones kept natural)"
-                )
+            # Merge overlapping/adjacent hot windows into one clip per moment,
+            # with naturally varying length (≤ cap). De-duplicates near-identical
+            # 30s windows and yields the 1-2min clips when a moment sustains.
+            specs = _cluster_segments(candidates, merge_gap=merge_gap, cap=cap, pre=pre)[:max_clips]
 
-            logger.info(f"[AutoPipeline] Found {len(segments)} clips to export (score >= {min_score})")
+            # Materialize each spec onto its representative segment row so the
+            # export (which reads segment.start_time/duration) renders the merged
+            # window. Clusters are disjoint → distinct rep rows.
+            segments = []
+            for spec in specs:
+                rep = spec["rep"]
+                rep.start_time = float(spec["start"])
+                rep.end_time = float(spec["end"])
+                rep.duration = float(spec["duration"])
+                segments.append(rep)
+            await db.commit()
+
+            _durs = sorted((round(s.duration) for s in segments), reverse=True)
+            logger.info(
+                f"[AutoPipeline] {len(candidates)} candidates (score≥{min_score}) → "
+                f"{len(segments)} clustered clips (gap≤{merge_gap:g}s, cap {cap:g}s); "
+                f"durations={_durs}"
+            )
 
             # Export each segment
             export_service = ExportService()

@@ -7,6 +7,8 @@ import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from forge_engine.core.config import settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -247,7 +249,10 @@ class PipelineSinglePass:
             vcodec = ["-c:v", "libx264", "-preset", "medium", "-crf", str(cfg.crf)]
 
         cmd = (
-            ["ffmpeg", "-y"]
+            # Use the configured binary (FORGE_FFMPEG_PATH) — lets an
+            # --enable-libass build be pointed at without touching PATH, so
+            # subtitle burn-in works. Defaults to "ffmpeg".
+            [settings.FFMPEG_PATH, "-y"]
             + inputs
             + ["-filter_complex", ";".join(filters)]
             + ["-map", "[final_v]", "-map", f"[{out_audio_label}]"]

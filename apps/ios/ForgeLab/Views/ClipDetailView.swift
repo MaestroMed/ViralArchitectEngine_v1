@@ -38,6 +38,7 @@ struct ClipDetailView: View {
         .background(Theme.background)
         .navigationTitle(clip.title ?? "Clip")
         .navigationBarTitleDisplayMode(.inline)
+        .sensoryFeedback(.success, trigger: model.actionCount)
     }
 
     @ViewBuilder
@@ -145,6 +146,8 @@ final class DetailModel: ObservableObject {
 
     @Published var busy = false
     @Published var lastOutcome: BundleDownloader.Outcome?
+    /// Bumped after each completed action so the view fires haptic feedback.
+    @Published var actionCount = 0
 
     init(api: ForgeAPI, clip: Clip, demo: Bool = false) {
         self.api = api
@@ -176,16 +179,19 @@ final class DetailModel: ObservableObject {
             lastOutcome = .init(savedToPhotos: false, captionCopied: false,
                                 photosError: error.localizedDescription)
         }
+        actionCount += 1
     }
 
     func approve() async {
         busy = true; defer { busy = false }
         try? await api.approve(clipId: clip.id)
+        actionCount += 1
     }
 
     func reject() async {
         busy = true; defer { busy = false }
         try? await api.reject(clipId: clip.id)
+        actionCount += 1
     }
 }
 

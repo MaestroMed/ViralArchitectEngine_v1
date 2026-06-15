@@ -68,8 +68,12 @@ Cible : Xcode 26 / iOS 26, SwiftUI, APIs Liquid Glass (`glassEffect`, `GlassEffe
   (carte metadata + boutons glass), SettingsView (fond sombre + rangées/boutons
   glass, route `--demo-screen settings` ajoutée). RootView ne fait que router.
   a11y identifiers + flux test/save conservés. Build + screenshots vérifiés.
-- [ ] **B3. Navigation** : TabView/NavigationStack Liquid Glass cohérente.
-- [ ] **B4. Polish** : animations, haptiques, transitions, états vides/chargement.
+- [x] **B3. Navigation** ✅ : NavigationStack + toolbars passent en Liquid Glass
+  automatiquement sur iOS 26 (date-pill + menu vérifiés). App mono-surface → pas
+  de TabView pour l'instant (viendra avec WS-C si on ajoute des sections).
+- [x] **B4. Polish** ✅ : haptiques (`sensoryFeedback`) sur download/approve/reject,
+  état vide en carte glass. Tests iOS verts (11 unit + 3 UI). [Reste possible :
+  micro-animations de transition — à étoffer si besoin.]
 
 ## WS-C — App mobile : transposer les features de l'app Electron
 Surface desktop (apps/desktop/src/pages) : Home, Project, ClipEditor, Analytics,

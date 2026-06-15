@@ -142,6 +142,9 @@ struct QueueView: View {
                     .foregroundStyle(Theme.textSecondary.opacity(0.6))
             }
         }
+        .padding(32)
+        .forgeGlassCard(cornerRadius: 28)
+        .padding(40)
     }
 
     // MARK: - Actions

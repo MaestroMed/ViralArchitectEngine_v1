@@ -1,0 +1,34 @@
+Alembic migrations for FORGE Engine
+===================================
+
+The schema is versioned here. `Base.metadata.create_all` (in core/database.py)
+still runs on app startup for zero-config first boot, but migrations are the
+authoritative record for upgrading an existing database.
+
+The DB URL is resolved by env.py: $FORGE_DATABASE_URL if set, else the app's
+configured DATABASE_PATH (see core/config.py). Run all commands from
+apps/forge-engine with the package importable, e.g. `PYTHONPATH=src`.
+
+Common commands
+---------------
+  # Apply all migrations to the configured DB
+  PYTHONPATH=src alembic upgrade head
+
+  # Create a new migration after changing models
+  PYTHONPATH=src alembic revision --autogenerate -m "describe change"
+
+  # Inspect / roll back
+  PYTHONPATH=src alembic current
+  PYTHONPATH=src alembic downgrade -1
+
+Existing database created by create_all
+---------------------------------------
+If a DB already exists from a pre-Alembic build, mark it as up-to-date without
+re-running the initial migration:
+
+  PYTHONPATH=src alembic stamp head
+
+Drift guard
+-----------
+tests/test_migrations.py fails if models and migrations diverge — always
+generate a migration when you add or change a model.

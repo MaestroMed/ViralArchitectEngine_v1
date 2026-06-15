@@ -32,7 +32,13 @@ class Base(DeclarativeBase):
 
 
 async def init_db() -> None:
-    """Initialize the database, creating tables if needed."""
+    """Initialize the database, creating tables if needed.
+
+    Kept for zero-config first boot. Schema *versioning* lives in Alembic
+    (see ``alembic/`` + ``tests/test_migrations.py``); for an existing DB,
+    ``alembic stamp head`` then ``alembic upgrade head`` is the upgrade path.
+    ``create_all`` is additive (never drops), so it coexists safely.
+    """
     # Import all models so their tables are registered with Base.metadata
     from forge_engine.models import (  # noqa: F401
         api_key,

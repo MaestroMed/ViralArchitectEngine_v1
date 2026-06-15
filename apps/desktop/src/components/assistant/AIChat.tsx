@@ -143,29 +143,33 @@ export function AIChat({ isOpen, onClose, projectId, onAction }: AIChatProps) {
   
   return (
     <motion.div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="ai-chat-title"
       initial={{ opacity: 0, x: 300 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 300 }}
-      className="fixed right-4 bottom-20 w-96 h-[600px] bg-gray-900 border border-gray-700 
+      className="fixed right-4 bottom-20 w-96 h-[600px] bg-gray-900 border border-gray-700
         rounded-2xl shadow-2xl flex flex-col overflow-hidden z-50"
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-cyan-600/20 to-purple-600/20 border-b border-gray-700">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-purple-500 
+          <div aria-hidden="true" className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-purple-500
             flex items-center justify-center">
             <Bot className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h3 className="font-semibold text-white">Forge Assistant</h3>
+            <h3 id="ai-chat-title" className="font-semibold text-white">Forge Assistant</h3>
             <p className="text-xs text-gray-400">Powered by Ollama</p>
           </div>
         </div>
         <button
           onClick={onClose}
+          aria-label="Fermer l’assistant"
           className="p-1 rounded hover:bg-gray-700 transition-colors"
         >
-          <X className="w-5 h-5 text-gray-400" />
+          <X aria-hidden="true" className="w-5 h-5 text-gray-400" />
         </button>
       </div>
       
@@ -180,12 +184,12 @@ export function AIChat({ isOpen, onClose, projectId, onAction }: AIChatProps) {
               className={`flex gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}
             >
               {/* Avatar */}
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0
-                ${message.role === 'user' 
-                  ? 'bg-cyan-600' 
+              <div aria-hidden="true" className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0
+                ${message.role === 'user'
+                  ? 'bg-cyan-600'
                   : 'bg-gradient-to-br from-purple-500 to-cyan-500'}`}
               >
-                {message.role === 'user' 
+                {message.role === 'user'
                   ? <User className="w-4 h-4 text-white" />
                   : <Sparkles className="w-4 h-4 text-white" />
                 }
@@ -202,7 +206,7 @@ export function AIChat({ isOpen, onClose, projectId, onAction }: AIChatProps) {
                 {/* Action indicator */}
                 {message.action && (
                   <div className="mt-2 pt-2 border-t border-gray-700/50 flex items-center gap-2">
-                    <Zap className="w-3 h-3 text-amber-400" />
+                    <Zap aria-hidden="true" className="w-3 h-3 text-amber-400" />
                     <span className="text-xs text-amber-400">
                       Action: {message.action.type}
                     </span>
@@ -220,7 +224,7 @@ export function AIChat({ isOpen, onClose, projectId, onAction }: AIChatProps) {
             animate={{ opacity: 1 }}
             className="flex gap-3"
           >
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-cyan-500 
+            <div aria-hidden="true" className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-cyan-500
               flex items-center justify-center">
               <Loader2 className="w-4 h-4 text-white animate-spin" />
             </div>
@@ -248,7 +252,7 @@ export function AIChat({ isOpen, onClose, projectId, onAction }: AIChatProps) {
                 text-xs text-gray-300 hover:bg-gray-700 hover:text-white 
                 transition-colors whitespace-nowrap"
             >
-              <action.icon className="w-3 h-3" />
+              <action.icon aria-hidden="true" className="w-3 h-3" />
               {action.label}
             </button>
           ))}
@@ -264,16 +268,18 @@ export function AIChat({ isOpen, onClose, projectId, onAction }: AIChatProps) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Demande quelque chose..."
+            aria-label="Message à l’assistant"
             className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-2
               text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500"
           />
           <button
             type="submit"
             disabled={!input.trim() || isLoading}
+            aria-label="Envoyer le message"
             className="p-2 bg-cyan-600 rounded-xl hover:bg-cyan-500 transition-colors
               disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Send className="w-5 h-5 text-white" />
+            <Send aria-hidden="true" className="w-5 h-5 text-white" />
           </button>
         </div>
       </form>
@@ -313,17 +319,18 @@ export function AIChatToggle({ onClick, hasUnread }: { onClick: () => void; hasU
   return (
     <motion.button
       onClick={onClick}
-      className="fixed right-4 bottom-4 w-14 h-14 rounded-full 
-        bg-gradient-to-br from-cyan-500 to-purple-600 
+      aria-label="Ouvrir l’assistant IA"
+      className="fixed right-4 bottom-4 w-14 h-14 rounded-full
+        bg-gradient-to-br from-cyan-500 to-purple-600
         shadow-lg shadow-cyan-500/20
         flex items-center justify-center
         hover:scale-105 transition-transform"
       whileHover={{ scale: 1.1 }}
       whileTap={{ scale: 0.95 }}
     >
-      <MessageSquare className="w-6 h-6 text-white" />
+      <MessageSquare aria-hidden="true" className="w-6 h-6 text-white" />
       {hasUnread && (
-        <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full" />
+        <span aria-hidden="true" className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full" />
       )}
     </motion.button>
   );

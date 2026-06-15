@@ -34,7 +34,7 @@ export default function Sidebar() {
       className="h-full bg-[var(--bg-card)] border-r border-[var(--border-color)] flex flex-col"
     >
       {/* Navigation */}
-      <nav className="flex-1 py-4">
+      <nav className="flex-1 py-4" aria-label="Navigation principale">
         <ul className="space-y-1 px-2">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
@@ -48,6 +48,8 @@ export default function Sidebar() {
               >
                 <Link
                   to={item.path}
+                  aria-label={item.label}
+                  aria-current={isActive ? 'page' : undefined}
                   className={cn(
                     'relative flex items-center gap-3 px-3 py-2 rounded-lg transition-colors',
                     isActive
@@ -58,12 +60,13 @@ export default function Sidebar() {
                   {/* Active indicator bar */}
                   {isActive && (
                     <motion.div
+                      aria-hidden="true"
                       layoutId="sidebar-active-indicator"
                       className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-[var(--accent-color)] rounded-full"
                       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                     />
                   )}
-                  <Icon className={cn(
+                  <Icon aria-hidden="true" className={cn(
                     'w-4 h-4 flex-shrink-0 transition-colors',
                     isActive && 'text-[var(--accent-color)]'
                   )} />
@@ -81,12 +84,14 @@ export default function Sidebar() {
       <div className="p-2 border-t border-[var(--border-color)]">
         <button
           onClick={toggleSidebar}
+          aria-label={sidebarCollapsed ? 'Déplier la barre latérale' : 'Replier la barre latérale'}
+          aria-expanded={!sidebarCollapsed}
           className="w-full flex items-center justify-center p-2 rounded-lg hover:bg-[var(--bg-secondary)] transition-colors"
         >
           {sidebarCollapsed ? (
-            <ChevronRight className="w-4 h-4 text-[var(--text-muted)]" />
+            <ChevronRight aria-hidden="true" className="w-4 h-4 text-[var(--text-muted)]" />
           ) : (
-            <ChevronLeft className="w-4 h-4 text-[var(--text-muted)]" />
+            <ChevronLeft aria-hidden="true" className="w-4 h-4 text-[var(--text-muted)]" />
           )}
         </button>
       </div>

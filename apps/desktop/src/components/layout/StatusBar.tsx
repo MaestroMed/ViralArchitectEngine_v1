@@ -14,6 +14,7 @@ export default function StatusBar() {
       {/* Active jobs - clickable to open drawer */}
       <button
         onClick={() => setJobDrawerOpen(true)}
+        aria-label="Ouvrir le suivi des tâches"
         className="flex items-center gap-3 hover:text-[var(--text-primary)] transition-colors group"
       >
         <AnimatePresence mode="popLayout">
@@ -26,7 +27,7 @@ export default function StatusBar() {
                 exit={{ opacity: 0, x: 10 }}
                 className="flex items-center gap-2"
               >
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <div aria-hidden="true" className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="max-w-[150px] truncate">{job.stage || job.type}</span>
                 <span className="text-[var(--text-primary)] font-medium tabular-nums">
                   {job.progress.toFixed(0)}%
@@ -39,7 +40,7 @@ export default function StatusBar() {
               animate={{ opacity: 1 }}
               className="flex items-center gap-1.5"
             >
-              <div className="w-2 h-2 rounded-full bg-green-500" />
+              <div aria-hidden="true" className="w-2 h-2 rounded-full bg-green-500" />
               Prêt
             </motion.span>
           )}
@@ -52,7 +53,7 @@ export default function StatusBar() {
         )}
 
         {/* Show drawer hint */}
-        <ChevronUp className="w-3 h-3 text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
+        <ChevronUp aria-hidden="true" className="w-3 h-3 text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
       </button>
 
       {/* Spacer */}
@@ -64,7 +65,7 @@ export default function StatusBar() {
           onClick={() => setJobDrawerOpen(true)}
           className="flex items-center gap-1.5 px-2 py-0.5 rounded hover:bg-[var(--bg-tertiary)] transition-colors mr-3"
         >
-          <Layers className="w-3 h-3" />
+          <Layers aria-hidden="true" className="w-3 h-3" />
           <span>{totalJobs} tâche{totalJobs > 1 ? 's' : ''}</span>
         </button>
       )}

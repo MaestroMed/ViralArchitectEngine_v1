@@ -56,16 +56,19 @@ export default function AudioControls() {
           }
         `}
         title={enabled ? 'Clic: Mute | Clic droit: Options' : 'Clic: Activer | Clic droit: Options'}
+        aria-label={enabled ? 'Couper l’audio ambiant' : 'Activer l’audio ambiant'}
+        aria-pressed={enabled}
       >
         {enabled ? (
-          <Volume2 className="w-3 h-3" />
+          <Volume2 aria-hidden="true" className="w-3 h-3" />
         ) : (
-          <VolumeX className="w-3 h-3" />
+          <VolumeX aria-hidden="true" className="w-3 h-3" />
         )}
         {enabled && track !== 'none' && (
           <span className="text-2xs">{volume}%</span>
         )}
-        <ChevronUp 
+        <ChevronUp
+          aria-hidden="true"
           className={`w-2.5 h-2.5 transition-transform ${showPopup ? 'rotate-180' : ''}`}
         />
       </button>
@@ -84,7 +87,7 @@ export default function AudioControls() {
             {/* Header */}
             <div className="px-3 py-2 border-b border-[var(--border-color)] bg-[var(--bg-tertiary)]">
               <div className="flex items-center gap-2">
-                <Music className="w-3.5 h-3.5 text-[var(--accent-color)]" />
+                <Music aria-hidden="true" className="w-3.5 h-3.5 text-[var(--accent-color)]" />
                 <span className="text-xs font-medium text-[var(--text-primary)]">
                   Audio Ambiant
                 </span>
@@ -103,6 +106,7 @@ export default function AudioControls() {
                 max="100"
                 value={volume}
                 onChange={(e) => setVolume(Number(e.target.value))}
+                aria-label="Volume de l’audio ambiant"
                 className="w-full h-1.5 rounded-full bg-[var(--bg-tertiary)] appearance-none cursor-pointer
                   [&::-webkit-slider-thumb]:appearance-none
                   [&::-webkit-slider-thumb]:w-3
@@ -124,6 +128,8 @@ export default function AudioControls() {
                   <button
                     key={t}
                     onClick={() => setTrack(t)}
+                    aria-pressed={track === t}
+                    aria-label={`Piste ${TRACK_LABELS[t]}`}
                     className={`
                       px-2 py-1.5 text-xs rounded transition-colors
                       ${track === t
@@ -144,12 +150,16 @@ export default function AudioControls() {
                 <span className="text-xs text-[var(--text-secondary)]">Activer</span>
                 <button
                   onClick={toggleEnabled}
+                  role="switch"
+                  aria-checked={enabled}
+                  aria-label="Activer l’audio ambiant"
                   className={`
                     relative w-8 h-4 rounded-full transition-colors
                     ${enabled ? 'bg-[var(--accent-color)]' : 'bg-[var(--bg-tertiary)]'}
                   `}
                 >
                   <motion.div
+                    aria-hidden="true"
                     className="absolute top-0.5 w-3 h-3 bg-white rounded-full shadow"
                     animate={{ left: enabled ? '1rem' : '0.125rem' }}
                     transition={{ type: 'spring', stiffness: 500, damping: 30 }}

@@ -45,9 +45,11 @@ function StatusDot({ label, active }: { label: string; active: boolean }) {
   return (
     <div className="flex items-center gap-1.5">
       <div
+        role="img"
+        aria-label={`${label} : ${active ? 'connecté' : 'déconnecté'}`}
         className={`w-2 h-2 rounded-full transition-all duration-300 ${
-          active 
-            ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' 
+          active
+            ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]'
             : 'bg-[var(--text-muted)] opacity-40'
         }`}
       />

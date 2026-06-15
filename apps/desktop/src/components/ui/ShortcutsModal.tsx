@@ -64,6 +64,9 @@ export default function ShortcutsModal() {
         onClick={() => setShortcutsModalOpen(false)}
       >
         <motion.div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="shortcuts-title"
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -74,11 +77,11 @@ export default function ShortcutsModal() {
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-[var(--border-color)]">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-viral flex items-center justify-center">
+              <div aria-hidden="true" className="w-10 h-10 rounded-xl bg-gradient-viral flex items-center justify-center">
                 <Keyboard className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-[var(--text-primary)] font-display">
+                <h2 id="shortcuts-title" className="text-xl font-bold text-[var(--text-primary)] font-display">
                   Raccourcis clavier
                 </h2>
                 <p className="text-sm text-[var(--text-muted)]">
@@ -88,9 +91,10 @@ export default function ShortcutsModal() {
             </div>
             <button
               onClick={() => setShortcutsModalOpen(false)}
+              aria-label="Fermer les raccourcis"
               className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
             >
-              <X className="w-5 h-5 text-[var(--text-muted)]" />
+              <X aria-hidden="true" className="w-5 h-5 text-[var(--text-muted)]" />
             </button>
           </div>
 

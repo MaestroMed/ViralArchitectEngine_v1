@@ -111,7 +111,7 @@ export default function SettingsPage() {
       {/* Sidebar navigation */}
       <aside className="w-56 border-r border-[var(--border-color)] bg-[var(--bg-card)] p-4">
         <div className="flex items-center gap-2 mb-6 px-2">
-          <Settings className="w-5 h-5 text-[var(--accent-color)]" />
+          <Settings aria-hidden="true" className="w-5 h-5 text-[var(--accent-color)]" />
           <h1 className="text-lg font-semibold text-[var(--text-primary)]">Paramètres</h1>
         </div>
         
@@ -124,15 +124,16 @@ export default function SettingsPage() {
               <button
                 key={section.id}
                 onClick={() => setActiveSection(section.id)}
+                aria-current={isActive ? 'page' : undefined}
                 className={`
                   w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors
-                  ${isActive 
-                    ? 'bg-[var(--accent-color)] text-white' 
+                  ${isActive
+                    ? 'bg-[var(--accent-color)] text-white'
                     : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
                   }
                 `}
               >
-                <Icon className="w-4 h-4" />
+                <Icon aria-hidden="true" className="w-4 h-4" />
                 {section.label}
               </button>
             );
@@ -215,29 +216,31 @@ function AppearanceSection() {
           <CardDescription>Choisissez votre thème préféré</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-3" role="radiogroup" aria-label="Thème">
             {themes.map((t) => {
               const Icon = t.icon;
               const isSelected = theme === t.id;
-              
+
               return (
                 <button
                   key={t.id}
                   onClick={() => setTheme(t.id)}
+                  role="radio"
+                  aria-checked={isSelected}
                   className={`
                     relative p-4 rounded-xl border-2 transition-all text-left
-                    ${isSelected 
-                      ? 'border-[var(--accent-color)] bg-[var(--accent-color)]/10' 
+                    ${isSelected
+                      ? 'border-[var(--accent-color)] bg-[var(--accent-color)]/10'
                       : 'border-[var(--border-color)] hover:border-[var(--text-muted)]'
                     }
                   `}
                 >
                   {isSelected && (
-                    <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[var(--accent-color)] flex items-center justify-center">
+                    <div aria-hidden="true" className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[var(--accent-color)] flex items-center justify-center">
                       <Check className="w-3 h-3 text-white" />
                     </div>
                   )}
-                  <Icon className={`w-6 h-6 mb-2 ${isSelected ? 'text-[var(--accent-color)]' : 'text-[var(--text-muted)]'}`} />
+                  <Icon aria-hidden="true" className={`w-6 h-6 mb-2 ${isSelected ? 'text-[var(--accent-color)]' : 'text-[var(--text-muted)]'}`} />
                   <div className="font-medium text-[var(--text-primary)]">{t.label}</div>
                   <div className="text-xs text-[var(--text-muted)] mt-1">{t.description}</div>
                 </button>
@@ -317,21 +320,24 @@ function AudioSection() {
                 max="100"
                 value={volume}
                 onChange={(e) => setVolume(Number(e.target.value))}
+                aria-label="Volume de la musique d’ambiance"
                 className="w-full"
               />
             </div>
 
             <div>
               <span className="text-sm font-medium text-[var(--text-primary)] block mb-3">Piste</span>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Piste">
                 {tracks.map((t) => (
                   <button
                     key={t.id}
                     onClick={() => setTrack(t.id)}
+                    role="radio"
+                    aria-checked={track === t.id}
                     className={`
                       p-3 rounded-lg border text-left transition-colors
-                      ${track === t.id 
-                        ? 'border-[var(--accent-color)] bg-[var(--accent-color)]/10' 
+                      ${track === t.id
+                        ? 'border-[var(--accent-color)] bg-[var(--accent-color)]/10'
                         : 'border-[var(--border-color)] hover:bg-[var(--bg-tertiary)]'
                       }
                     `}
@@ -377,6 +383,7 @@ function AudioSection() {
               max="100"
               value={sfxVolume}
               onChange={(e) => setSfxVolume(Number(e.target.value))}
+              aria-label="Volume des effets sonores"
               className="w-full"
             />
           </div>
@@ -436,13 +443,14 @@ function StorageSection({
               type="text"
               value={libraryPath}
               readOnly
+              aria-label="Dossier Library"
               className="flex-1 px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)]"
             />
             <Button variant="secondary" onClick={selectLibraryPath}>
               Changer
             </Button>
-            <Button variant="ghost" size="icon" onClick={openLibrary}>
-              <FolderOpen className="w-4 h-4" />
+            <Button variant="ghost" size="icon" onClick={openLibrary} aria-label="Ouvrir le dossier Library">
+              <FolderOpen aria-hidden="true" className="w-4 h-4" />
             </Button>
           </div>
 
@@ -472,7 +480,7 @@ function StorageSection({
           />
           
           <Button variant="secondary" className="w-full">
-            <Trash2 className="w-4 h-4 mr-2" />
+            <Trash2 aria-hidden="true" className="w-4 h-4 mr-2" />
             Vider le cache maintenant
           </Button>
         </CardContent>
@@ -510,7 +518,7 @@ function ApiKeysSection({
           <CardTitle>Provider de transcription</CardTitle>
           <CardDescription>Choisissez le moteur pour l'analyse audio</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-3" role="radiogroup" aria-label="Provider de transcription">
           <ProviderOption
             id="local"
             name="GPU Local"
@@ -559,12 +567,13 @@ function ApiKeysSection({
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <label className="text-sm font-medium text-[var(--text-primary)] block mb-2">
+            <label htmlFor="openai-api-key" className="text-sm font-medium text-[var(--text-primary)] block mb-2">
               OpenAI API Key
             </label>
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <input
+                  id="openai-api-key"
                   type={showOpenAI ? 'text' : 'password'}
                   value={openaiKey}
                   onChange={(e) => setOpenaiKey(e.target.value)}
@@ -574,9 +583,11 @@ function ApiKeysSection({
                 <button
                   type="button"
                   onClick={() => setShowOpenAI(!showOpenAI)}
+                  aria-label={showOpenAI ? 'Masquer la clé OpenAI' : 'Afficher la clé OpenAI'}
+                  aria-pressed={showOpenAI}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                 >
-                  {showOpenAI ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showOpenAI ? <EyeOff aria-hidden="true" className="w-4 h-4" /> : <Eye aria-hidden="true" className="w-4 h-4" />}
                 </button>
               </div>
               <Button variant="secondary">Sauvegarder</Button>
@@ -584,12 +595,13 @@ function ApiKeysSection({
           </div>
 
           <div>
-            <label className="text-sm font-medium text-[var(--text-primary)] block mb-2">
+            <label htmlFor="deepgram-api-key" className="text-sm font-medium text-[var(--text-primary)] block mb-2">
               Deepgram API Key
             </label>
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <input
+                  id="deepgram-api-key"
                   type={showDeepgram ? 'text' : 'password'}
                   value={deepgramKey}
                   onChange={(e) => setDeepgramKey(e.target.value)}
@@ -599,9 +611,11 @@ function ApiKeysSection({
                 <button
                   type="button"
                   onClick={() => setShowDeepgram(!showDeepgram)}
+                  aria-label={showDeepgram ? 'Masquer la clé Deepgram' : 'Afficher la clé Deepgram'}
+                  aria-pressed={showDeepgram}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                 >
-                  {showDeepgram ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showDeepgram ? <EyeOff aria-hidden="true" className="w-4 h-4" /> : <Eye aria-hidden="true" className="w-4 h-4" />}
                 </button>
               </div>
               <Button variant="secondary">Sauvegarder</Button>
@@ -662,7 +676,7 @@ function PerformanceSection({
           </div>
 
           <Button variant="secondary" className="mt-4" onClick={loadSettings}>
-            <RefreshCw className="w-4 h-4 mr-2" />
+            <RefreshCw aria-hidden="true" className="w-4 h-4 mr-2" />
             Actualiser
           </Button>
         </CardContent>
@@ -700,10 +714,12 @@ function PerformanceSection({
           <CardDescription>Résolution des previews pendant l'édition</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Qualité proxy">
             {['480p', '720p', '1080p'].map((quality) => (
               <button
                 key={quality}
+                role="radio"
+                aria-checked={quality === '720p'}
                 className={`
                   p-3 rounded-lg border text-center transition-colors
                   ${quality === '720p'
@@ -743,10 +759,12 @@ function ExportDefaultsSection() {
           <CardDescription>Format optimisé pour la plateforme choisie</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Plateforme cible">
             {['TikTok', 'YouTube Shorts', 'Instagram'].map((platform) => (
               <button
                 key={platform}
+                role="radio"
+                aria-checked={platform === 'TikTok'}
                 className={`
                   p-3 rounded-lg border text-center transition-colors
                   ${platform === 'TikTok'
@@ -800,7 +818,8 @@ function ExportDefaultsSection() {
                   {style.fontSize}px • {style.animation} • {style.wordsPerLine} mots/ligne
                 </div>
               </div>
-              <div 
+              <div
+                aria-hidden="true"
                 className="w-6 h-6 rounded-full border-2 border-[var(--border-color)]"
                 style={{ backgroundColor: style.highlightColor }}
               />
@@ -859,11 +878,11 @@ function ExperimentalSection() {
           
           <div className="flex gap-2">
             <Button variant="secondary" className="flex-1">
-              <Download className="w-4 h-4 mr-2" />
+              <Download aria-hidden="true" className="w-4 h-4 mr-2" />
               Exporter les logs
             </Button>
             <Button variant="secondary" className="flex-1">
-              <FolderOpen className="w-4 h-4 mr-2" />
+              <FolderOpen aria-hidden="true" className="w-4 h-4 mr-2" />
               Ouvrir dossier logs
             </Button>
           </div>
@@ -923,12 +942,16 @@ function ToggleSetting({
       <button
         type="button"
         disabled={disabled}
+        role="switch"
+        aria-checked={isChecked}
+        aria-label={label}
         className={`
           relative w-10 h-5 rounded-full transition-colors cursor-pointer
           ${isChecked ? 'bg-[var(--accent-color)]' : 'bg-[var(--bg-tertiary)]'}
         `}
       >
         <motion.div
+          aria-hidden="true"
           className="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow"
           animate={{ left: isChecked ? '1.25rem' : '0.125rem' }}
           transition={{ type: 'spring', stiffness: 500, damping: 30 }}
@@ -942,9 +965,10 @@ function StatusItem({ label, status, detail }: { label: string; status: boolean;
   return (
     <div className="flex items-center gap-3 p-3 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)]">
       <div
+        aria-hidden="true"
         className={`w-3 h-3 rounded-full transition-all duration-300 ${
-          status 
-            ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' 
+          status
+            ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]'
             : 'bg-[var(--text-muted)]'
         }`}
       />
@@ -991,20 +1015,30 @@ function ProviderOption({
   return (
     <div
       onClick={() => available && !loading && onClick()}
+      role="radio"
+      aria-checked={selected}
+      aria-label={name}
+      tabIndex={available && !loading ? 0 : -1}
+      onKeyDown={(e) => {
+        if ((e.key === 'Enter' || e.key === ' ') && available && !loading) {
+          e.preventDefault();
+          onClick();
+        }
+      }}
       className={`
         relative flex items-center gap-4 p-4 rounded-lg border-2 transition-all
         ${selected ? 'border-[var(--accent-color)] bg-[var(--accent-color)]/10' : 'border-[var(--border-color)]'}
         ${!available && id !== 'local' ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-[var(--text-muted)]'}
       `}
     >
-      <div className={`
+      <div aria-hidden="true" className={`
         w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all
         ${selected ? 'border-[var(--accent-color)] bg-[var(--accent-color)]' : 'border-[var(--text-muted)]'}
       `}>
         {selected && <div className="w-2 h-2 rounded-full bg-white" />}
       </div>
-      
-      <div className={`
+
+      <div aria-hidden="true" className={`
         w-10 h-10 rounded-lg flex items-center justify-center
         ${selected ? 'bg-[var(--accent-color)]/20 text-[var(--accent-color)]' : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)]'}
       `}>
@@ -1022,7 +1056,7 @@ function ProviderOption({
       </div>
       
       {loading && selected && (
-        <RefreshCw className="w-4 h-4 animate-spin text-[var(--accent-color)]" />
+        <RefreshCw aria-hidden="true" className="w-4 h-4 animate-spin text-[var(--accent-color)]" />
       )}
     </div>
   );

@@ -11,6 +11,7 @@ export function ThemeToggle() {
       onClick={toggleTheme}
       className="relative p-2 rounded-lg transition-colors hover:bg-[var(--bg-tertiary)]"
       aria-label={isDark ? 'Passer en mode clair' : 'Passer en mode sombre'}
+      aria-pressed={isDark}
     >
       <motion.div
         initial={false}
@@ -18,9 +19,9 @@ export function ThemeToggle() {
         transition={{ duration: 0.3, ease: 'easeInOut' }}
       >
         {isDark ? (
-          <Moon className="w-4 h-4 text-[var(--text-secondary)]" />
+          <Moon aria-hidden="true" className="w-4 h-4 text-[var(--text-secondary)]" />
         ) : (
-          <Sun className="w-4 h-4 text-[var(--text-secondary)]" />
+          <Sun aria-hidden="true" className="w-4 h-4 text-[var(--text-secondary)]" />
         )}
       </motion.div>
     </button>

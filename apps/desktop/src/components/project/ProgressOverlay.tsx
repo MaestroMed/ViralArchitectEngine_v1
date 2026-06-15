@@ -78,9 +78,16 @@ export default function ProgressOverlay({ projectId }: ProgressOverlayProps) {
           className="relative z-10 flex flex-col items-center"
         >
           {/* Animated Progress Ring */}
-          <div className="relative w-56 h-56 mb-8">
+          <div
+            className="relative w-56 h-56 mb-8"
+            role="progressbar"
+            aria-label="Progression de la tâche"
+            aria-valuenow={Math.floor(progress)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+          >
             {/* Background ring */}
-            <svg className="w-full h-full -rotate-90" viewBox="0 0 200 200">
+            <svg aria-hidden="true" className="w-full h-full -rotate-90" viewBox="0 0 200 200">
               <circle
                 cx="100"
                 cy="100"
@@ -127,7 +134,7 @@ export default function ProgressOverlay({ projectId }: ProgressOverlayProps) {
             </div>
 
             {/* Spinning loader overlay */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div aria-hidden="true" className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <Loader2 className="w-56 h-56 text-white/5 animate-spin" style={{ animationDuration: '3s' }} />
             </div>
           </div>
@@ -135,6 +142,8 @@ export default function ProgressOverlay({ projectId }: ProgressOverlayProps) {
           {/* Stage label */}
           <motion.div
             key={activeJob.stage}
+            role="status"
+            aria-live="polite"
             initial={{ y: 10, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             className="text-center mb-4"
@@ -173,7 +182,7 @@ export default function ProgressOverlay({ projectId }: ProgressOverlayProps) {
               onClick={handleCancel}
               className="flex items-center gap-2 px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg text-sm text-red-400 transition-colors"
             >
-              <X className="w-4 h-4" />
+              <X aria-hidden="true" className="w-4 h-4" />
               Annuler
             </motion.button>
           </div>
@@ -184,7 +193,7 @@ export default function ProgressOverlay({ projectId }: ProgressOverlayProps) {
           </p>
 
           {/* Subtle animated dots */}
-          <div className="flex gap-1 mt-8">
+          <div aria-hidden="true" className="flex gap-1 mt-8">
             {[0, 1, 2].map((i) => (
               <motion.div
                 key={i}

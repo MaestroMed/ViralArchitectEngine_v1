@@ -164,7 +164,7 @@ export default function OnboardingPage() {
                 animate={{ scale: 1, rotate: 0 }}
                 transition={{ type: 'spring', damping: 15 }}
               >
-                <step.icon className="w-12 h-12 text-white" />
+                <step.icon aria-hidden="true" className="w-12 h-12 text-white" />
               </motion.div>
 
               {/* Title */}
@@ -187,7 +187,7 @@ export default function OnboardingPage() {
                     transition={{ delay: i * 0.1 }}
                     className="bg-white/5 rounded-xl p-5 border border-white/10"
                   >
-                    <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${step.color} 
+                    <div aria-hidden="true" className={`w-10 h-10 rounded-lg bg-gradient-to-br ${step.color}
                       flex items-center justify-center mb-3 mx-auto opacity-70`}>
                       <Check className="w-5 h-5 text-white" />
                     </div>
@@ -202,6 +202,8 @@ export default function OnboardingPage() {
                   <button
                     key={s.id}
                     onClick={() => setCurrentStep(i)}
+                    aria-label={`Aller à l’étape ${i + 1}`}
+                    aria-current={i === currentStep ? 'step' : undefined}
                     className={`w-3 h-3 rounded-full transition-all ${
                       i === currentStep
                         ? 'bg-cyan-500 w-8'
@@ -228,7 +230,7 @@ export default function OnboardingPage() {
               : 'text-gray-400 hover:text-white hover:bg-white/5'
           }`}
         >
-          <ChevronLeft className="w-5 h-5" />
+          <ChevronLeft aria-hidden="true" className="w-5 h-5" />
           Précédent
         </button>
 
@@ -241,12 +243,12 @@ export default function OnboardingPage() {
           {isLastStep ? (
             <>
               Commencer
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight aria-hidden="true" className="w-5 h-5" />
             </>
           ) : (
             <>
               Suivant
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight aria-hidden="true" className="w-5 h-5" />
             </>
           )}
         </button>

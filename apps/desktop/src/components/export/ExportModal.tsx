@@ -154,6 +154,9 @@ export function ExportModal({
         onClick={onClose}
       >
         <motion.div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="export-modal-title"
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -164,21 +167,22 @@ export function ExportModal({
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-white/10">
             <div>
-              <h2 className="text-xl font-bold text-white">Exporter le clip</h2>
+              <h2 id="export-modal-title" className="text-xl font-bold text-white">Exporter le clip</h2>
               <p className="text-sm text-gray-400 mt-1">
                 {segmentName} • {formatDuration(duration)} • {estimatedSize()}
               </p>
             </div>
             <button
               onClick={onClose}
+              aria-label="Fermer l’export"
               className="p-2 rounded-lg hover:bg-white/10 transition-colors"
             >
-              <X className="w-5 h-5 text-gray-400" />
+              <X aria-hidden="true" className="w-5 h-5 text-gray-400" />
             </button>
           </div>
 
           {/* Tabs */}
-          <div className="flex border-b border-white/10">
+          <div className="flex border-b border-white/10" role="tablist" aria-label="Options d’export">
             {[
               { id: 'video', label: 'Vidéo', icon: Video },
               { id: 'subtitles', label: 'Sous-titres', icon: Subtitles },
@@ -187,13 +191,15 @@ export function ExportModal({
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
+                role="tab"
+                aria-selected={activeTab === tab.id}
                 className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors border-b-2 ${
                   activeTab === tab.id
                     ? 'border-blue-500 text-blue-400'
                     : 'border-transparent text-gray-400 hover:text-gray-300'
                 }`}
               >
-                <tab.icon className="w-4 h-4" />
+                <tab.icon aria-hidden="true" className="w-4 h-4" />
                 {tab.label}
               </button>
             ))}
@@ -206,11 +212,13 @@ export function ExportModal({
                 {/* Platform presets */}
                 <div>
                   <label className="text-sm font-medium text-gray-300 block mb-3">Plateforme</label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Plateforme">
                     {PLATFORM_PRESETS.map((preset) => (
                       <button
                         key={preset.id}
                         onClick={() => setOptions({ ...options, platform: preset.id })}
+                        role="radio"
+                        aria-checked={options.platform === preset.id}
                         className={`p-3 rounded-xl text-left transition-all ${
                           options.platform === preset.id
                             ? 'bg-blue-500/20 border-2 border-blue-500'
@@ -230,11 +238,13 @@ export function ExportModal({
                 {/* Format */}
                 <div>
                   <label className="text-sm font-medium text-gray-300 block mb-3">Format</label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Format">
                     {FORMAT_OPTIONS.map((fmt) => (
                       <button
                         key={fmt.value}
                         onClick={() => setOptions({ ...options, format: fmt.value as any })}
+                        role="radio"
+                        aria-checked={options.format === fmt.value}
                         className={`p-3 rounded-xl text-left transition-colors ${
                           options.format === fmt.value
                             ? 'bg-blue-500/20 border-2 border-blue-500'
@@ -251,11 +261,13 @@ export function ExportModal({
                 {/* Resolution */}
                 <div>
                   <label className="text-sm font-medium text-gray-300 block mb-3">Résolution</label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Résolution">
                     {RESOLUTION_OPTIONS.map((res) => (
                       <button
                         key={res.value}
                         onClick={() => setOptions({ ...options, resolution: res.value as any })}
+                        role="radio"
+                        aria-checked={options.resolution === res.value}
                         className={`p-3 rounded-xl text-center transition-colors relative ${
                           options.resolution === res.value
                             ? 'bg-blue-500/20 border-2 border-blue-500'
@@ -277,11 +289,13 @@ export function ExportModal({
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium text-gray-300 block mb-3">Qualité</label>
-                    <div className="space-y-2">
+                    <div className="space-y-2" role="radiogroup" aria-label="Qualité">
                       {QUALITY_OPTIONS.map((q) => (
                         <button
                           key={q.value}
                           onClick={() => setOptions({ ...options, quality: q.value as any })}
+                          role="radio"
+                          aria-checked={options.quality === q.value}
                           className={`w-full p-3 rounded-lg text-left transition-colors flex items-center justify-between ${
                             options.quality === q.value
                               ? 'bg-blue-500/20 border border-blue-500'
@@ -297,11 +311,13 @@ export function ExportModal({
 
                   <div>
                     <label className="text-sm font-medium text-gray-300 block mb-3">FPS</label>
-                    <div className="space-y-2">
+                    <div className="space-y-2" role="radiogroup" aria-label="FPS">
                       {[30, 60].map((fps) => (
                         <button
                           key={fps}
                           onClick={() => setOptions({ ...options, fps: fps as any })}
+                          role="radio"
+                          aria-checked={options.fps === fps}
                           className={`w-full p-3 rounded-lg text-left transition-colors ${
                             options.fps === fps
                               ? 'bg-blue-500/20 border border-blue-500'
@@ -365,11 +381,11 @@ export function ExportModal({
                 <div className="pt-4 border-t border-white/10">
                   <label className="text-sm font-medium text-gray-300 block mb-2">Dossier de sortie</label>
                   <button className="w-full p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors flex items-center gap-3">
-                    <Folder className="w-5 h-5 text-gray-400" />
+                    <Folder aria-hidden="true" className="w-5 h-5 text-gray-400" />
                     <span className="text-gray-300 flex-1 text-left text-sm truncate">
                       {options.outputDir || 'Dossier par défaut (à côté du projet)'}
                     </span>
-                    <ChevronDown className="w-4 h-4 text-gray-400" />
+                    <ChevronDown aria-hidden="true" className="w-4 h-4 text-gray-400" />
                   </button>
                 </div>
               </div>
@@ -388,12 +404,12 @@ export function ExportModal({
               <Button onClick={handleExport} disabled={exporting}>
                 {exporting ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <Loader2 aria-hidden="true" className="w-4 h-4 mr-2 animate-spin" />
                     Export en cours...
                   </>
                 ) : (
                   <>
-                    <Download className="w-4 h-4 mr-2" />
+                    <Download aria-hidden="true" className="w-4 h-4 mr-2" />
                     Exporter
                   </>
                 )}
@@ -429,7 +445,7 @@ function ToggleOption({
         disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
       } ${checked ? 'bg-blue-500/10 border border-blue-500/30' : 'bg-white/5 border border-transparent hover:bg-white/10'}`}
     >
-      {icon && <div className="text-gray-400">{icon}</div>}
+      {icon && <div aria-hidden="true" className="text-gray-400">{icon}</div>}
       <div className="flex-1">
         <div className="font-medium text-white">{label}</div>
         <div className="text-xs text-gray-400">{description}</div>

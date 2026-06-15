@@ -118,20 +118,24 @@ export function SegmentPreview({
           <button
             className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
             onClick={() => onSeek(Math.max(0, currentTime - 10))}
+            aria-label="Reculer de 10 secondes"
           >
-            <SkipBack className="w-5 h-5 text-[var(--text-secondary)]" />
+            <SkipBack aria-hidden="true" className="w-5 h-5 text-[var(--text-secondary)]" />
           </button>
           <button
             className="p-3 rounded-full bg-blue-500 hover:bg-blue-600 text-white transition-colors"
             onClick={onPlayPause}
+            aria-label={isPlaying ? 'Mettre en pause' : 'Lire'}
+            aria-pressed={isPlaying}
           >
-            {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
+            {isPlaying ? <Pause aria-hidden="true" className="w-5 h-5" /> : <Play aria-hidden="true" className="w-5 h-5 ml-0.5" />}
           </button>
           <button
             className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
             onClick={() => onSeek(currentTime + 10)}
+            aria-label="Avancer de 10 secondes"
           >
-            <SkipForward className="w-5 h-5 text-[var(--text-secondary)]" />
+            <SkipForward aria-hidden="true" className="w-5 h-5 text-[var(--text-secondary)]" />
           </button>
         </div>
 
@@ -149,6 +153,22 @@ export function SegmentPreview({
 
           {/* Progress scrubber */}
           <div className="relative h-1 bg-[var(--bg-tertiary)] rounded-full cursor-pointer group"
+            role="slider"
+            tabIndex={0}
+            aria-label="Barre de progression"
+            aria-valuemin={0}
+            aria-valuemax={Math.round(project.duration || 0)}
+            aria-valuenow={Math.round(currentTime)}
+            onKeyDown={(e) => {
+              const total = project.duration || 0;
+              if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                onSeek(Math.min(total, currentTime + 5));
+              } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                onSeek(Math.max(0, currentTime - 5));
+              }
+            }}
             onClick={(e) => {
               const rect = e.currentTarget.getBoundingClientRect();
               const pct = (e.clientX - rect.left) / rect.width;
@@ -178,11 +198,13 @@ export function SegmentPreview({
         <button
           className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
           onClick={onMuteToggle}
+          aria-label={isMuted ? 'Activer le son' : 'Couper le son'}
+          aria-pressed={isMuted}
         >
           {isMuted ? (
-            <VolumeX className="w-5 h-5 text-[var(--text-secondary)]" />
+            <VolumeX aria-hidden="true" className="w-5 h-5 text-[var(--text-secondary)]" />
           ) : (
-            <Volume2 className="w-5 h-5 text-[var(--text-secondary)]" />
+            <Volume2 aria-hidden="true" className="w-5 h-5 text-[var(--text-secondary)]" />
           )}
         </button>
       </div>

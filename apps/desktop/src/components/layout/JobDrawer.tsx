@@ -170,6 +170,9 @@ export default function JobDrawer() {
 
           {/* Drawer */}
           <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="job-drawer-title"
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
@@ -178,13 +181,13 @@ export default function JobDrawer() {
           >
             {/* Handle bar */}
             <div className="flex items-center justify-center py-2">
-              <div className="w-10 h-1 bg-[var(--text-muted)] rounded-full opacity-50" />
+              <div aria-hidden="true" className="w-10 h-1 bg-[var(--text-muted)] rounded-full opacity-50" />
             </div>
 
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-3 border-b border-[var(--border-color)]">
               <div className="flex items-center gap-3">
-                <h3 className="font-semibold text-[var(--text-primary)]">Tâches</h3>
+                <h3 id="job-drawer-title" className="font-semibold text-[var(--text-primary)]">Tâches</h3>
                 {activeJobs.length > 0 && (
                   <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs font-medium rounded-full">
                     {activeJobs.length} en cours
@@ -197,15 +200,16 @@ export default function JobDrawer() {
                     onClick={handleClearCompleted}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
                   >
-                    <Trash2 className="w-3 h-3" />
+                    <Trash2 aria-hidden="true" className="w-3 h-3" />
                     Effacer l'historique
                   </button>
                 )}
                 <button
                   onClick={() => setJobDrawerOpen(false)}
+                  aria-label="Fermer les tâches"
                   className="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
                 >
-                  <X className="w-4 h-4 text-[var(--text-muted)]" />
+                  <X aria-hidden="true" className="w-4 h-4 text-[var(--text-muted)]" />
                 </button>
               </div>
             </div>
@@ -214,7 +218,7 @@ export default function JobDrawer() {
             <div className="flex-1 overflow-auto p-4 space-y-2">
               {jobs.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <Clock className="w-12 h-12 text-[var(--text-muted)] opacity-30 mb-3" />
+                  <Clock aria-hidden="true" className="w-12 h-12 text-[var(--text-muted)] opacity-30 mb-3" />
                   <p className="text-sm text-[var(--text-muted)]">Aucune tâche</p>
                 </div>
               ) : (
@@ -229,7 +233,17 @@ export default function JobDrawer() {
                       className="bg-[var(--bg-secondary)] rounded-lg overflow-hidden"
                     >
                       {/* Main job row - clickable */}
-                      <div 
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        aria-expanded={expandedJobId === job.id}
+                        aria-label={`${jobTypeLabels[job.type] || job.type} — ${job.progress.toFixed(0)}%`}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setExpandedJobId(expandedJobId === job.id ? null : job.id);
+                          }
+                        }}
                         className="p-4 cursor-pointer hover:bg-[var(--bg-tertiary)] transition-colors"
                         onClick={() => setExpandedJobId(expandedJobId === job.id ? null : job.id)}
                       >
@@ -268,9 +282,9 @@ export default function JobDrawer() {
                             {job.progress.toFixed(0)}%
                           </span>
                           {expandedJobId === job.id ? (
-                            <ChevronUp className="w-4 h-4 text-[var(--text-muted)]" />
+                            <ChevronUp aria-hidden="true" className="w-4 h-4 text-[var(--text-muted)]" />
                           ) : (
-                            <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />
+                            <ChevronDown aria-hidden="true" className="w-4 h-4 text-[var(--text-muted)]" />
                           )}
                           <button
                             onClick={(e) => { 
@@ -284,11 +298,12 @@ export default function JobDrawer() {
                             }}
                             className="p-1.5 hover:bg-red-500/20 rounded-lg transition-colors"
                             title={job.progress >= 100 ? "Retirer" : "Annuler"}
+                            aria-label={job.progress >= 100 ? 'Retirer la tâche' : 'Annuler la tâche'}
                           >
-                            <X className="w-4 h-4 text-[var(--text-muted)]" />
+                            <X aria-hidden="true" className="w-4 h-4 text-[var(--text-muted)]" />
                           </button>
                         </div>
-                        <Progress value={job.progress} />
+                        <Progress value={job.progress} label="Progression de la tâche" />
                       </div>
                       
                       {/* Expanded details */}
@@ -381,7 +396,17 @@ export default function JobDrawer() {
                           layout
                           className="rounded-lg overflow-hidden"
                         >
-                          <div 
+                          <div
+                            role="button"
+                            tabIndex={0}
+                            aria-expanded={expandedJobId === job.id}
+                            aria-label={`${jobTypeLabels[job.type] || job.type} — ${job.status}`}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                setExpandedJobId(expandedJobId === job.id ? null : job.id);
+                              }
+                            }}
                             className="flex items-center gap-3 p-3 cursor-pointer hover:bg-[var(--bg-secondary)] transition-colors"
                             onClick={() => setExpandedJobId(expandedJobId === job.id ? null : job.id)}
                           >
@@ -397,15 +422,16 @@ export default function JobDrawer() {
                               </span>
                             )}
                             {expandedJobId === job.id ? (
-                              <ChevronUp className="w-3 h-3 text-[var(--text-muted)]" />
+                              <ChevronUp aria-hidden="true" className="w-3 h-3 text-[var(--text-muted)]" />
                             ) : (
-                              <ChevronDown className="w-3 h-3 text-[var(--text-muted)]" />
+                              <ChevronDown aria-hidden="true" className="w-3 h-3 text-[var(--text-muted)]" />
                             )}
                             <button
                               onClick={(e) => { e.stopPropagation(); removeJob(job.id); }}
+                              aria-label="Supprimer cette tâche de l'historique"
                               className="p-1 opacity-50 hover:opacity-100 hover:bg-[var(--bg-tertiary)] rounded transition-all"
                             >
-                              <X className="w-3 h-3 text-[var(--text-muted)]" />
+                              <X aria-hidden="true" className="w-3 h-3 text-[var(--text-muted)]" />
                             </button>
                           </div>
                           

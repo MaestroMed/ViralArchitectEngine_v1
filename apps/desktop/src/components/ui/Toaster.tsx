@@ -22,7 +22,11 @@ export function Toaster() {
   const { toasts, removeToast } = useToastStore();
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+    <div
+      className="fixed bottom-4 right-4 z-50 flex flex-col gap-2"
+      role="region"
+      aria-label="Notifications"
+    >
       <AnimatePresence mode="popLayout">
         {toasts.map((toast) => (
           <Toast key={toast.id} toast={toast} onClose={() => removeToast(toast.id)} />
@@ -46,9 +50,14 @@ const Toast = forwardRef<HTMLDivElement, ToastProps>(({ toast, onClose }, ref) =
     return () => clearTimeout(timer);
   }, [toast.duration, onClose]);
 
+  const assertive = toast.type === 'error' || toast.type === 'warning';
+
   return (
     <motion.div
       ref={ref}
+      role={assertive ? 'alert' : 'status'}
+      aria-live={assertive ? 'assertive' : 'polite'}
+      aria-atomic="true"
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -20, scale: 0.95 }}
@@ -57,7 +66,7 @@ const Toast = forwardRef<HTMLDivElement, ToastProps>(({ toast, onClose }, ref) =
         colors[toast.type as keyof typeof colors]
       )}
     >
-      <Icon className="w-5 h-5 flex-shrink-0 mt-0.5" />
+      <Icon aria-hidden="true" className="w-5 h-5 flex-shrink-0 mt-0.5" />
       <div className="flex-1 min-w-0">
         <p className="font-medium text-sm">{toast.title}</p>
         {toast.message && (
@@ -66,9 +75,10 @@ const Toast = forwardRef<HTMLDivElement, ToastProps>(({ toast, onClose }, ref) =
       </div>
       <button
         onClick={onClose}
+        aria-label="Fermer la notification"
         className="p-1 rounded hover:bg-black/5 transition-colors"
       >
-        <X className="w-4 h-4" />
+        <X aria-hidden="true" className="w-4 h-4" />
       </button>
     </motion.div>
   );

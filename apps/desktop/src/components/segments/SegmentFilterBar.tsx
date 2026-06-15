@@ -150,7 +150,7 @@ export function SegmentFilterBar({
           {stats && (
             <div className="hidden lg:flex items-center gap-2">
               <span className="flex items-center gap-1 px-2 py-0.5 bg-green-500/10 text-green-500 text-xs rounded-full">
-                <TrendingUp className="w-3 h-3" />
+                <TrendingUp aria-hidden="true" className="w-3 h-3" />
                 {stats.avgScore.toFixed(0)}
               </span>
             </div>
@@ -162,27 +162,30 @@ export function SegmentFilterBar({
           {hasActiveFilters && (
             <button
               onClick={handleReset}
+              aria-label="Réinitialiser les filtres"
               className="p-1.5 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
               title="Réinitialiser les filtres"
             >
-              <RotateCcw className="w-4 h-4" />
+              <RotateCcw aria-hidden="true" className="w-4 h-4" />
             </button>
           )}
 
           {/* Expand toggle */}
           <button
             onClick={() => setIsExpanded(!isExpanded)}
+            aria-label="Filtres"
+            aria-expanded={isExpanded}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
               hasActiveFilters
                 ? 'bg-blue-500/10 text-blue-500'
                 : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)]'
             }`}
           >
-            <Filter className="w-3.5 h-3.5" />
+            <Filter aria-hidden="true" className="w-3.5 h-3.5" />
             {isExpanded ? (
-              <ChevronUp className="w-3.5 h-3.5" />
+              <ChevronUp aria-hidden="true" className="w-3.5 h-3.5" />
             ) : (
-              <ChevronDown className="w-3.5 h-3.5" />
+              <ChevronDown aria-hidden="true" className="w-3.5 h-3.5" />
             )}
           </button>
         </div>
@@ -201,20 +204,22 @@ export function SegmentFilterBar({
             <div className="px-3 pb-3 space-y-3">
               {/* Search Input */}
               <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+                <Search aria-hidden="true" className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
                 <input
                   type="text"
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                   placeholder="Rechercher dans la transcription..."
+                  aria-label="Rechercher dans la transcription"
                   className="w-full pl-8 pr-8 py-2 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                 />
                 {searchInput && (
                   <button
                     onClick={() => setSearchInput('')}
+                    aria-label="Effacer la recherche"
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-[var(--bg-tertiary)]"
                   >
-                    <X className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                    <X aria-hidden="true" className="w-3.5 h-3.5 text-[var(--text-muted)]" />
                   </button>
                 )}
               </div>
@@ -273,6 +278,7 @@ export function SegmentFilterBar({
                   onChange={(e) =>
                     onFiltersChange({ ...filters, minScore: parseInt(e.target.value) })
                   }
+                  aria-label="Score minimum"
                   className="w-full h-1.5 bg-[var(--bg-tertiary)] rounded-lg appearance-none cursor-pointer accent-blue-500"
                 />
               </div>
@@ -281,7 +287,7 @@ export function SegmentFilterBar({
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-medium text-[var(--text-secondary)] flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
+                    <Clock aria-hidden="true" className="w-3 h-3" />
                     Durée
                   </label>
                   <span className="text-xs font-mono text-[var(--text-primary)]">
@@ -301,6 +307,7 @@ export function SegmentFilterBar({
                         minDuration: Math.min(parseInt(e.target.value), filters.maxDuration - 15),
                       })
                     }
+                    aria-label="Durée minimum"
                     className="flex-1 h-1.5 bg-[var(--bg-tertiary)] rounded-lg appearance-none cursor-pointer accent-blue-500"
                   />
                   <span className="text-[10px] text-[var(--text-muted)]">-</span>
@@ -316,6 +323,7 @@ export function SegmentFilterBar({
                         maxDuration: Math.max(parseInt(e.target.value), filters.minDuration + 15),
                       })
                     }
+                    aria-label="Durée maximum"
                     className="flex-1 h-1.5 bg-[var(--bg-tertiary)] rounded-lg appearance-none cursor-pointer accent-blue-500"
                   />
                 </div>
@@ -325,7 +333,7 @@ export function SegmentFilterBar({
               {availableTags.length > 0 && (
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-[var(--text-secondary)] flex items-center gap-1">
-                    <Tag className="w-3 h-3" />
+                    <Tag aria-hidden="true" className="w-3 h-3" />
                     Tags
                   </label>
                   <div className="flex flex-wrap gap-1">
@@ -333,6 +341,8 @@ export function SegmentFilterBar({
                       <button
                         key={tag}
                         onClick={() => toggleTag(tag)}
+                        aria-pressed={selectedTags.includes(tag)}
+                        aria-label={`Filtrer par le tag ${tag}`}
                         className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors capitalize ${
                           selectedTags.includes(tag)
                             ? 'bg-blue-500 text-white'
@@ -356,6 +366,7 @@ export function SegmentFilterBar({
                     <button
                       key={preset.label}
                       onClick={() => onFiltersChange({ ...filters, limit: preset.value })}
+                      aria-pressed={filters.limit === preset.value}
                       className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
                         filters.limit === preset.value
                           ? 'bg-blue-500 text-white'
@@ -374,14 +385,14 @@ export function SegmentFilterBar({
                   onClick={() => onFiltersChange({ ...filters, minScore: 60, minDuration: 60 })}
                   className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-green-500/10 text-green-500 hover:bg-green-500/20 transition-colors"
                 >
-                  <Zap className="w-3 h-3" />
+                  <Zap aria-hidden="true" className="w-3 h-3" />
                   Viraux (60+)
                 </button>
                 <button
                   onClick={() => onFiltersChange({ ...filters, minScore: 70, limit: 10 })}
                   className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 transition-colors"
                 >
-                  <TrendingUp className="w-3 h-3" />
+                  <TrendingUp aria-hidden="true" className="w-3 h-3" />
                   Top 10
                 </button>
               </div>

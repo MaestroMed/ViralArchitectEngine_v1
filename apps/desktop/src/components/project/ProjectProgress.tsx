@@ -90,6 +90,7 @@ export default function ProjectProgress({ projectId, projectStatus }: ProjectPro
       {/* Phase indicator */}
       <div className="flex items-center gap-2 mb-2">
         <motion.div
+          aria-hidden="true"
           animate={isActive ? { rotate: 360 } : {}}
           transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
           className="shrink-0"
@@ -109,7 +110,14 @@ export default function ProjectProgress({ projectId, projectStatus }: ProjectPro
       </div>
 
       {/* Progress bar with phases */}
-      <div className="relative h-2 bg-white/10 rounded-full overflow-hidden">
+      <div
+        className="relative h-2 bg-white/10 rounded-full overflow-hidden"
+        role="progressbar"
+        aria-label={`Progression${currentPhase ? ` : ${PHASE_LABELS[currentPhase]}` : ''}`}
+        aria-valuenow={Math.round(globalProgress)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
         {/* Phase markers */}
         <div 
           className="absolute top-0 bottom-0 w-px bg-white/20" 

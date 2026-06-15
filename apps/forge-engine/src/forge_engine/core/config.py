@@ -125,6 +125,11 @@ class Settings(BaseSettings):
         env_prefix = "FORGE_"
         env_file = Path(__file__).parent.parent.parent.parent / ".env"  # apps/forge-engine/.env
         case_sensitive = True
+        # Tolerate FORGE_* keys that aren't Settings fields (e.g. FORGE_REQUIRE_AUTH,
+        # read directly from the environment by core/auth.py). Without this, such a
+        # line in .env makes pydantic-settings raise extra_forbidden and the whole
+        # engine fails to import.
+        extra = "ignore"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

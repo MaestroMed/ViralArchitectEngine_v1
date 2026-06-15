@@ -35,6 +35,8 @@ ETOSTARK_CONFIG = {
     "export_config": {
         "min_score": 65,
         "max_clips": 15,
+        "max_clip_seconds": 30,       # tight clips centered on the punch
+        "clip_lead_in_seconds": 5,    # seconds before the hook
         "platform": "tiktok",
         "include_captions": True,
         "burn_subtitles": True,
@@ -355,6 +357,28 @@ class AutoPipelineService:
             if not segments:
                 logger.info(f"[AutoPipeline] No segments above {min_score} for project {project_id[:8]}")
                 return
+
+            # Tighten each clip to a short window centered on its punch
+            # (cold_open_start_time = absolute hook timestamp) instead of
+            # exporting the first 60s of a long analyzed segment. Off when
+            # max_clip_seconds is unset/0.
+            tight = export_config.get("max_clip_seconds")
+            if tight:
+                pre = export_config.get("clip_lead_in_seconds", 5.0)
+                for s in segments:
+                    orig_start = s.start_time
+                    orig_end = s.start_time + (s.duration or 0.0)
+                    punch = s.cold_open_start_time
+                    new_start = max(orig_start, punch - pre) if (punch and orig_start <= punch <= orig_end) else orig_start
+                    new_dur = min(float(tight), orig_end - new_start)
+                    if new_dur < 12:  # window too short → take `tight`s from the start
+                        new_start = orig_start
+                        new_dur = min(float(tight), orig_end - orig_start)
+                    s.start_time = new_start
+                    s.duration = new_dur
+                    s.end_time = new_start + new_dur
+                await db.commit()
+                logger.info(f"[AutoPipeline] Tightened {len(segments)} clips to ~{tight:g}s around the punch")
 
             logger.info(f"[AutoPipeline] Found {len(segments)} clips to export (score >= {min_score})")
 

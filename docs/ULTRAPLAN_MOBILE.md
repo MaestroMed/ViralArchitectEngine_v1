@@ -38,9 +38,9 @@ Projet de test : `1ab8b274-…` (VOD etostark__ v2796529250, cache analyse prés
     bien on-cam (input Mehdi).
 - [ ] **A2. Robustesse layout** : fallback propre si pas de facecam stable
   (talk_fullscreen / center-crop) ; ne jamais crasher l'export.
-- [ ] **A3. Fenêtres serrées** : générer des segments courts (~20-45s) centrés sur
-  le punch (au lieu de 60-205s trimés au 1er 60s). Param `window_sizes` courts +
-  sélection autour du hook.
+- [x] **A3. Fenêtres serrées** ✅ : `_auto_export_top_clips` resserre chaque clip à
+  `max_clip_seconds` (30s) centré sur le punch (`cold_open_start_time`, lead-in 5s)
+  avant export. Vérifié : 12 clips à 30s, karaoké OK. Config `etostark` mise à jour.
 - [ ] **A4. Cold-open réparé** : le hook doit être recalé DANS la fenêtre 60s
   (bug actuel : hook hors fenêtre → crash concat). Réactiver cold-open une fois sûr.
 - [ ] **A5. Titres/légendes LLM** : lancer Ollama (ou fallback heuristique amélioré)

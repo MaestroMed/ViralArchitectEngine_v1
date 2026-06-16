@@ -57,6 +57,9 @@ class PipelineConfig:
     music_volume: float = 0.15
     speech_volume: float = 1.0
 
+    # Audio polish
+    audio_denoise: bool = False  # anlmdn — off by default (risky on music-heavy stream audio)
+
     # Output
     output_path: Path = field(default_factory=lambda: Path("output.mp4"))
     fps: int = 30
@@ -234,18 +237,26 @@ class PipelineSinglePass:
             current_a = "mixed_a"
 
         # ── Final outputs ─────────────────────────────────────────────────
+        # Optional denoise on the source/speech audio (off by default — anlmdn is
+        # aggressive on music-heavy stream audio; A/B before enabling).
+        _af_pre = "anlmdn=s=0.0008" if getattr(cfg, "audio_denoise", False) else "anull"
         filters.append(
             f"[{current_v}]format=yuv420p[final_v];"
-            f"[{current_a}]anull[final_a]"
+            f"[{current_a}]{_af_pre}[final_a]"
         )
 
-        # Platform-specific loudnorm
+        # Platform loudnorm to target LUFS, THEN a brick-wall true-peak limiter
+        # at -1 dBFS (0.891). Single-pass loudnorm's TP is only approximate, so
+        # the limiter is what actually guarantees no clipping on TikTok/Reels.
         platform_loudnorm = self._get_loudnorm_filter(cfg.platform)
         if platform_loudnorm:
-            filters.append(f"[final_a]{platform_loudnorm}[norm_a]")
-            out_audio_label = "norm_a"
+            filters.append(
+                f"[final_a]{platform_loudnorm}[ln_a];"
+                f"[ln_a]alimiter=limit=0.85:level=false[norm_a]"
+            )
         else:
-            out_audio_label = "final_a"
+            filters.append(f"[final_a]alimiter=limit=0.85:level=false[norm_a]")
+        out_audio_label = "norm_a"
 
         # Codec selection
         if cfg.use_nvenc:

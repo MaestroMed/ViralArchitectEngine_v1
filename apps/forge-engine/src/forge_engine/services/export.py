@@ -840,11 +840,14 @@ class ExportService:
                 caption_config = {
                     "style": "custom" if caption_style else "forge_minimal",
                     "word_level": True,
-                    "max_words_per_line": caption_style.get("wordsPerLine", 6) if caption_style else 6,
+                    "max_words_per_line": caption_style.get("wordsPerLine", 4) if caption_style else 4,
                     "max_lines": 2,
+                    # Layout-aware caption placement (safe band in the content zone).
+                    "facecam_ratio": facecam_ratio_val,
                 }
                 if caption_style:
                     caption_config["custom_style"] = {
+                        "facecam_ratio": facecam_ratio_val,
                         "font_family": caption_style.get("fontFamily", "Inter"),
                         "font_size": caption_style.get("fontSize", 48),
                         "font_weight": caption_style.get("fontWeight", 700),

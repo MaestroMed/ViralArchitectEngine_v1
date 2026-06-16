@@ -57,12 +57,20 @@ class CaptionEngine:
         # Start with the perfect style
         style = DEFAULT_STYLE.copy()
 
+        # Layout-aware DEFAULT position: a safe band in the content zone — below
+        # the facecam (two-zone vstack), above TikTok's bottom UI, never on the
+        # seam. alignment=2 (bottom-center) so margin_v is measured from bottom.
+        facecam_ratio = (custom_style or {}).get("facecam_ratio")
+        style["alignment"] = 2
+        style["margin_v"] = self._safe_margin_v(facecam_ratio)
+
         # Apply custom position if provided
         if custom_style:
             position_y = custom_style.get("positionY") or custom_style.get("position_y")
             if position_y is not None and position_y > 0:
-                # Custom Y position from top - convert to margin_v (from bottom)
-                style["margin_v"] = max(100, self.output_height - position_y - 80)
+                # Custom Y position from top - convert to margin_v (from bottom).
+                # margin_v is the gap from the bottom edge to the text baseline.
+                style["margin_v"] = max(120, self.output_height - int(position_y))
                 style["alignment"] = 2  # Bottom-center alignment for margin_v
 
             # Allow font size override
@@ -111,6 +119,17 @@ class CaptionEngine:
             lines.extend(dialogue_lines)
 
         return "\n".join(lines)
+
+    def _safe_margin_v(self, facecam_ratio: float | None) -> int:
+        """Vertical margin (from bottom) placing captions in a safe band:
+        below the facecam zone (two-zone vstack), above TikTok's bottom UI."""
+        h = self.output_height
+        content_top = (facecam_ratio or 0.0) * h
+        # Baseline ~78% down, but never above (facecam_top + 300px) and never in
+        # the bottom ~16% where TikTok renders its own caption/username UI.
+        baseline = max(content_top + 300, h * 0.78)
+        baseline = min(baseline, h * 0.84)
+        return int(h - baseline)
 
     def _generate_style_line(self, name: str, style: dict[str, Any]) -> str:
         """Generate ASS style line."""

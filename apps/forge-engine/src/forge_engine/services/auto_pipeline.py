@@ -75,31 +75,76 @@ ETOSTARK_CONFIG = {
 }
 
 
+_HOOK_WORDS = (
+    "non mais", "attends", "attend", "regarde", "wesh", "jure", "putain",
+    "frère", "frere", "incroyable", "dingue", "ouf", "jamais", "toujours",
+    "pourquoi", "comment", "genre", "carrément", "avoue", "assume", "imagine",
+    "le pire", "le truc", "c'est quand", "tu sais",
+)
+
+
+def _best_hook_clause(transcript: str) -> str:
+    """Pick the punchiest clause from a clip's transcript for a title.
+
+    Taking the FIRST clause of a 1-2min clip usually grabs a weak mid-sentence
+    opener. Instead, split into clauses and pick the most hook-like one
+    (questions/exclamations/intensifiers, punchy length) — a much better
+    clip-title than the opener.
+    """
+    import re
+
+    clauses = re.split(r"(?<=[.!?])\s+|(?<=[,;:])\s+", transcript)
+    best, best_score = "", -1.0
+    for c in clauses:
+        c = c.strip(" -–—,;:\"'")
+        words = c.split()
+        n = len(words)
+        # Require enough substance: a bare "Dans quel sens ?" is a weak title.
+        if not (4 <= n <= 13) or not (18 <= len(c) <= 68):
+            continue
+        cl = c.lower()
+        score = 0.0
+        if "?" in c:
+            score += 3
+        if "!" in c:
+            score += 2
+        if any(w in cl for w in _HOOK_WORDS):
+            score += 2
+        if 4 <= n <= 9:          # punchy length sweet spot
+            score += 2
+        # Mild preference for earlier clauses to break ties (the setup line).
+        score += 0.01 * (len(clauses) - clauses.index(c) if c in clauses else 0)
+        if score > best_score:
+            best_score, best = score, c
+    return best
+
+
 def _heuristic_caption(segment, idx: int, channel_name: str) -> tuple[str, str, list[str]]:
     """FR title/description/hashtags without an LLM (Ollama not available).
 
-    Builds a short, clean FR title from the first clause of the spoken line
-    (punchier than a long mid-sentence cut), quoted for a clip-title feel.
-    Real top-tier accroches need an LLM (Ollama) — this is the no-LLM fallback.
+    Builds a short, clean FR title from the punchiest clause of the spoken line,
+    quoted for a clip-title feel. Real top-tier accroches need an LLM (Ollama) —
+    this is the no-LLM fallback.
     """
     import re
 
     transcript = re.sub(r"\s+", " ", (getattr(segment, "transcript", None) or "")).strip()
     # Guard against any whisper boilerplate hallucination leaking into a title
-    # (e.g. "Sous-titres réalisés par la communauté d'Amara.org"). Strip known
-    # markers before extracting the first clause.
+    # (e.g. "Sous-titres réalisés par la communauté d'Amara.org").
     try:
         from forge_engine.services.transcription import _is_hallucinated_segment
         if transcript and _is_hallucinated_segment(transcript, None):
             transcript = ""
     except Exception:
         pass
-    # First natural clause: stop at sentence/clause punctuation once we have a
-    # few words, so we get "Je sais pas voilà" not a 90-char run-on.
+    # Prefer the punchiest clause; fall back to the first clause / a head slice.
     raw = ""
     if transcript:
-        m = re.match(r"(.{12,55}?[.!?,;:])\s", transcript)
-        raw = (m.group(1) if m else transcript[:55]).strip(" -–—,;:\"'")
+        raw = _best_hook_clause(transcript)
+        if not raw:
+            m = re.match(r"(.{12,55}?[.!?,;:])\s", transcript)
+            raw = (m.group(1) if m else transcript[:55])
+        raw = raw.strip(" -–—,;:\"'")
     if raw:
         raw = raw[0].upper() + raw[1:]
         if len(raw) >= 55 and not raw.endswith((".", "!", "?")):

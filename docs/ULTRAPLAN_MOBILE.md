@@ -114,7 +114,16 @@ copier — repenser pour le tactile/petit écran).
 > publish YouTube-only ? quelles analytics ? mono-canal vs multi-projets ?).
 > ⏳ **En attente des réponses de Mehdi (§5 du plan) avant implémentation.**
 
-- [ ] **C1. Home/Dashboard** : résumé queue + stats + raccourci workflow matin.
+- [x] **C0. Branding** ✅ : icône app + BrandMark "Funnel→Peak" (VOD longue
+  entonne → clip viral sort, triangle play), forge-orange sur near-black, posée
+  dans AppIcon + imageset. Nom d'app → "VA Engine". (3 concepts A/B/C envoyés à
+  Mehdi, B retenu — swap trivial s'il préfère.)
+- [x] **C1. Home/Dashboard** ✅ : `HomeView` (Liquid Glass) calée sur AUJOURD'HUI
+  — header marque + date FR, hero "N clips à reviewer aujourd'hui" + CTA file,
+  stats (en attente/approuvés/postés via queueSummary), carrousel des clips du
+  jour (clips/by-date) → ClipDetailView, statut moteur + états vide/erreur.
+  `MainTabView` (Accueil + Clips, tab bar Liquid Glass) ; RootView atterrit
+  dessus. Build OK + 4 tests UI verts (dont `testHomeShowsDashboard`).
 - [ ] **C2. Project/VOD view** : liste des VODs/projets, statut pipeline, déclencher
   un traitement depuis le mobile.
 - [ ] **C3. Clip editor mobile** : preview, ajuster in/out, choisir variante/layout,

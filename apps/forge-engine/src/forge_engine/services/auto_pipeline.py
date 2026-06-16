@@ -653,7 +653,7 @@ class AutoPipelineService:
                     db.add(queue_item)
 
                     logger.info(
-                        f"[AutoPipeline] Exported & queued clip {idx+1}/{len(segments)}: "
+                        f"[AutoPipeline] Exported & queued clip {idx+1}/{len(specs)}: "
                         f"'{title[:40]}...' (score={segment.score_total:.0f})"
                     )
 
@@ -661,7 +661,7 @@ class AutoPipelineService:
                     logger.error(f"[AutoPipeline] Failed to export segment {segment.id[:8]}: {e}")
 
             await db.commit()
-            logger.info(f"[AutoPipeline] Finished: {len(segments)} clips exported and queued for review")
+            logger.info(f"[AutoPipeline] Finished: {len(specs)} clips exported and queued for review")
 
     def get_status(self) -> dict[str, Any]:
         """Get auto pipeline status."""

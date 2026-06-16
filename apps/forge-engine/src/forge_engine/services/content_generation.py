@@ -152,6 +152,15 @@ class ContentGenerationService:
             return False
         if t.count(",") >= 4:            # comma-spliced run-on → transcript-ish
             return False
+        # LLM refusal / meta leaked as a title (small local models do this).
+        tl = t.lower()
+        _refusals = (
+            "je ne peux pas", "je peux pas vous", "désolé, mais je", "desole, mais je",
+            "en tant qu", "i can't", "i cannot", "i'm sorry", "as an ai",
+            "voici le titre", "here is", "here's a", "titre :",
+        )
+        if any(r in tl for r in _refusals):
+            return False
         if transcript:
             head = transcript.strip().lower()[:25]
             if head and head in t.lower():  # echoes the transcript opener

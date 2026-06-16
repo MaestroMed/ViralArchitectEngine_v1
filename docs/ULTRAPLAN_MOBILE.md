@@ -94,6 +94,16 @@ Surface desktop (apps/desktop/src/pages) : Home, Project, ClipEditor, Analytics,
 Templates, Settings, Surveillance, Admin, Onboarding. Adapter au mobile (pas tout
 copier — repenser pour le tactile/petit écran).
 
+> 📋 **Plan détaillé prêt à décider : [`docs/WS-C_MOBILE_PLAN.md`](WS-C_MOBILE_PLAN.md)**
+> (survey multi-agents des 9 surfaces desktop + app iOS + contrats + endpoints,
+> synthèse + critique adversariale). Propose une archi **4 onglets** (Pilot /
+> Sources / Review / Stats), une table de transposition par surface (Port/Adapt/
+> Skip + effort + priorité), les contrats/endpoints manquants, un ordre de build
+> C1→C6, et **6 décisions produit à confirmer par Mehdi** avant de coder
+> (déclencher des runs depuis le tel ? APNs + accès off-LAN ? Studio coupé en v1 ?
+> publish YouTube-only ? quelles analytics ? mono-canal vs multi-projets ?).
+> ⏳ **En attente des réponses de Mehdi (§5 du plan) avant implémentation.**
+
 - [ ] **C1. Home/Dashboard** : résumé queue + stats + raccourci workflow matin.
 - [ ] **C2. Project/VOD view** : liste des VODs/projets, statut pipeline, déclencher
   un traitement depuis le mobile.

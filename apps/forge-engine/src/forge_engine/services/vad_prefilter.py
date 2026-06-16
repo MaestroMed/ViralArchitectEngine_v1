@@ -164,13 +164,28 @@ class VADPrefilterService:
         if progress_callback:
             progress_callback(5)
 
-        # Load audio
+        # Load audio at 16kHz. We DON'T use Silero's read_audio: torchaudio 2.11
+        # dropped its built-in I/O backend (needs torchcodec). The clip is
+        # already extracted as 16kHz mono PCM WAV, so read it directly via
+        # soundfile → float32 → torch tensor.
         get_speech_timestamps = self._utils[0]
-        read_audio = self._utils[1]
 
-        # Read audio at 16kHz (required by Silero)
+        import numpy as np
+        import soundfile as sf
+        import torch
+
         logger.info("Loading audio for VAD: %s", audio_path)
-        wav = read_audio(audio_path, sampling_rate=16000)
+        data, sr = sf.read(audio_path, dtype="float32", always_2d=False)
+        if getattr(data, "ndim", 1) > 1:
+            data = data.mean(axis=1)
+        if sr != 16000:
+            # Safety net (extract is already 16k): linear resample to 16k.
+            n = int(round(len(data) * 16000 / sr))
+            data = np.interp(
+                np.linspace(0, len(data), n, endpoint=False),
+                np.arange(len(data)), data,
+            ).astype(np.float32)
+        wav = torch.from_numpy(np.ascontiguousarray(data))
 
         if progress_callback:
             progress_callback(20)
@@ -183,6 +198,7 @@ class VADPrefilterService:
         speech_timestamps = get_speech_timestamps(
             wav,
             self._model,
+            sampling_rate=16000,
             threshold=threshold,
             min_speech_duration_ms=min_speech_duration_ms,
             min_silence_duration_ms=min_silence_duration_ms,

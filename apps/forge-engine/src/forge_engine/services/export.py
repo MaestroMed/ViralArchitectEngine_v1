@@ -37,6 +37,53 @@ from forge_engine.services.render import RenderService
 logger = logging.getLogger(__name__)
 
 
+def _remap_caption_times(segments: list, keep_ranges: list) -> list:
+    """Remap caption (segment + word) timestamps onto the POST-jump-cut timeline.
+
+    Jump cuts trim+concat the video to `keep_ranges` (clip-relative seconds to
+    KEEP), which compresses the timeline. Captions are burned AFTER the cut, so
+    their timestamps must be mapped to the new timeline or they desync. A word
+    falling entirely inside a removed gap is dropped; one straddling a boundary
+    is clamped. No-op when there are no cuts.
+    """
+    if not keep_ranges:
+        return segments
+    ranges = sorted((float(s), float(e)) for s, e in keep_ranges)
+    # (start, end, cumulative_kept_before)
+    bounds = []
+    off = 0.0
+    for s, e in ranges:
+        bounds.append((s, e, off))
+        off += e - s
+    total_kept = off
+
+    def mp(t: float) -> float:
+        for s, e, o in bounds:
+            if s <= t <= e:
+                return o + (t - s)
+            if t < s:
+                return o  # in a gap before this kept range → snap to its start
+        return total_kept  # past the last kept range
+
+    out = []
+    for seg in segments:
+        ns, ne = mp(seg["start"]), mp(seg["end"])
+        if ne - ns <= 0.01:
+            continue  # collapsed into a removed gap
+        nseg = {**seg, "start": ns, "end": ne}
+        if seg.get("words"):
+            nwords = []
+            for w in seg["words"]:
+                ws, we = mp(w.get("start", 0.0)), mp(w.get("end", 0.0))
+                if we - ws > 0.0:
+                    nwords.append({**w, "start": ws, "end": we})
+            if not nwords:
+                continue
+            nseg["words"] = nwords
+        out.append(nseg)
+    return out
+
+
 class ExportService:
     """Service for exporting clips and generating export packs."""
 
@@ -833,6 +880,32 @@ class ExportService:
             except Exception as _e:
                 logger.info(f"[SinglePass] Face tracking unavailable ({_e}), using static crop")
 
+        # ── Analyze jump cuts FIRST (captions are remapped onto the cut timeline) ──
+        keep_ranges = []
+        needs_jump_cuts = jump_cut_config and jump_cut_config.get("enabled")
+        if needs_jump_cuts:
+            try:
+                job_manager.update_progress(job, 8, "jump_cuts", "Analyzing audio for jump cuts...")
+                jc_config = JumpCutConfig.from_dict(jump_cut_config)
+                jump_cut_analysis = await self.jump_cuts.analyze_segment(
+                    audio_path=project.source_path,
+                    start_time=segment.start_time,
+                    duration=segment.duration,
+                    config=jc_config,
+                )
+                if jump_cut_analysis.cuts_count > 0:
+                    keep_ranges = [
+                        (r.start, r.end) for r in jump_cut_analysis.keep_ranges
+                    ]
+                    logger.info(
+                        f"[SinglePass] Jump cuts: {jump_cut_analysis.cuts_count} cuts, "
+                        f"{jump_cut_analysis.time_saved:.1f}s saved"
+                    )
+                    job.metadata = job.metadata or {}
+                    job.metadata["jump_cuts"] = jump_cut_analysis.to_dict()
+            except Exception as e:
+                logger.warning(f"[SinglePass] Jump cut analysis failed: {e}, continuing without")
+
         # ── Build ASS subtitle file ───────────────────────────────────────
         ass_path = None
         if include_captions and burn_subtitles and transcript_segments:
@@ -886,6 +959,10 @@ class ExportService:
                             for w in seg["words"]
                         ]
                     adjusted.append(new_seg)
+                # Remap caption timestamps onto the post-jump-cut timeline so
+                # karaoke stays in sync with the trimmed video (no-op if no cuts).
+                if keep_ranges:
+                    adjusted = _remap_caption_times(adjusted, keep_ranges)
                 ass_file = exports_dir / f"{base_name}.ass"
                 # generate_ass returns the ASS document as a string and takes
                 # `transcript_segments` + `custom_style` (it does NOT write a file
@@ -902,31 +979,6 @@ class ExportService:
             except Exception as e:
                 logger.warning(f"[SinglePass] ASS subtitle generation failed: {e}, continuing without")
 
-        # ── Analyze jump cuts if enabled ─────────────────────────────────
-        keep_ranges = []
-        needs_jump_cuts = jump_cut_config and jump_cut_config.get("enabled")
-        if needs_jump_cuts:
-            try:
-                job_manager.update_progress(job, 8, "jump_cuts", "Analyzing audio for jump cuts...")
-                jc_config = JumpCutConfig.from_dict(jump_cut_config)
-                jump_cut_analysis = await self.jump_cuts.analyze_segment(
-                    audio_path=project.source_path,
-                    start_time=segment.start_time,
-                    duration=segment.duration,
-                    config=jc_config,
-                )
-                if jump_cut_analysis.cuts_count > 0:
-                    keep_ranges = [
-                        (r.start, r.end) for r in jump_cut_analysis.keep_ranges
-                    ]
-                    logger.info(
-                        f"[SinglePass] Jump cuts: {jump_cut_analysis.cuts_count} cuts, "
-                        f"{jump_cut_analysis.time_saved:.1f}s saved"
-                    )
-                    job.metadata = job.metadata or {}
-                    job.metadata["jump_cuts"] = jump_cut_analysis.to_dict()
-            except Exception as e:
-                logger.warning(f"[SinglePass] Jump cut analysis failed: {e}, continuing without")
 
         # ── Music path ───────────────────────────────────────────────────
         music_path_obj = None

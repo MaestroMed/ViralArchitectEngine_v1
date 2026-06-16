@@ -179,13 +179,21 @@ class CaptionEngine:
         white = style.get("primary_color", "&H00FFFFFF")
         yellow = style.get("highlight_color", "&H0000FFFF")
 
-        # Group words into chunks for display
+        # Group words into chunks for display. Phrase-aware: break at sentence/
+        # clause punctuation (. ? ! , ; :) as well as at max_words_per_line, so
+        # chunks don't split mid-phrase (avoids "L'É CRIS" style breaks).
         chunks = []
         current_chunk = []
 
+        def _ends_clause(w: str) -> bool:
+            return w.rstrip().endswith((".", "?", "!", ",", ";", ":", "…"))
+
         for word in words:
             current_chunk.append(word)
-            if len(current_chunk) >= max_words_per_line:
+            raw = word.get("word", "") if isinstance(word, dict) else str(word)
+            if len(current_chunk) >= max_words_per_line or (
+                _ends_clause(raw) and len(current_chunk) >= 2
+            ):
                 chunks.append(current_chunk)
                 current_chunk = []
 

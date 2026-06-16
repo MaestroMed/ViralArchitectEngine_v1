@@ -119,6 +119,45 @@ class ContentGenerationService:
             transcript, segment_tags, platform, score_data, channel_name
         )
 
+    @staticmethod
+    def _clean_title(title: str) -> str:
+        """Strip LLM formatting artifacts from a generated title."""
+        import re
+
+        t = (title or "").strip()
+        # Drop common LLM preambles ("Titre accrocheur :", "Voici un titre :"…).
+        t = re.sub(
+            r"^\s*(?:voici\s+[^:]{0,30}:|titre\s*[^:]{0,20}:|\d+[.)]\s*|[-*•]\s*)",
+            "", t, flags=re.I,
+        ).strip()
+        # Drop a stray trailing/standalone ">" artifact (e.g. "… ! > 😂").
+        t = re.sub(r"\s*>\s*", " ", t)
+        # Strip wrapping angle brackets / quotes (possibly repeated).
+        for _ in range(3):
+            t = t.strip().strip("<>").strip().strip('"').strip("'").strip("«»").strip()
+        # Collapse whitespace.
+        t = re.sub(r"\s+", " ", t).strip()
+        return t
+
+    @staticmethod
+    def is_quality_title(title: str, transcript: str = "") -> bool:
+        """Reject titles that are empty, transcript echoes, or run-ons.
+
+        Small local models sometimes return the raw transcript or an over-long
+        run-on instead of a punchy hook — those should fall back to the
+        deterministic heuristic.
+        """
+        t = (title or "").strip()
+        if not (4 <= len(t) <= 80):
+            return False
+        if t.count(",") >= 4:            # comma-spliced run-on → transcript-ish
+            return False
+        if transcript:
+            head = transcript.strip().lower()[:25]
+            if head and head in t.lower():  # echoes the transcript opener
+                return False
+        return True
+
     def _enhance_generated_content(
         self,
         llm_result,
@@ -129,11 +168,14 @@ class ContentGenerationService:
         """Enhance LLM-generated content with platform-specific elements."""
         config = self.PLATFORM_CONFIG.get(platform, self.PLATFORM_CONFIG["tiktok"])
 
-        # Truncate titles if needed
+        # Clean LLM artifacts (stray <>, wrapping quotes, list markers) then
+        # truncate. Small local models occasionally wrap a title in angle
+        # brackets or quotes — those read as broken in the UI.
         titles = [
-            title[:config["max_title_length"]]
+            self._clean_title(title)[:config["max_title_length"]]
             for title in llm_result.titles[:5]
         ]
+        titles = [t for t in titles if t]
 
         # Add emojis to titles if platform supports it
         if config["emoji_heavy"] and titles:

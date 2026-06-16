@@ -646,8 +646,14 @@ class AutoPipelineService:
                     except Exception:
                         generated = None
                     h_title, h_desc, h_tags = _heuristic_caption(segment, idx, channel_name)
-                    if settings.LLM_ENABLED and generated and generated.titles:
-                        # Real LLM accroche.
+                    _llm_ok = (
+                        settings.LLM_ENABLED and generated and generated.titles
+                        and content_service.is_quality_title(
+                            generated.titles[0], segment.transcript or ""
+                        )
+                    )
+                    if _llm_ok:
+                        # Real LLM accroche (passed the quality gate).
                         title = generated.titles[0]
                         description = generated.description or ""
                         hashtags = generated.hashtags or h_tags

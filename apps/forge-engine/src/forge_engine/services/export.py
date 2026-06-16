@@ -1134,9 +1134,21 @@ class ExportService:
         if include_cover:
             job_manager.update_progress(job, 75, "cover", "Generating cover...")
             cover_path = exports_dir / f"{base_name}_cover.jpg"
-            cover_time = segment.start_time + segment.duration * 0.3
+            # Cover from the RENDERED clip (cam-on-top 9:16 + captions), NOT the
+            # raw 16:9 source — extracting from the source produced a letterboxed
+            # desktop frame that misrepresented every clip. Time is clip-relative.
+            import subprocess as _sp
+            try:
+                _cd = float(_sp.run(
+                    [getattr(settings, "FFPROBE_PATH", "ffprobe"), "-v", "error",
+                     "-show_entries", "format=duration", "-of", "csv=p=0", str(video_path)],
+                    capture_output=True, text=True, timeout=15,
+                ).stdout.strip() or 0.0)
+            except Exception:
+                _cd = 0.0
+            cover_time = max(1.0, _cd * 0.4) if _cd > 2 else 1.0
             await self.render.render_cover(
-                source_path=project.source_path,
+                source_path=str(video_path),
                 output_path=str(cover_path),
                 time=cover_time,
                 title_text=segment.topic_label,

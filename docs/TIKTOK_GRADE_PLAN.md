@@ -5,6 +5,18 @@
 > publishable result. Execute via /loop; each P0 render change is flag-gated +
 > verified against a golden fixture (WS-Q0).
 
+## PROGRESS (2026-06-16/17) — P0s DONE, applied to all 136 clips
+- **WS-Q1 Captions** ✅ Anton font (bundled + libass fontsdir, verified), safe-zone
+  position (`_safe_margin_v`, off the seam), phrase-aware chunking.
+- **WS-Q3 Jump-cuts** ✅ Silero VAD fixed (torch + utils index + soundfile) +
+  `_remap_caption_times` onto the cut timeline. [Hook/cold-open: deferred.]
+- **WS-Q5 Audio** ✅ alimiter true-peak (-14 LUFS / -1 dBTP). [Denoise/duck: off, A/B later.]
+- **WS-Q6 Cover** ✅ from the rendered 9:16 clip (was the letterboxed 16:9 source).
+- **WS-Q7 Titles** ✅ LLM hooks + refusal gate.
+- **WS-Q2 Timing** ⛔ DEFERRED — WhisperX would downgrade torch 2.12→2.8 + 30 heavy
+  deps (breaks jump-cuts); marginal gain. Isolated env if ever pursued.
+- **WS-Q4 Layout / Q8 Selection / Q9 App / Q10 Publishing** — not yet started.
+
 ---
 
 # FORGE/LAB GIGA-PLAN — From "loin d'être exploitable" to TIKTOK-GRADE

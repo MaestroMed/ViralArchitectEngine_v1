@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     FFPROBE_PATH: str = "ffprobe"
     FORCE_CPU: bool = False
 
+    # Bundled caption fonts (Anton etc.) — passed to libass `fontsdir` so the
+    # subtitle font always renders without a system install. apps/forge-engine/resources/fonts.
+    FONTS_DIR: Path = Path(__file__).parent.parent.parent.parent / "resources" / "fonts"
+
     # Performance optimizations
     SKIP_PROXY_IF_NVENC: bool = True  # Skip proxy creation if NVENC available (faster final render)
     USE_HWACCEL: bool = True  # Use GPU hardware acceleration for decode/encode

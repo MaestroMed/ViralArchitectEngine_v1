@@ -1024,6 +1024,7 @@ class ExportService:
             facecam_ratio=facecam_ratio_val,
             facecam_keyframes=facecam_keyframes,
             ass_path=ass_path,
+            fonts_dir=getattr(settings, "FONTS_DIR", None),
             keep_ranges=keep_ranges,
             cold_open_hook_start=cold_open_hook_start,
             cold_open_hook_end=cold_open_hook_end,

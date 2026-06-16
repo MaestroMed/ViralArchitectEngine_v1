@@ -39,6 +39,7 @@ class PipelineConfig:
 
     # Subtitles
     ass_path: Path | None = None       # Pre-generated ASS file
+    fonts_dir: Path | None = None      # Dir of bundled fonts for libass (Anton…)
 
     # Jump cuts — list of (start, end) in clip-relative seconds to KEEP
     keep_ranges: list = field(default_factory=list)  # [(start, end), ...]
@@ -196,14 +197,18 @@ class PipelineSinglePass:
             # wrapped in literal single quotes — FFmpeg 8.x rejects
             # subtitles='...' with "No option name near ...". Escape ':' and "'"
             # instead.
-            ass_escaped = (
-                str(cfg.ass_path)
-                .replace("\\", "/")
-                .replace(":", "\\:")
-                .replace("'", "\\'")
-            )
+            def _esc(p: str) -> str:
+                return p.replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
+
+            ass_escaped = _esc(str(cfg.ass_path))
+            sub = f"subtitles={ass_escaped}"
+            # Point libass at the bundled fonts so the Anton caption font always
+            # renders — otherwise libass falls back to a generic system font and
+            # the captions look amateur.
+            if cfg.fonts_dir and Path(cfg.fonts_dir).is_dir():
+                sub += f":fontsdir={_esc(str(cfg.fonts_dir))}"
             filters.append(
-                f"[{current_v}]subtitles={ass_escaped}[sub_v]"
+                f"[{current_v}]{sub}[sub_v]"
             )
             current_v = "sub_v"
 

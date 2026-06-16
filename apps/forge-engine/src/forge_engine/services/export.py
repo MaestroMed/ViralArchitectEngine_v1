@@ -66,9 +66,18 @@ class ExportService:
         intro_config: dict[str, Any] | None = None,
         music_config: dict[str, Any] | None = None,
         jump_cut_config: dict[str, Any] | None = None,
-        cold_open_config: dict[str, Any] | None = None
+        cold_open_config: dict[str, Any] | None = None,
+        clip_start_override: float | None = None,
+        clip_duration_override: float | None = None,
     ) -> dict[str, Any]:
-        """Run the export pipeline."""
+        """Run the export pipeline.
+
+        clip_start_override/clip_duration_override let a caller render a DIFFERENT
+        window than the segment's stored one (e.g. the auto-pipeline's clip
+        selection) WITHOUT mutating the canonical Segment row — the segment is
+        detached from the session before any commit, so the override never
+        persists. This keeps clip selection idempotent across re-runs.
+        """
         logger.info(f"[EXPORT] Starting export for project={project_id}, segment={segment_id}")
         job_manager = JobManager.get_instance()
 
@@ -85,6 +94,17 @@ class ExportService:
 
             if not segment:
                 raise ValueError(f"Segment not found: {segment_id}")
+
+            # Apply a window override WITHOUT persisting it: mutate the loaded
+            # row then expunge it from the session so a later commit can't flush
+            # the change back to the DB. All downstream code (transcript filter,
+            # single-pass export) reads segment.start_time/duration as usual.
+            if clip_start_override is not None:
+                segment.start_time = float(clip_start_override)
+                if clip_duration_override is not None:
+                    segment.duration = float(clip_duration_override)
+                    segment.end_time = float(clip_start_override) + float(clip_duration_override)
+                db.expunge(segment)
 
             # Get template if specified
             template = None

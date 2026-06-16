@@ -34,15 +34,17 @@ ETOSTARK_CONFIG = {
     "auto_analyze": True,
     "auto_export": True,
     "export_config": {
-        "min_score": 60,
+        "min_score": 58,
         "max_clips": 15,
-        # Variable clip length: overlapping hot windows are merged into one clip
-        # per moment (see _cluster_segments), spanning their union up to this
-        # ceiling — so clips run ~20s–2min, not all 30s. merge_gap bridges
-        # windows within N seconds of each other (a brief setup between punches).
+        # Variable clip length: the best NON-OVERLAPPING scored windows are kept
+        # at their natural duration (see _select_clips), capped at this ceiling
+        # and centered on the punch. The segmenter's multi-scale windows give a
+        # natural mix of ~1min and ~2min clips (Eto's reactions sustain long).
         "max_clip_seconds": 120,
         "clip_lead_in_seconds": 8,
-        "merge_gap_seconds": 25,
+        # Two windows overlapping by more than this fraction of the shorter one
+        # are treated as the same moment (only the higher-scoring kept).
+        "clip_overlap_threshold": 0.3,
         # EtoStark's webcam sits in the bottom-right corner the whole VOD →
         # compose a vertical "reaction" layout: cam on top, content below.
         # Normalized 0-1 source crops, validated empirically on the real VOD
@@ -173,6 +175,62 @@ def _cluster_segments(
 
     specs.sort(key=lambda x: x["score"], reverse=True)
     return specs
+
+
+def _select_clips(
+    segments: list,
+    *,
+    cap: float,
+    max_clips: int,
+    overlap_thresh: float = 0.3,
+    min_seconds: float = 12.0,
+) -> list[dict]:
+    """Pick the best NON-OVERLAPPING windows, keeping their natural durations.
+
+    The segmenter emits overlapping multi-scale windows (≈30s up to several
+    minutes) over the same content. Rather than MERGE them (which, on this kind
+    of segmentation, collapses everything to the cap), we greedily take the
+    highest-scoring windows and skip any that overlaps an already-picked clip by
+    more than `overlap_thresh` of the shorter window. This:
+      * de-duplicates near-identical windows of the same moment, and
+      * preserves the segmenter's NATURAL duration spread — so the batch lands a
+        mix of ~1min and ~2min clips instead of all-30s or all-capped.
+
+    Windows longer than `cap` are trimmed to a `cap`-second window centered on
+    the punch (`cold_open_start_time`). Returns clip specs
+    ``{"start", "end", "duration", "score", "rep"}`` sorted by score desc.
+    """
+    chosen: list[dict] = []
+    for seg in sorted(segments, key=lambda s: s.score_total or 0, reverse=True):
+        if len(chosen) >= max_clips:
+            break
+        start = seg.start_time
+        end = seg.end_time
+        if end - start > cap:
+            punch = getattr(seg, "cold_open_start_time", None)
+            if punch and start <= punch <= end:
+                start = max(start, punch - 8.0)
+            start = min(start, end - cap)
+            end = start + cap
+        dur = end - start
+        if dur < min_seconds:
+            continue
+        overlaps = False
+        for c in chosen:
+            inter = max(0.0, min(end, c["end"]) - max(start, c["start"]))
+            if inter > overlap_thresh * min(dur, c["end"] - c["start"]):
+                overlaps = True
+                break
+        if overlaps:
+            continue
+        chosen.append({
+            "start": start,
+            "end": end,
+            "duration": dur,
+            "score": seg.score_total or 0,
+            "rep": seg,
+        })
+    return chosen
 
 
 class AutoPipelineService:
@@ -462,13 +520,13 @@ class AutoPipelineService:
         max_clips = export_config.get("max_clips", 15)
 
         cap = export_config.get("max_clip_seconds") or 120.0
-        pre = export_config.get("clip_lead_in_seconds", 8.0)
-        merge_gap = export_config.get("merge_gap_seconds", 25.0)
+        overlap_thresh = export_config.get("clip_overlap_threshold", 0.3)
 
         async with async_session_maker() as db:
-            # Fetch ALL segments above the score floor (the segmenter emits many
-            # overlapping multi-scale windows over the same content, so we
-            # cluster rather than take the top-N verbatim — see _cluster_segments).
+            # Fetch ALL segments above the score floor. The segmenter emits many
+            # overlapping multi-scale windows over the same content, so we pick
+            # the best NON-OVERLAPPING ones (keeping their natural durations)
+            # rather than the top-N verbatim — see _select_clips.
             result = await db.execute(
                 select(Segment)
                 .where(Segment.project_id == project_id)
@@ -480,35 +538,25 @@ class AutoPipelineService:
                 logger.info(f"[AutoPipeline] No segments above {min_score} for project {project_id[:8]}")
                 return
 
-            # Merge overlapping/adjacent hot windows into one clip per moment,
-            # with naturally varying length (≤ cap). De-duplicates near-identical
-            # 30s windows and yields the 1-2min clips when a moment sustains.
-            specs = _cluster_segments(candidates, merge_gap=merge_gap, cap=cap, pre=pre)[:max_clips]
-
-            # Materialize each spec onto its representative segment row so the
-            # export (which reads segment.start_time/duration) renders the merged
-            # window. Clusters are disjoint → distinct rep rows.
-            segments = []
-            for spec in specs:
-                rep = spec["rep"]
-                rep.start_time = float(spec["start"])
-                rep.end_time = float(spec["end"])
-                rep.duration = float(spec["duration"])
-                segments.append(rep)
-            await db.commit()
-
-            _durs = sorted((round(s.duration) for s in segments), reverse=True)
-            logger.info(
-                f"[AutoPipeline] {len(candidates)} candidates (score≥{min_score}) → "
-                f"{len(segments)} clustered clips (gap≤{merge_gap:g}s, cap {cap:g}s); "
-                f"durations={_durs}"
+            # Greedy non-overlapping selection → a natural mix of ~1-2min clips,
+            # de-duplicated. Windows are passed to the export as OVERRIDES (the
+            # canonical Segment rows are never mutated → idempotent re-runs).
+            specs = _select_clips(
+                candidates, cap=cap, max_clips=max_clips, overlap_thresh=overlap_thresh,
             )
 
-            # Export each segment
+            _durs = sorted((round(s["duration"]) for s in specs), reverse=True)
+            logger.info(
+                f"[AutoPipeline] {len(candidates)} candidates (score≥{min_score}) → "
+                f"{len(specs)} non-overlapping clips (cap {cap:g}s); durations={_durs}"
+            )
+
+            # Export each selected clip
             export_service = ExportService()
             content_service = ContentGenerationService.get_instance()
 
-            for idx, segment in enumerate(segments):
+            for idx, spec in enumerate(specs):
+                segment = spec["rep"]
                 try:
                     # Create a lightweight job for export
                     from forge_engine.core.jobs import Job
@@ -533,6 +581,8 @@ class AutoPipelineService:
                         layout_config=export_config.get("layout"),
                         jump_cut_config=export_config.get("jump_cut_config"),
                         cold_open_config=export_config.get("cold_open_config"),
+                        clip_start_override=spec["start"],
+                        clip_duration_override=spec["duration"],
                     )
 
                     # Generate title/description — LLM when available, else a

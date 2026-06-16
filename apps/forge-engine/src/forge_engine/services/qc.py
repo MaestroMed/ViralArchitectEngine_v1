@@ -12,6 +12,27 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
+def _parse_ebur128_lufs(output: str) -> float | None:
+    """Parse the integrated loudness (LUFS) from ffmpeg ebur128 stderr.
+
+    ebur128 prints a continuous "t: 0.1 ... I: -70.0 LUFS" line every frame
+    (integrated-so-far starts near -70 before audio accumulates), then a final
+    Summary "I: -14.2 LUFS". We must take the LAST "I:" value — taking the first
+    matched a near-silent first frame and falsely flagged every clip "too quiet".
+    """
+    last_lufs: float | None = None
+    for line in output.split("\n"):
+        if "I:" in line and "LUFS" in line:
+            parts = line.split()
+            for i, p in enumerate(parts):
+                if p == "I:" and i + 1 < len(parts):
+                    try:
+                        last_lufs = float(parts[i + 1])
+                    except ValueError:
+                        pass
+    return last_lufs
+
+
 class QCLevel(StrEnum):
     PASS = "pass"       # All checks passed
     WARNING = "warning" # Minor issues, clip usable
@@ -225,17 +246,7 @@ class QCService:
                 stderr=asyncio.subprocess.PIPE,
             )
             _, stderr = await asyncio.wait_for(proc.communicate(), timeout=60)
-            output = stderr.decode()
-            # Parse: "I:     -14.2 LUFS"
-            for line in output.split("\n"):
-                if "I:" in line and "LUFS" in line:
-                    parts = line.split()
-                    for i, p in enumerate(parts):
-                        if p == "I:" and i + 1 < len(parts):
-                            try:
-                                return float(parts[i + 1])
-                            except ValueError:
-                                pass
+            return _parse_ebur128_lufs(stderr.decode())
         except Exception as e:
             logger.debug("LUFS measurement error: %s", e)
         return None

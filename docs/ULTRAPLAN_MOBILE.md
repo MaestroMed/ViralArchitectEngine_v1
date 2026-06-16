@@ -66,8 +66,18 @@ Projet de test : `1ab8b274-…` (VOD etostark__ v2796529250, cache analyse prés
   ghosts faible confiance) + `condition_on_previous_text=False`. Modèle **medium
   + int8 CPU** (1.43× temps réel vs 0.88× float32, sortie identique) via
   `WHISPER_CPU_COMPUTE_TYPE`. `test_transcription_hallucination.py` (16 cas).
-- [~] **A6. Re-render batch propre** de la VOD d'Eto avec A1-A5,A7 → notifier Mehdi.
-  EN COURS : re-transcription medium en cours, puis render des clips clusterisés.
+- [x] **A6. Re-render batch propre** ✅ : 12 clips de la VOD d'Eto (la plus récente
+  = v2796529250, confirmée via yt-dlp), cam-en-haut + captions medium propres +
+  **durées 1-2min variées** (69/72/74/84/114s + 7×120s). Sélection greedy
+  non-overlap (`_select_clips`) sur les fenêtres originales (reset depuis
+  timeline.json) → vrai mix "parfois 1min parfois 2min" demandé par Mehdi.
+  Vérifié : contact sheet 12/12 (cam-en-haut), span-check d'un clip 120s (cam
+  reste en haut sur toute la durée). Queue propre (12 ClipQueue). Servis via
+  tunnel cloudflared pour review off-LAN. Preview + sheet envoyés à Mehdi.
+- [x] **A8. Sélection idempotente** ✅ : la sélection ne mute plus les lignes
+  Segment canoniques (corruption à chaque run) — `run_export` accepte des
+  overrides start/duration (segment détaché de la session avant tout commit).
+  Lignes corrompues par les runs précédents réinitialisées depuis timeline.json.
 
 ## WS-B — App mobile : design Liquid Glass (iOS 26)
 Cible : Xcode 26 / iOS 26, SwiftUI, APIs Liquid Glass (`glassEffect`, `GlassEffectContainer`,
@@ -127,10 +137,13 @@ copier — repenser pour le tactile/petit écran).
 ## État courant (2026-06-15)
 - ✅ Engine durci, app iOS livrée + installée iPhone Air, contrats partagés, Alembic, e2e, ARIA.
 - ✅ 1er batch réel : 12 clips karaoké 9:16 de la VOD d'Eto, servis (LAN + tunnel), 6 envoyés au tel.
-- ✅ **WS-A quasi terminé** : facecam-en-haut validé (A1), robustesse + bug jump-cut
-  (A2), durées variables par clustering 17s–2min (A3), transcription propre
-  medium+VAD (A7). WS-B (Liquid Glass) terminé. WS-D2 (auto-pipeline yt-dlp) fait.
-- ▶️ **En cours : A6** — re-transcription medium → render batch des clips
-  clusterisés (cam-en-haut, durées variables, captions propres) → preview à Mehdi.
-- ⏭️ Ensuite : WS-C (features Electron→mobile) en attente des décisions produit ;
-  D1 (accès distant durable) en attente action tel/compte.
+- ✅ **WS-A TERMINÉ** : facecam-en-haut (A1), robustesse + jump-cut (A2), durées
+  1-2min via sélection non-overlap (A3/A6), titres (A5), transcription medium+VAD
+  (A7), sélection idempotente (A8). **12 clips livrés** de la dernière VOD d'Eto.
+  WS-B (Liquid Glass) terminé. WS-D2 (auto-pipeline yt-dlp) fait.
+- ✅ **WS-C** : plan décision-ready livré ([`WS-C_MOBILE_PLAN.md`](WS-C_MOBILE_PLAN.md)),
+  en attente des 6 décisions produit de Mehdi avant implémentation.
+- ▶️ **Accès distant actif** : engine UP + tunnel cloudflared
+  `heavy-historical-acceptance-patients.trycloudflare.com` → review off-LAN
+  depuis l'app iOS (clé API déjà sur l'iPhone Air).
+- ⏭️ D1 (tunnel nommé stable / Tailscale) en attente action tel/compte.

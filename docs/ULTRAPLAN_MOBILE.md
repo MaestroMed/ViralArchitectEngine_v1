@@ -143,6 +143,12 @@ copier — repenser pour le tactile/petit écran).
   WS-B (Liquid Glass) terminé. WS-D2 (auto-pipeline yt-dlp) fait.
 - ✅ **WS-C** : plan décision-ready livré ([`WS-C_MOBILE_PLAN.md`](WS-C_MOBILE_PLAN.md)),
   en attente des 6 décisions produit de Mehdi avant implémentation.
+- ✅ **Batch 10 VODs (2026-06-16)** : 9 nouvelles VODs traitées (la 10e déjà faite)
+  → **165 nouveaux clips, 177 au total**, 0 échec. Tuning +clips (max 20/VOD),
+  +longueur (cap 180s/3min), +qualité (medium whisper + titres LLM + CRF 20).
+  Cam-en-haut **vérifié sur les 9 VODs** (contact sheet). Driver standalone
+  `/tmp/batch_vods.py` (download→ingest→analyze→export direct, hors JobManager →
+  zéro conflit avec le moteur live ; supprime la source après chaque VOD).
 - ▶️ **Accès distant actif** : engine UP + tunnel cloudflared
   `heavy-historical-acceptance-patients.trycloudflare.com` → review off-LAN
   depuis l'app iOS (clé API déjà sur l'iPhone Air).

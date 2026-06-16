@@ -29,7 +29,7 @@ targets:
     info:
       path: ForgeLab/Info.plist
       properties:
-        CFBundleDisplayName: FORGE LAB
+        CFBundleDisplayName: VA Engine
         UILaunchScreen:
           UIColorName: "LaunchBackground"
         UISupportedInterfaceOrientations:

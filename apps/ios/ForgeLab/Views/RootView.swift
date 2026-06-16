@@ -17,11 +17,14 @@ struct RootView: View {
                     NavigationStack { ClipDetailView(api: demoAPI, clip: first, demo: true) }
                 } else if AppLaunch.demoScreen == "settings" {
                     NavigationStack { SettingsView() }
-                } else {
+                } else if AppLaunch.demoScreen == "queue" {
                     QueueView(api: demoAPI, demoClips: DemoData.clips)
+                } else {
+                    // default + `--demo-screen home`: the new dashboard shell
+                    MainTabView(api: demoAPI, demoClips: DemoData.clips)
                 }
             } else if settings.isConfigured, let url = settings.baseURL, let key = settings.apiKey {
-                QueueView(api: ForgeAPI(baseURL: url, apiKey: key))
+                MainTabView(api: ForgeAPI(baseURL: url, apiKey: key))
             } else {
                 NavigationStack { SettingsView() }
             }

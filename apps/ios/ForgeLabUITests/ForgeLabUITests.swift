@@ -29,9 +29,25 @@ final class ForgeLabUITests: XCTestCase {
         add(att)
     }
 
+    /// The dashboard home is the default landing screen (brand + today section).
+    func testHomeShowsDashboard() {
+        let app = launchDemo()
+        XCTAssertTrue(
+            app.staticTexts["Aujourd'hui"].waitForExistence(timeout: 15),
+            "Home dashboard 'Aujourd'hui' section should appear",
+        )
+        // Today's carousel surfaces the first demo clip's title.
+        XCTAssertTrue(
+            app.staticTexts["\"Le outplay de Cabochard là c'est ILLÉGAL\""].waitForExistence(timeout: 5),
+            "Today's carousel should render the first demo clip",
+        )
+        attach(app, "home")
+    }
+
     /// Queue renders yesterday's clips with their titles + scores.
     func testQueueShowsDemoClips() {
-        let app = launchDemo()
+        // Route straight to the queue surface (home is now the default landing).
+        let app = launchDemo(["--demo-screen", "queue"])
 
         // "Hier" is the nav title when the date is yesterday (demo default).
         XCTAssertTrue(
@@ -46,7 +62,7 @@ final class ForgeLabUITests: XCTestCase {
 
     /// Tapping a clip opens the detail screen with the download action.
     func testTapClipOpensDetail() {
-        let app = launchDemo()
+        let app = launchDemo(["--demo-screen", "queue"])
         XCTAssertTrue(app.staticTexts["Hier"].waitForExistence(timeout: 15))
 
         // The first card carries accessibilityIdentifier "clip-demo-1".

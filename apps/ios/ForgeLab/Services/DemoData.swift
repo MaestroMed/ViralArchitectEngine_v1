@@ -53,11 +53,12 @@ enum AppLaunch {
     }
 
     /// Which demo screen to show first, via `--demo-screen <name>`.
+    /// Defaults to "home" — the dashboard is the real app's landing screen.
     static var demoScreen: String {
         let args = ProcessInfo.processInfo.arguments
         if let i = args.firstIndex(of: "--demo-screen"), i + 1 < args.count {
             return args[i + 1]
         }
-        return "queue"
+        return "home"
     }
 }

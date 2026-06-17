@@ -95,7 +95,7 @@ struct HomeView: View {
                     .foregroundStyle((todayPending == 0 && pendingTotal == 0) ? Theme.success : Theme.accent)
             }
             Button {
-                selectedTab?.wrappedValue = 1
+                selectedTab?.wrappedValue = 2   // Clips tab (Pilote sits at 1)
             } label: {
                 HStack {
                     Text(pendingTotal > 0 ? "Reviewer la file" : "Ouvrir la file")
@@ -188,7 +188,7 @@ struct HomeView: View {
     private var engineFooter: some View {
         HStack(spacing: 8) {
             Circle().fill(engineVersion != nil ? Theme.success : Theme.danger).frame(width: 8, height: 8)
-            Text(engineVersion != nil ? "Moteur connecté · v\(engineVersion!)" : "Moteur injoignable")
+            Text(engineVersion.map { "Moteur connecté · v\($0)" } ?? "Moteur injoignable")
                 .font(.caption).foregroundStyle(Theme.textSecondary)
             Spacer()
             if let error { Text(error).font(.caption2).foregroundStyle(Theme.danger).lineLimit(1) }
@@ -282,12 +282,9 @@ struct HomePosterCard: View {
             LinearGradient(colors: palettes[idx], startPoint: .topLeading, endPoint: .bottomTrailing)
                 .overlay(Image(systemName: "play.fill").foregroundStyle(.white.opacity(0.85)).font(.title))
         } else {
-            AsyncImage(url: api.coverURL(clipId: clip.id)) { phase in
-                switch phase {
-                case .success(let img): img.resizable().aspectRatio(contentMode: .fill)
-                case .failure: Rectangle().fill(Theme.surface).overlay(Image(systemName: "photo").foregroundStyle(Theme.textSecondary))
-                default: Rectangle().fill(Theme.surface).overlay(ProgressView())
-                }
+            RemoteImage(url: api.coverURL(clipId: clip.id), api: api) {
+                Rectangle().fill(Theme.surface)
+                    .overlay(Image(systemName: "photo").foregroundStyle(Theme.textSecondary))
             }
         }
     }

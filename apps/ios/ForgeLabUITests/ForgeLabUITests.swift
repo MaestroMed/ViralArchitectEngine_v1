@@ -44,6 +44,38 @@ final class ForgeLabUITests: XCTestCase {
         attach(app, "home")
     }
 
+    /// The Pilot cockpit lists the VOD library with engine status.
+    func testPilotShowsLibrary() {
+        let app = launchDemo(["--demo-screen", "pilot"])
+        XCTAssertTrue(
+            app.staticTexts["Bibliothèque"].waitForExistence(timeout: 15),
+            "Pilot tab should show the 'Bibliothèque' section",
+        )
+        // A demo project name should render in the library.
+        XCTAssertTrue(
+            app.staticTexts["[Auto] STARK NIGHTTTT EYWAAAAAAAAA"].waitForExistence(timeout: 5),
+            "Pilot library should render a demo project card",
+        )
+        attach(app, "pilot")
+    }
+
+    /// Tapping a project card opens its read-only detail.
+    func testTapProjectOpensDetail() {
+        let app = launchDemo(["--demo-screen", "pilot"])
+        XCTAssertTrue(app.staticTexts["Bibliothèque"].waitForExistence(timeout: 15))
+
+        let card = app.buttons["project-demo-proj-1"]
+        XCTAssertTrue(card.waitForExistence(timeout: 5), "First project card should be tappable")
+        card.tap()
+
+        // Detail surfaces the metadata grid ("Segments" row).
+        XCTAssertTrue(
+            app.staticTexts["Segments"].waitForExistence(timeout: 5),
+            "Project detail should show the metadata grid",
+        )
+        attach(app, "project-detail")
+    }
+
     /// Queue renders yesterday's clips with their titles + scores.
     func testQueueShowsDemoClips() {
         // Route straight to the queue surface (home is now the default landing).

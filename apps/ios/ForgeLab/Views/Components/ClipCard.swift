@@ -89,21 +89,10 @@ struct ClipCard: View {
     }
 
     private var networkCover: some View {
-        AsyncImage(url: api.coverURL(clipId: clip.id)) { phase in
-            switch phase {
-            case .empty:
-                Rectangle()
-                    .fill(Theme.background)
-                    .overlay(ProgressView())
-            case .success(let img):
-                img.resizable().aspectRatio(contentMode: .fill)
-            case .failure:
-                Rectangle()
-                    .fill(Theme.background)
-                    .overlay(Image(systemName: "photo").foregroundStyle(Theme.textSecondary))
-            @unknown default:
-                Rectangle().fill(Theme.background)
-            }
+        RemoteImage(url: api.coverURL(clipId: clip.id), api: api) {
+            Rectangle()
+                .fill(Theme.background)
+                .overlay(Image(systemName: "photo").foregroundStyle(Theme.textSecondary))
         }
         .frame(width: 80, height: 142)
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))

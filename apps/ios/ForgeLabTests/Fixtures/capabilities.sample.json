@@ -1,0 +1,51 @@
+{
+  "ffmpeg": {
+    "version": "8.1.1-tessus",
+    "hasNvenc": false,
+    "hasLibass": true,
+    "encoders": [
+      "=",
+      "a64multi",
+      "a64multi5"
+    ]
+  },
+  "whisper": {
+    "available": true,
+    "models": [
+      "tiny",
+      "base",
+      "small",
+      "medium",
+      "large",
+      "large-v2",
+      "large-v3"
+    ],
+    "currentModel": "large-v3",
+    "device": "cpu",
+    "computeType": "float32",
+    "modelLoaded": false
+  },
+  "gpu": {
+    "available": false,
+    "count": 0,
+    "totalVramGb": 0,
+    "freeVramGb": 0,
+    "gpus": []
+  },
+  "storage": {
+    "libraryPath": "/Users/mehdinafaa/FORGE_LIBRARY",
+    "freeSpace": 459318706176
+  },
+  "transcription": {
+    "available_providers": [
+      "local"
+    ],
+    "default_provider": "local",
+    "providers": {
+      "local": {
+        "available": true,
+        "estimated_cost_per_hour": 0.0
+      }
+    }
+  }
+}

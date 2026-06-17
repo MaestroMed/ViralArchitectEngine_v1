@@ -1,0 +1,71 @@
+{
+    "success": true,
+    "data": {
+        "items": [
+            {
+                "id": "847bf5fa-a618-47e6-a66c-a4d763992b21",
+                "name": "[Auto] STARK NIGHTTTT EYWAAAAAAAAA",
+                "sourcePath": "/Users/mehdinafaa/FORGE_LIBRARY/vods/video_v2786253735.mp4",
+                "sourceFilename": "video_2786253735.mp4",
+                "duration": 7929.953333,
+                "resolution": {
+                    "width": 1920,
+                    "height": 1080
+                },
+                "fps": 30.0,
+                "audioTracks": 1,
+                "proxyPath": "/Users/mehdinafaa/FORGE_LIBRARY/projects/847bf5fa-a618-47e6-a66c-a4d763992b21/proxy/proxy.mp4",
+                "audioPath": "/Users/mehdinafaa/FORGE_LIBRARY/projects/847bf5fa-a618-47e6-a66c-a4d763992b21/analysis/audio.wav",
+                "thumbnailPath": "/Users/mehdinafaa/FORGE_LIBRARY/projects/847bf5fa-a618-47e6-a66c-a4d763992b21/thumbnail.jpg",
+                "status": "analyzed",
+                "errorMessage": null,
+                "profileId": null,
+                "metadata": {
+                    "importUrl": "https://www.twitch.tv/videos/2786253735",
+                    "platform": "twitch",
+                    "channel": "EtoStark",
+                    "autoPipeline": true,
+                    "detectedVodId": "2786253735"
+                },
+                "createdAt": "2026-06-16T12:49:35.336473",
+                "updatedAt": "2026-06-16T13:43:22.714964",
+                "segmentsCount": 400,
+                "averageScore": 43.2
+            },
+            {
+                "id": "c154c932-3706-4991-9a34-d49cfedcf8bd",
+                "name": "[Auto] STARK NIGHTTTT EYWAAAAAAAAA",
+                "sourcePath": "/Users/mehdinafaa/FORGE_LIBRARY/vods/video_v2787065483.mp4",
+                "sourceFilename": "video_2787065483.mp4",
+                "duration": 10032.886333,
+                "resolution": {
+                    "width": 1920,
+                    "height": 1080
+                },
+                "fps": 30.0,
+                "audioTracks": 1,
+                "proxyPath": "/Users/mehdinafaa/FORGE_LIBRARY/projects/c154c932-3706-4991-9a34-d49cfedcf8bd/proxy/proxy.mp4",
+                "audioPath": "/Users/mehdinafaa/FORGE_LIBRARY/projects/c154c932-3706-4991-9a34-d49cfedcf8bd/analysis/audio.wav",
+                "thumbnailPath": "/Users/mehdinafaa/FORGE_LIBRARY/projects/c154c932-3706-4991-9a34-d49cfedcf8bd/thumbnail.jpg",
+                "status": "analyzed",
+                "errorMessage": null,
+                "profileId": null,
+                "metadata": {
+                    "importUrl": "https://www.twitch.tv/videos/2787065483",
+                    "platform": "twitch",
+                    "channel": "EtoStark",
+                    "autoPipeline": true,
+                    "detectedVodId": "2787065483"
+                },
+                "createdAt": "2026-06-16T11:43:46.166255",
+                "updatedAt": "2026-06-16T12:40:00.903397",
+                "segmentsCount": 462,
+                "averageScore": 45.5
+            }
+        ],
+        "total": 10,
+        "page": 1,
+        "pageSize": 2,
+        "hasMore": true
+    }
+}

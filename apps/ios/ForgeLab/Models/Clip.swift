@@ -65,4 +65,14 @@ struct QueueSummaryResponse: Codable {
 struct HealthResponse: Codable {
     let status: String
     let version: String
+    /// Present on the engine's `/health` (omitted by the trimmed mobile fixture
+    /// → optional). Drives the Pilot status header's service dots.
+    let services: HealthServices?
+}
+
+struct HealthServices: Codable, Hashable {
+    let ffmpeg: Bool?
+    let whisper: Bool?
+    let nvenc: Bool?
+    let database: Bool?
 }

@@ -43,6 +43,42 @@ enum DemoData {
             channelName: "etostark__", createdAt: "2026-06-13T19:30:00",
         ),
     ]
+
+    /// Demo VOD library for the Pilot tab (--demo / previews). Covers the
+    /// lifecycle states the status pill renders (analysing in-progress, analysed,
+    /// ready) so screenshots show the full range.
+    static let projects: [Project] = [
+        Project(
+            id: "demo-proj-1",
+            name: "[Auto] STARK NIGHTTTT EYWAAAAAAAAA",
+            sourcePath: "/vods/v2796529250.mp4", sourceFilename: "video_2796529250.mp4",
+            duration: 7930, resolution: Resolution(width: 1920, height: 1080), fps: 30,
+            audioTracks: 1, status: "analyzed", errorMessage: nil, profileId: nil,
+            metadata: ProjectMetadata(platform: "twitch", importUrl: "https://www.twitch.tv/videos/2796529250", channel: "EtoStark"),
+            createdAt: "2026-06-15T02:14:00.000000", updatedAt: "2026-06-15T03:01:00.000000",
+            segmentsCount: 412, averageScore: 46.8,
+        ),
+        Project(
+            id: "demo-proj-2",
+            name: "[Auto] WAITING ROOM FRANCE-SÉNÉGAL",
+            sourcePath: "/vods/v2798116116.mp4", sourceFilename: "video_2798116116.mp4",
+            duration: 8280, resolution: Resolution(width: 1920, height: 1080), fps: 30,
+            audioTracks: 1, status: "analyzing", errorMessage: nil, profileId: nil,
+            metadata: ProjectMetadata(platform: "twitch", importUrl: "https://www.twitch.tv/videos/2798116116", channel: "EtoStark"),
+            createdAt: "2026-06-15T09:40:00.000000", updatedAt: "2026-06-15T09:58:00.000000",
+            segmentsCount: 168, averageScore: 41.2,
+        ),
+        Project(
+            id: "demo-proj-3",
+            name: "[Auto] LE RETOUR DU ROI",
+            sourcePath: "/vods/v2787065483.mp4", sourceFilename: "video_2787065483.mp4",
+            duration: 10033, resolution: Resolution(width: 1920, height: 1080), fps: 30,
+            audioTracks: 1, status: "ready", errorMessage: nil, profileId: nil,
+            metadata: ProjectMetadata(platform: "twitch", importUrl: "https://www.twitch.tv/videos/2787065483", channel: "EtoStark"),
+            createdAt: "2026-06-14T01:10:00.000000", updatedAt: "2026-06-14T02:30:00.000000",
+            segmentsCount: 462, averageScore: 45.5,
+        ),
+    ]
 }
 
 /// Single source of truth for launch-time flags.

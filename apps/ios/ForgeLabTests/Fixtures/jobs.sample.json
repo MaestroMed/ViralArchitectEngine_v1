@@ -1,0 +1,35 @@
+{
+  "success": true,
+  "data": [
+    {
+      "id": "9f1c2a4e-1111-4aaa-9bbb-000000000001",
+      "type": "analyze",
+      "projectId": "847bf5fa-a618-47e6-a66c-a4d763992b21",
+      "status": "running",
+      "progress": 62.5,
+      "stage": "transcription",
+      "message": "Transcription en cours",
+      "error": null,
+      "result": null,
+      "metadata": {},
+      "createdAt": "2026-06-17T09:40:00.000000",
+      "startedAt": "2026-06-17T09:41:00.000000",
+      "completedAt": null
+    },
+    {
+      "id": "9f1c2a4e-2222-4aaa-9bbb-000000000002",
+      "type": "ingest",
+      "projectId": "847bf5fa-a618-47e6-a66c-a4d763992b21",
+      "status": "completed",
+      "progress": 100.0,
+      "stage": "done",
+      "message": null,
+      "error": null,
+      "result": { "proxyPath": "/proxy/proxy.mp4" },
+      "metadata": {},
+      "createdAt": "2026-06-17T09:10:00.000000",
+      "startedAt": "2026-06-17T09:11:00.000000",
+      "completedAt": "2026-06-17T09:30:00.000000"
+    }
+  ]
+}

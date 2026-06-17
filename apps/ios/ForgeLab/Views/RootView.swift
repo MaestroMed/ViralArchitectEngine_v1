@@ -19,9 +19,13 @@ struct RootView: View {
                     NavigationStack { SettingsView() }
                 } else if AppLaunch.demoScreen == "queue" {
                     QueueView(api: demoAPI, demoClips: DemoData.clips)
+                } else if AppLaunch.demoScreen == "pilot" {
+                    MainTabView(api: demoAPI, demoClips: DemoData.clips,
+                                demoProjects: DemoData.projects, initialTab: 1)
                 } else {
                     // default + `--demo-screen home`: the new dashboard shell
-                    MainTabView(api: demoAPI, demoClips: DemoData.clips)
+                    MainTabView(api: demoAPI, demoClips: DemoData.clips,
+                                demoProjects: DemoData.projects)
                 }
             } else if settings.isConfigured, let url = settings.baseURL, let key = settings.apiKey {
                 MainTabView(api: ForgeAPI(baseURL: url, apiKey: key))

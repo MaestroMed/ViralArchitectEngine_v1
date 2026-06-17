@@ -5,7 +5,39 @@
 > survey (9 desktop surfaces + iOS app + shared contracts + backend endpoints)
 > + synthesis + adversarial critique. Grounded in the actual source — see the
 > file references at the end. **Awaiting Mehdi's product decisions (§5) before
-> building.**
+> building the write/compute/publish surfaces.**
+
+---
+
+## ✅ Delivered — C1 (Pilot, read-only) — 2026-06-17
+
+The **decision-free** slice of C1 is built, tested, and on `claude/review-codebase-gMN6t`.
+Everything below is **GET-only** (no compute triggers, no publish, no creds, no
+destructive monitor routes) — so it ships without waiting on §5.
+
+- **New "Pilote" tab** (3-tab shell: Accueil / Pilote / Clips): live engine-status
+  header (health pill + version + active-jobs badge + capability chips:
+  Whisper / sous-titres / GPU-CPU / espace libre) + the whole VOD **library** as
+  Liquid-Glass project cards (thumbnail, status pill, platform, segments, avg
+  score, duration, relative date).
+- **ProjectDetailView** (read-only): hero thumbnail, full metadata grid, source
+  link, and the project's recent jobs with progress.
+- **Swift models** mirroring the engine: `Project`, `Job`, `Capabilities`,
+  `ApiEnvelope<T>` / `Paginated<T>`, `HealthServices`; `ForgeAPI+Pilot`
+  extension (`fetchProjects` / `fetchProject` / `fetchJobs` / `fetchJobStats` /
+  `fetchCapabilities`, `projectThumbnailURL`, authed `imageData`).
+- **Bug fixed in passing:** cover/thumbnail endpoints require the `X-API-Key`
+  header which `AsyncImage` can't send → covers silently 401'd under LAN auth.
+  New `RemoteImage` (authed loader + in-memory cache) powers project thumbnails
+  **and repairs the existing clip covers**.
+- **Verified:** clean build (0 warnings); 16 unit tests incl. a new
+  `PilotContractTests` decoding **real** engine payloads
+  (`apps/ios/ForgeLabTests/Fixtures/{projects,jobs,capabilities}.sample.json`);
+  6 UI tests incl. Pilot + project-detail (clean simulator screenshots);
+  passed a multi-agent adversarial review (contract / read-only / Swift).
+
+**Still gated on §5 decisions:** C2 realtime WS spine, C3 Sources/APNs, C4
+action-sheets (ingest/analyze triggers), publish, and any write path.
 
 ---
 

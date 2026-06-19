@@ -28,12 +28,18 @@ struct RootView: View {
                     MainTabView(api: demoAPI, demoClips: DemoData.clips,
                                 demoProjects: DemoData.projects,
                                 demoChannels: DemoData.channels, demoVods: DemoData.vods,
-                                initialTab: 2)
+                                demoDashboard: DemoData.dashboard, initialTab: 2)
+                } else if AppLaunch.demoScreen == "stats" {
+                    MainTabView(api: demoAPI, demoClips: DemoData.clips,
+                                demoProjects: DemoData.projects,
+                                demoChannels: DemoData.channels, demoVods: DemoData.vods,
+                                demoDashboard: DemoData.dashboard, initialTab: 4)
                 } else {
                     // default + `--demo-screen home`: the new dashboard shell
                     MainTabView(api: demoAPI, demoClips: DemoData.clips,
                                 demoProjects: DemoData.projects,
-                                demoChannels: DemoData.channels, demoVods: DemoData.vods)
+                                demoChannels: DemoData.channels, demoVods: DemoData.vods,
+                                demoDashboard: DemoData.dashboard)
                 }
             } else if settings.isConfigured, let url = settings.baseURL, let key = settings.apiKey {
                 MainTabView(api: ForgeAPI(baseURL: url, apiKey: key))

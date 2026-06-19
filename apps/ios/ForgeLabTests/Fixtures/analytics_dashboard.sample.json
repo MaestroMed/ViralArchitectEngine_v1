@@ -1,0 +1,88 @@
+{
+  "overview": {
+    "totalClips": 136,
+    "pendingReview": 136,
+    "approved": 0,
+    "published": 0,
+    "rejected": 0,
+    "scheduled": 0,
+    "clipsLast7Days": 136,
+    "avgViralScore": 67.3,
+    "topViralScore": 81.0,
+    "totalViews": 0,
+    "totalEngagement": 0
+  },
+  "topClips": [
+    {
+      "clipId": "59b9ee3b-8d05-4237-9748-94f92101df47",
+      "projectId": "f09c04e3-296b-4c77-b8f3-754488053af9",
+      "segmentId": "a102255a-b4f1-4735-b6c0-87815381a206",
+      "title": "🐒😱 Le moment où je me suis réveillé avec un ANÉ ! 🤣",
+      "viralScore": 81.0,
+      "status": "pending_review",
+      "channelName": "EtoStark",
+      "duration": 208.57000000000016,
+      "createdAt": "2026-06-16T21:34:56.783034",
+      "views": 0
+    },
+    {
+      "clipId": "a7e91bec-6313-46d9-8350-fff6aacc5729",
+      "projectId": "f09c04e3-296b-4c77-b8f3-754488053af9",
+      "segmentId": "af79abf4-b81b-4183-b071-2a60644bfc07",
+      "title": "LE SURPRISE DE MA MÈRE 😱",
+      "viralScore": 80.0,
+      "status": "pending_review",
+      "channelName": "EtoStark",
+      "duration": 69.66000000000031,
+      "createdAt": "2026-06-16T21:34:56.783040",
+      "views": 0
+    },
+    {
+      "clipId": "fa1c147a-6b40-44c9-b6c3-6ac1ffacde57",
+      "projectId": "f09c04e3-296b-4c77-b8f3-754488053af9",
+      "segmentId": "baded22f-a654-4c6f-b5ae-24416159fd9b",
+      "title": "😂 Le bail le plus drôle que j'ai jamais fait ! 🤣",
+      "viralScore": 78.0,
+      "status": "pending_review",
+      "channelName": "EtoStark",
+      "duration": 201.6300000000001,
+      "createdAt": "2026-06-16T21:34:56.783043",
+      "views": 0
+    },
+    {
+      "clipId": "e9993302-caca-42cb-812f-11e515f02e83",
+      "projectId": "c4e1d081-354c-4b1a-b0d4-57571704d01f",
+      "segmentId": "2e5c9f71-5aa2-47b1-a772-a16bafedda03",
+      "title": "🚨 VRAIMENT ! 😂 Le tweet qui a faitrire le monde ! #lol_objective #fail #clutch",
+      "viralScore": 77.0,
+      "status": "pending_review",
+      "channelName": "EtoStark",
+      "duration": 113.35000000000036,
+      "createdAt": "2026-06-16T21:45:55.217417",
+      "views": 0
+    },
+    {
+      "clipId": "5304aa9e-b8d3-447f-b569-affcc2b6a1ef",
+      "projectId": "c154c932-3706-4991-9a34-d49cfedcf8bd",
+      "segmentId": "275678e7-7c4a-4d49-a14b-bfbcb3a52837",
+      "title": "Surprévenue ! 😱 Votre acteur me révèle vos véritables pensées !",
+      "viralScore": 76.0,
+      "status": "pending_review",
+      "channelName": "EtoStark",
+      "duration": 208.73999999999978,
+      "createdAt": "2026-06-16T21:23:55.443051",
+      "views": 0
+    }
+  ],
+  "trends": {
+    "granularity": "day",
+    "periodDays": 30,
+    "points": [
+      {
+        "date": "2026-06-16",
+        "clips": 136,
+        "views": 0
+      }
+    ]
+  }
+}

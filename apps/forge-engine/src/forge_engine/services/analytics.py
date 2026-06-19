@@ -451,8 +451,12 @@ class AnalyticsService:
     # view/engagement metrics stay 0 until a publisher records them.
     # ------------------------------------------------------------------
 
-    async def get_overview(self) -> dict:
-        """Quick KPI snapshot from the clip queue."""
+    async def get_overview(self, project_id: str | None = None) -> dict:
+        """Lifetime KPI snapshot from the clip queue (optionally one project).
+
+        These are library *totals* on purpose — the dashboard's date range scopes
+        the production trend and top-clips ranking, not the headline counts.
+        """
         from datetime import timedelta
 
         from sqlalchemy import func, select
@@ -460,17 +464,22 @@ class AnalyticsService:
         from forge_engine.core.database import async_session_maker
         from forge_engine.models.review import ClipQueue
 
+        def scoped(stmt):
+            return stmt.where(ClipQueue.project_id == project_id) if project_id else stmt
+
         async with async_session_maker() as db:
-            total = (await db.execute(select(func.count()).select_from(ClipQueue))).scalar() or 0
-            avg_score = (await db.execute(select(func.avg(ClipQueue.viral_score)))).scalar() or 0.0
-            top_score = (await db.execute(select(func.max(ClipQueue.viral_score)))).scalar() or 0.0
+            total = (await db.execute(scoped(select(func.count()).select_from(ClipQueue)))).scalar() or 0
+            avg_score = (await db.execute(scoped(select(func.avg(ClipQueue.viral_score))))).scalar() or 0.0
+            top_score = (await db.execute(scoped(select(func.max(ClipQueue.viral_score))))).scalar() or 0.0
             status_rows = (
-                await db.execute(select(ClipQueue.status, func.count()).group_by(ClipQueue.status))
+                await db.execute(scoped(select(ClipQueue.status, func.count()).group_by(ClipQueue.status)))
             ).all()
             week_ago = datetime.utcnow() - timedelta(days=7)
             last7 = (
                 await db.execute(
-                    select(func.count()).select_from(ClipQueue).where(ClipQueue.created_at >= week_ago)
+                    scoped(
+                        select(func.count()).select_from(ClipQueue).where(ClipQueue.created_at >= week_ago)
+                    )
                 )
             ).scalar() or 0
 
@@ -489,23 +498,34 @@ class AnalyticsService:
             "totalEngagement": 0,
         }
 
-    async def get_top_clips(self, limit: int = 10, metric: str = "score", days: int = 30) -> list[dict]:
-        """Top clips, ranked by viral score (no external view data yet)."""
+    async def get_top_clips(
+        self, limit: int = 10, metric: str = "score", days: int = 30, project_id: str | None = None
+    ) -> list[dict]:
+        """Top clips within the window, ranked by viral score.
+
+        `metric` is accepted for forward-compat but ranking is always by viral
+        score until external view/engagement data is recorded.
+        """
+        from datetime import timedelta
+
         from sqlalchemy import select
 
         from forge_engine.core.database import async_session_maker
         from forge_engine.models.review import ClipQueue
 
+        since = datetime.utcnow() - timedelta(days=max(1, days))
         async with async_session_maker() as db:
-            rows = (
-                await db.execute(
-                    select(ClipQueue).order_by(ClipQueue.viral_score.desc()).limit(max(1, min(limit, 100)))
-                )
-            ).scalars().all()
+            q = select(ClipQueue).where(ClipQueue.created_at >= since)
+            if project_id:
+                q = q.where(ClipQueue.project_id == project_id)
+            q = q.order_by(ClipQueue.viral_score.desc()).limit(max(1, min(limit, 100)))
+            rows = (await db.execute(q)).scalars().all()
 
         return [
             {
                 "clipId": c.id,
+                "projectId": c.project_id,
+                "segmentId": c.segment_id,
                 "title": c.title,
                 "viralScore": round(float(c.viral_score or 0.0), 1),
                 "status": c.status,
@@ -543,8 +563,8 @@ class AnalyticsService:
     async def get_dashboard(self, project_id: str | None = None, days: int = 30) -> dict:
         """Combined snapshot for the mobile Stats tab."""
         return {
-            "overview": await self.get_overview(),
-            "topClips": await self.get_top_clips(limit=5, metric="score", days=days),
+            "overview": await self.get_overview(project_id=project_id),
+            "topClips": await self.get_top_clips(limit=5, metric="score", days=days, project_id=project_id),
             "trends": await self.get_trends(project_id=project_id, days=days),
         }
 
@@ -586,10 +606,10 @@ class AnalyticsService:
         logger.debug("clip performance update ignored (no store): %s", kwargs.get("clip_id"))
 
     async def export_data(self, project_id: str | None = None, format: str = "json", days: int = 90) -> dict:
-        """Export the clip-derived analytics."""
+        """Export the clip-derived analytics (top-clips capped at 100)."""
         return {
-            "overview": await self.get_overview(),
-            "topClips": await self.get_top_clips(limit=1000, days=days),
+            "overview": await self.get_overview(project_id=project_id),
+            "topClips": await self.get_top_clips(limit=100, days=days, project_id=project_id),
             "format": format,
         }
 

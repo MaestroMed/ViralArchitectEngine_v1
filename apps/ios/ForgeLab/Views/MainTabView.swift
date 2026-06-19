@@ -1,10 +1,11 @@
 import SwiftUI
 
-/// Four-surface shell (iOS 26 Liquid Glass tab bar):
+/// Five-surface shell (iOS 26 Liquid Glass tab bar):
 /// - **Accueil** (0): today-focused dashboard.
 /// - **Pilote** (1): remote-pilot cockpit (engine status + whole VOD library).
 /// - **Sources** (2): watch channels + import VODs (feed the engine).
 /// - **Clips** (3): the date-browsable review queue.
+/// - **Stats** (4): glanceable performance (KPIs, production, top clips).
 /// Tags are stable so inserting a tab never shifts another's tag.
 /// Settings is reached from each tab's toolbar.
 struct MainTabView: View {
@@ -13,6 +14,7 @@ struct MainTabView: View {
     var demoProjects: [Project]? = nil
     var demoChannels: [WatchedChannel]? = nil
     var demoVods: [DetectedVOD]? = nil
+    var demoDashboard: AnalyticsDashboard? = nil
     @State private var selectedTab: Int
 
     init(api: ForgeAPI,
@@ -20,12 +22,14 @@ struct MainTabView: View {
          demoProjects: [Project]? = nil,
          demoChannels: [WatchedChannel]? = nil,
          demoVods: [DetectedVOD]? = nil,
+         demoDashboard: AnalyticsDashboard? = nil,
          initialTab: Int = 0) {
         self.api = api
         self.demoClips = demoClips
         self.demoProjects = demoProjects
         self.demoChannels = demoChannels
         self.demoVods = demoVods
+        self.demoDashboard = demoDashboard
         _selectedTab = State(initialValue: initialTab)
     }
 
@@ -43,6 +47,9 @@ struct MainTabView: View {
             QueueView(api: api, demoClips: demoClips)
                 .tabItem { Label("Clips", systemImage: "rectangle.stack.fill") }
                 .tag(3)
+            StatsView(api: api, demoDashboard: demoDashboard)
+                .tabItem { Label("Stats", systemImage: "chart.bar.fill") }
+                .tag(4)
         }
         .tint(Theme.accent)
     }

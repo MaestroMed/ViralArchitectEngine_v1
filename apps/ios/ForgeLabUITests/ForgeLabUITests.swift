@@ -95,6 +95,20 @@ final class ForgeLabUITests: XCTestCase {
         attach(app, "project-detail")
     }
 
+    /// The Stats tab shows KPIs + the production chart + top clips.
+    func testStatsShowsKpisAndTopClips() {
+        let app = launchDemo(["--demo-screen", "stats"])
+        XCTAssertTrue(
+            app.staticTexts["Score moyen"].waitForExistence(timeout: 15),
+            "Stats tab should show the KPI cards",
+        )
+        XCTAssertTrue(app.staticTexts["Top clips"].waitForExistence(timeout: 5),
+                      "Stats should show the Top clips section")
+        XCTAssertTrue(app.staticTexts["Production"].waitForExistence(timeout: 5),
+                      "Stats should show the production chart")
+        attach(app, "stats")
+    }
+
     /// The Sources tab lists watched channels + detected VODs and the URL CTA.
     func testSourcesShowsChannelsAndVods() {
         let app = launchDemo(["--demo-screen", "sources"])

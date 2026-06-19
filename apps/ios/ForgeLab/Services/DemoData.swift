@@ -109,6 +109,33 @@ enum DemoData {
         ),
     ]
 
+    /// Demo analytics dashboard for the Stats tab.
+    static let dashboard = AnalyticsDashboard(
+        overview: AnalyticsOverview(
+            totalClips: 136, pendingReview: 120, approved: 12, published: 4,
+            rejected: 0, scheduled: 0, clipsLast7Days: 42,
+            avgViralScore: 67.3, topViralScore: 92.0, totalViews: 0, totalEngagement: 0),
+        topClips: [
+            TopClip(clipId: "demo-1", projectId: "demo-proj-1", segmentId: "s1",
+                    title: "\"Le outplay de Cabochard là c'est ILLÉGAL\"",
+                    viralScore: 92, status: "pending_review", channelName: "EtoStark",
+                    duration: 34, createdAt: "2026-06-16T21:34:56", views: 0),
+            TopClip(clipId: "demo-2", projectId: "demo-proj-1", segmentId: "s2",
+                    title: "\"Attends attends ATTENDS il va pas faire ça\"",
+                    viralScore: 84, status: "approved", channelName: "EtoStark",
+                    duration: 28, createdAt: "2026-06-16T21:30:00", views: 0),
+            TopClip(clipId: "demo-3", projectId: "demo-proj-1", segmentId: "s3",
+                    title: "\"Wesh mais c'est quoi ce clutch de malade\"",
+                    viralScore: 79, status: "pending_review", channelName: "EtoStark",
+                    duration: 41, createdAt: "2026-06-15T20:05:00", views: 0),
+        ],
+        trends: AnalyticsTrends(granularity: "day", periodDays: 30, points: [
+            TrendPoint(date: "2026-06-13", clips: 18, views: 0),
+            TrendPoint(date: "2026-06-14", clips: 32, views: 0),
+            TrendPoint(date: "2026-06-15", clips: 44, views: 0),
+            TrendPoint(date: "2026-06-16", clips: 42, views: 0),
+        ]))
+
     /// Demo in-flight job (drives the Pilot live overlay + Jobs sheet).
     static let jobs: [Job] = [
         Job(

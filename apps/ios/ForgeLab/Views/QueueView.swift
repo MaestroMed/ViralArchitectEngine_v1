@@ -67,7 +67,7 @@ struct QueueView: View {
                                 demo: demoClips != nil,
                             )
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(PressableCardStyle())
                         .onLongPressGesture { toggleSelection(clip.id) }
                         .accessibilityIdentifier("clip-\(clip.id)")
                     }

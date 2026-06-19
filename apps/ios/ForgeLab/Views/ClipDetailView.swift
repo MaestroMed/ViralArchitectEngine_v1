@@ -1,5 +1,6 @@
 import AVKit
 import SwiftUI
+import UIKit
 
 /// Preview + the morning workflow's terminal actions: Download to Photos
 /// (with caption copied to clipboard) and Open TikTok. Single Approve / Reject
@@ -28,17 +29,28 @@ struct ClipDetailView: View {
                     metadata
                     actions
                     if let outcome = model.lastOutcome {
-                        OutcomeBanner(outcome: outcome)
+                        OutcomeBanner(outcome: outcome, onOpenSettings: openAppSettings)
                             .transition(.opacity)
                     }
                 }
             }
             .padding()
+            .animation(.easeInOut(duration: 0.25), value: model.exported)
         }
         .background(Theme.background)
         .navigationTitle(clip.title ?? "Clip")
         .navigationBarTitleDisplayMode(.inline)
-        .sensoryFeedback(.success, trigger: model.actionCount)
+        // Distinct haptics per outcome: approve/export = success, reject =
+        // warning, failure = error.
+        .sensoryFeedback(.success, trigger: model.successTick)
+        .sensoryFeedback(.warning, trigger: model.rejectTick)
+        .sensoryFeedback(.error, trigger: model.errorTick)
+    }
+
+    private func openAppSettings() {
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(url)
+        }
     }
 
     @ViewBuilder
@@ -89,20 +101,40 @@ struct ClipDetailView: View {
 
     private var actions: some View {
         VStack(spacing: 12) {
+            // Primary: export to Photos (the real job). Auto-approves on save.
             Button {
-                Task { await model.downloadAndOpen() }
+                Task { await model.export() }
             } label: {
-                if model.busy { ProgressView().tint(.white) }
-                else {
-                    Label("Télécharger + ouvrir TikTok", systemImage: "arrow.down.to.line")
+                Group {
+                    if model.busy {
+                        ProgressView().tint(.white)
+                    } else {
+                        Label(model.exported ? "Ré-exporter vers Photos" : "Exporter vers Photos",
+                              systemImage: "square.and.arrow.down")
+                    }
                 }
+                .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: .infinity)
             .padding()
             .foregroundStyle(.white)
             .forgeGlassAccent(cornerRadius: 16)
+            .opacity(model.busy ? 0.6 : 1)
             .disabled(model.busy)
             .accessibilityIdentifier("download-button")
+
+            // Secondary: open TikTok to finish the post — only after exporting.
+            if model.exported {
+                Button {
+                    model.openTikTok()
+                } label: {
+                    Label("Ouvrir TikTok", systemImage: "arrow.up.forward.app")
+                        .frame(maxWidth: .infinity)
+                }
+                .padding()
+                .foregroundStyle(Theme.textPrimary)
+                .forgeGlassCard(cornerRadius: 14)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
 
             HStack(spacing: 12) {
                 Button {
@@ -114,7 +146,9 @@ struct ClipDetailView: View {
                 .padding()
                 .foregroundStyle(Theme.danger)
                 .forgeGlassCard(cornerRadius: 14)
+                .opacity(model.busy ? 0.6 : 1)
                 .disabled(model.busy)
+                .accessibilityLabel("Rejeter le clip")
 
                 Button {
                     Task { await model.approve() }
@@ -125,7 +159,9 @@ struct ClipDetailView: View {
                 .padding()
                 .foregroundStyle(Theme.success)
                 .forgeGlassCard(cornerRadius: 14)
+                .opacity(model.busy ? 0.6 : 1)
                 .disabled(model.busy)
+                .accessibilityLabel("Approuver le clip")
             }
         }
     }
@@ -146,8 +182,12 @@ final class DetailModel: ObservableObject {
 
     @Published var busy = false
     @Published var lastOutcome: BundleDownloader.Outcome?
-    /// Bumped after each completed action so the view fires haptic feedback.
-    @Published var actionCount = 0
+    /// True once the clip was saved to Photos — reveals the "Ouvrir TikTok" CTA.
+    @Published var exported = false
+    // Per-outcome counters so the view can fire DISTINCT haptics.
+    @Published var successTick = 0
+    @Published var rejectTick = 0
+    @Published var errorTick = 0
 
     init(api: ForgeAPI, clip: Clip, demo: Bool = false) {
         self.api = api
@@ -166,32 +206,42 @@ final class DetailModel: ObservableObject {
         self.downloader = BundleDownloader(api: api)
     }
 
-    func downloadAndOpen() async {
+    /// Export to Photos + copy the caption. Auto-approves on a successful save
+    /// (saving the clip is itself the approval signal). TikTok is a separate,
+    /// explicit follow-up — see `openTikTok()`.
+    func export() async {
         busy = true; defer { busy = false }
         do {
             let outcome = try await downloader.saveToPhotosAndShare(clip: clip)
             lastOutcome = outcome
-            _ = downloader.openTikTokOrShare(from: nil)
             if outcome.savedToPhotos {
+                exported = true
                 try? await api.approve(clipId: clip.id)
+                successTick += 1
+            } else {
+                errorTick += 1
             }
         } catch {
             lastOutcome = .init(savedToPhotos: false, captionCopied: false,
                                 photosError: error.localizedDescription)
+            errorTick += 1
         }
-        actionCount += 1
+    }
+
+    func openTikTok() {
+        _ = downloader.openTikTokOrShare(from: nil)
     }
 
     func approve() async {
         busy = true; defer { busy = false }
         try? await api.approve(clipId: clip.id)
-        actionCount += 1
+        successTick += 1
     }
 
     func reject() async {
         busy = true; defer { busy = false }
         try? await api.reject(clipId: clip.id)
-        actionCount += 1
+        rejectTick += 1
     }
 }
 
@@ -245,21 +295,31 @@ private struct FlexibleHStack<Content: View>: View {
 
 private struct OutcomeBanner: View {
     let outcome: BundleDownloader.Outcome
+    var onOpenSettings: () -> Void
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 6) {
             if outcome.savedToPhotos {
-                Label("Clip enregistré dans Photos", systemImage: "checkmark.circle.fill")
+                Label("Enregistré dans Photos — clip approuvé", systemImage: "checkmark.circle.fill")
                     .foregroundStyle(Theme.success)
             }
             if outcome.captionCopied {
-                Label("Légende copiée — colle dans TikTok", systemImage: "doc.on.clipboard")
+                Label("Légende copiée — colle-la dans TikTok", systemImage: "doc.on.clipboard")
                     .foregroundStyle(Theme.textPrimary)
             }
             if let err = outcome.photosError {
-                Label(err, systemImage: "exclamationmark.triangle")
+                Label(err, systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(Theme.danger)
+                if err.localizedCaseInsensitiveContains("photos") {
+                    Button("Ouvrir les Réglages", action: onOpenSettings)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.accent)
+                        .padding(.top, 2)
+                }
             }
         }
+        .font(.subheadline)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .forgeGlassCard(cornerRadius: 14)
     }

@@ -38,6 +38,7 @@ struct HomeView: View {
                     Button { settingsOpen = true } label: {
                         Image(systemName: "gearshape.fill").foregroundStyle(Theme.textSecondary)
                     }
+                    .accessibilityLabel("Réglages")
                     .accessibilityIdentifier("home.settings")
                 }
             }
@@ -163,7 +164,7 @@ struct HomeView: View {
                         } label: {
                             HomePosterCard(clip: clip, api: api, demo: demoClips != nil)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(PressableCardStyle())
                     }
                 }
                 .padding(.vertical, 2)
@@ -172,15 +173,11 @@ struct HomeView: View {
     }
 
     private var emptyToday: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "moon.zzz.fill").font(.largeTitle).foregroundStyle(Theme.textSecondary)
-            Text("Aucun clip aujourd'hui").font(.headline).foregroundStyle(Theme.textPrimary)
-            Text("Les nouveaux clips d'Eto apparaîtront ici dès qu'une VOD est traitée.")
-                .font(.subheadline).foregroundStyle(Theme.textSecondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity).padding(28)
-        .forgeGlassCard(cornerRadius: 18)
+        EmptyStateCard(
+            icon: "moon.zzz.fill",
+            title: "Aucun clip aujourd'hui",
+            message: "Les nouveaux clips d'Eto apparaîtront ici dès qu'une VOD est traitée.",
+        )
     }
 
     // MARK: - Engine status

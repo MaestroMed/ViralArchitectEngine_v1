@@ -44,11 +44,13 @@ struct StatsView: View {
                     Button { settingsOpen = true } label: {
                         Image(systemName: "gearshape.fill").foregroundStyle(Theme.textSecondary)
                     }
+                    .accessibilityLabel("Réglages")
                 }
             }
             .sheet(isPresented: $settingsOpen) { NavigationStack { SettingsView() } }
             .refreshable { await load() }
             .task(id: days) { await load() }
+            .sensoryFeedback(.selection, trigger: days)   // tactile on range change
         }
     }
 
@@ -95,7 +97,7 @@ struct StatsView: View {
 
     private func productionCard(_ trends: AnalyticsTrends) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Production").font(.headline).foregroundStyle(Theme.textPrimary)
+            SectionHeader(title: "Production")
             if trends.points.isEmpty {
                 Text("Aucun clip sur la période.").font(.subheadline).foregroundStyle(Theme.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .center).padding(.vertical, 24)
@@ -121,7 +123,7 @@ struct StatsView: View {
 
     private func topClipsSection(_ clips: [TopClip]) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Top clips").font(.headline).foregroundStyle(Theme.textPrimary)
+            SectionHeader(title: "Top clips")
             if clips.isEmpty {
                 Text("Aucun clip.").font(.subheadline).foregroundStyle(Theme.textSecondary)
             } else {
@@ -133,7 +135,7 @@ struct StatsView: View {
                             } label: {
                                 topClipRow(rank: idx + 1, clip: clip)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(PressableCardStyle())
                             .accessibilityIdentifier("topclip-\(clip.id)")
                         }
                     }
@@ -181,15 +183,12 @@ struct StatsView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 10) {
-            Image(systemName: loadFailed ? "wifi.exclamationmark" : "chart.bar")
-                .font(.largeTitle).foregroundStyle(Theme.textSecondary)
-            Text(loadFailed ? "Stats indisponibles" : "Pas encore de stats")
-                .font(.headline).foregroundStyle(Theme.textPrimary)
-            Text(loadFailed ? "Le moteur est injoignable." : "Les statistiques apparaîtront dès qu'il y a des clips.")
-                .font(.subheadline).foregroundStyle(Theme.textSecondary).multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity).padding(28).forgeGlassCard(cornerRadius: 18)
+        EmptyStateCard(
+            icon: loadFailed ? "wifi.exclamationmark" : "chart.bar",
+            title: loadFailed ? "Stats indisponibles" : "Pas encore de stats",
+            message: loadFailed ? "Le moteur est injoignable."
+                : "Les statistiques apparaîtront dès qu'il y a des clips.",
+        )
     }
 
     // MARK: Data

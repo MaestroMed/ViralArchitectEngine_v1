@@ -23,12 +23,14 @@ struct RemoteImage<Placeholder: View>: View {
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: contentMode)
+                    .transition(.opacity)
             } else if failed {
                 placeholder()
             } else {
                 placeholder().overlay(ProgressView())
             }
         }
+        .animation(.easeOut(duration: 0.25), value: image != nil)   // fade covers in
         .task(id: url) { await load() }
     }
 

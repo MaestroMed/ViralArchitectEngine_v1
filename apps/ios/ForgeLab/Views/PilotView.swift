@@ -47,6 +47,7 @@ struct PilotView: View {
                     Button { settingsOpen = true } label: {
                         Image(systemName: "gearshape.fill").foregroundStyle(Theme.textSecondary)
                     }
+                    .accessibilityLabel("Réglages")
                     .accessibilityIdentifier("pilot.settings")
                 }
             }
@@ -117,6 +118,7 @@ struct PilotView: View {
             }
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(liveActiveCount > 0 ? "\(liveActiveCount) jobs en cours" : "Voir les jobs")
         .accessibilityIdentifier("pilot.jobs")
     }
 
@@ -146,16 +148,8 @@ struct PilotView: View {
     // MARK: - Library
 
     private var libraryHeader: some View {
-        HStack {
-            Text("Bibliothèque").font(.title3.weight(.bold)).foregroundStyle(Theme.textPrimary)
-            Spacer()
-            if !projects.isEmpty {
-                Text("\(projects.count)")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Theme.textSecondary)
-            }
-        }
-        .padding(.top, 2)
+        SectionHeader(title: "Bibliothèque", count: projects.isEmpty ? nil : projects.count)
+            .padding(.top, 2)
     }
 
     @ViewBuilder
@@ -177,7 +171,7 @@ struct PilotView: View {
                                 statusOverride: socket.projectStatus[project.id],
                             )
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(PressableCardStyle())
                         .accessibilityIdentifier("project-\(project.id)")
                     }
                 }
@@ -186,19 +180,13 @@ struct PilotView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 10) {
-            Image(systemName: loadFailed ? "wifi.exclamationmark" : "tray")
-                .font(.largeTitle).foregroundStyle(Theme.textSecondary)
-            Text(loadFailed ? "Bibliothèque indisponible" : "Aucun projet")
-                .font(.headline).foregroundStyle(Theme.textPrimary)
-            Text(loadFailed
-                 ? "Le moteur est injoignable. Vérifie l'URL et la clé dans les réglages."
-                 : "Les VOD traitées par le moteur apparaîtront ici.")
-                .font(.subheadline).foregroundStyle(Theme.textSecondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity).padding(28)
-        .forgeGlassCard(cornerRadius: 18)
+        EmptyStateCard(
+            icon: loadFailed ? "wifi.exclamationmark" : "tray",
+            title: loadFailed ? "Bibliothèque indisponible" : "Aucun projet",
+            message: loadFailed
+                ? "Le moteur est injoignable. Vérifie l'URL et la clé dans les réglages."
+                : "Les VOD traitées par le moteur apparaîtront ici.",
+        )
     }
 
     // MARK: - Data

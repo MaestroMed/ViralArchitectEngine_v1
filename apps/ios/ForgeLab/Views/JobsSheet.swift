@@ -38,6 +38,7 @@ struct JobsSheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) { Button("Fermer") { dismiss() } }
             }
+            .sensoryFeedback(.warning, trigger: confirmCancel)   // haptic on cancel-confirm
             .confirmationDialog(
                 "Annuler ce job ?",
                 isPresented: Binding(get: { confirmCancel != nil }, set: { if !$0 { confirmCancel = nil } }),
@@ -93,6 +94,7 @@ struct JobsSheet: View {
                     }
                     .buttonStyle(.plain)
                     .disabled(cancelling.contains(job.id))
+                    .accessibilityLabel("Annuler \(job.typeLabel)")
                     .accessibilityIdentifier("job-cancel-\(job.id)")
                 }
             } else if let err = job.error, !err.isEmpty {

@@ -56,6 +56,10 @@ struct SourcesView: View {
             .refreshable { await load() }
             .task { await load() }
             .overlay(alignment: .bottom) { toastView }
+            // Tactile feedback on the key actions.
+            .sensoryFeedback(.impact(flexibility: .soft), trigger: busyChannels)
+            .sensoryFeedback(.impact(flexibility: .solid), trigger: busyVods)
+            .sensoryFeedback(.selection, trigger: urlImportOpen)
         }
     }
 
@@ -65,12 +69,14 @@ struct SourcesView: View {
             Button { addChannelOpen = true } label: {
                 Image(systemName: "plus.circle.fill").foregroundStyle(Theme.accent)
             }
+            .accessibilityLabel("Ajouter une chaîne")
             .accessibilityIdentifier("sources.addChannel")
         }
         ToolbarItem(placement: .topBarTrailing) {
             Button { settingsOpen = true } label: {
                 Image(systemName: "gearshape.fill").foregroundStyle(Theme.textSecondary)
             }
+            .accessibilityLabel("Réglages")
         }
     }
 
@@ -153,24 +159,11 @@ struct SourcesView: View {
     // MARK: - Shared bits
 
     private func sectionHeader(_ title: String, count: Int?) -> some View {
-        HStack {
-            Text(title).font(.title3.weight(.bold)).foregroundStyle(Theme.textPrimary)
-            Spacer()
-            if let count {
-                Text("\(count)").font(.subheadline.weight(.semibold)).foregroundStyle(Theme.textSecondary)
-            }
-        }
+        SectionHeader(title: title, count: count)
     }
 
     private func placeholder(icon: String, title: String, subtitle: String) -> some View {
-        VStack(spacing: 8) {
-            Image(systemName: icon).font(.title).foregroundStyle(Theme.textSecondary)
-            Text(title).font(.headline).foregroundStyle(Theme.textPrimary)
-            Text(subtitle).font(.subheadline).foregroundStyle(Theme.textSecondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity).padding(22)
-        .forgeGlassCard(cornerRadius: 18)
+        EmptyStateCard(icon: icon, title: title, message: subtitle)
     }
 
     @ViewBuilder
@@ -223,9 +216,11 @@ struct SourcesView: View {
             if let idx = channels.firstIndex(where: { $0.id == channel.id }) {
                 channels[idx] = result.channel
             }
-            // Merge fresh VODs to the front, de-duped.
+            // Merge fresh VODs to the front, de-duped (animate them in).
             let known = Set(vods.map(\.id))
-            vods.insert(contentsOf: result.newVods.filter { !known.contains($0.id) }, at: 0)
+            withAnimation(.easeInOut(duration: 0.3)) {
+                vods.insert(contentsOf: result.newVods.filter { !known.contains($0.id) }, at: 0)
+            }
             flash(result.newVods.isEmpty ? "Aucune nouvelle VOD" : "\(result.newVods.count) nouvelle(s) VOD")
         } catch let e as ApiError {
             flash(e.errorDescription ?? "Échec de la vérification")
@@ -321,6 +316,7 @@ private struct ChannelRow: View {
             }
             .buttonStyle(.plain)
             .disabled(busy)
+            .accessibilityLabel("Vérifier \(channel.title)")
             .accessibilityIdentifier("channel-check-\(channel.id)")
         }
         .padding(12)
@@ -420,6 +416,7 @@ private struct DetectedVodRow: View {
                 }
                 .buttonStyle(.glassProminent)
                 .tint(Theme.accent)
+                .opacity(busy ? 0.6 : 1)
                 .disabled(busy)
                 .accessibilityIdentifier("vod-import-\(vod.id)")
 

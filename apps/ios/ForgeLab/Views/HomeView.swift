@@ -95,7 +95,7 @@ struct HomeView: View {
                     .foregroundStyle((todayPending == 0 && pendingTotal == 0) ? Theme.success : Theme.accent)
             }
             Button {
-                selectedTab?.wrappedValue = 2   // Clips tab (Pilote sits at 1)
+                selectedTab?.wrappedValue = 3   // Clips tab (Pilote=1, Sources=2)
             } label: {
                 HStack {
                     Text(pendingTotal > 0 ? "Reviewer la file" : "Ouvrir la file")

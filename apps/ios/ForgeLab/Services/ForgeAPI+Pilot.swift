@@ -22,12 +22,12 @@ extension ForgeAPI {
         if let search, !search.isEmpty { q.append(.init(name: "search", value: search)) }
         if let status, !status.isEmpty { q.append(.init(name: "status", value: status)) }
         let env = try await request(ApiEnvelope<Paginated<Project>>.self, path: "/v1/projects", query: q)
-        return try Self.unwrap(env)
+        return try env.unwrapped()
     }
 
     func fetchProject(id: String) async throws -> Project {
         let env = try await request(ApiEnvelope<Project>.self, path: "/v1/projects/\(id)")
-        return try Self.unwrap(env)
+        return try env.unwrapped()
     }
 
     // MARK: Jobs
@@ -35,12 +35,12 @@ extension ForgeAPI {
     func fetchJobs(projectId: String? = nil) async throws -> [Job] {
         let q = projectId.map { [URLQueryItem(name: "project_id", value: $0)] } ?? []
         let env = try await request(ApiEnvelope<[Job]>.self, path: "/v1/jobs", query: q)
-        return try Self.unwrap(env)
+        return try env.unwrapped()
     }
 
     func fetchJobStats() async throws -> JobStatsResponse {
         let env = try await request(ApiEnvelope<JobStatsResponse>.self, path: "/v1/jobs/stats/summary")
-        return try Self.unwrap(env)
+        return try env.unwrapped()
     }
 
     // MARK: Capabilities (NOT enveloped — body is the object directly)

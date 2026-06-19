@@ -1,0 +1,19 @@
+{
+    "success": true,
+    "data": [
+        {
+            "id": "569df480-09b3-4d01-9f34-bfaca4ed215f",
+            "channelId": "etostark",
+            "channelName": "EtoStark",
+            "displayName": "EtoStark",
+            "platform": "twitch",
+            "profileImageUrl": null,
+            "enabled": true,
+            "checkInterval": 3600,
+            "autoImport": false,
+            "lastCheckAt": null,
+            "createdAt": "2026-06-19T02:57:47.192220",
+            "updatedAt": "2026-06-19T02:57:47.192228"
+        }
+    ]
+}

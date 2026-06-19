@@ -21,11 +21,19 @@ struct RootView: View {
                     QueueView(api: demoAPI, demoClips: DemoData.clips)
                 } else if AppLaunch.demoScreen == "pilot" {
                     MainTabView(api: demoAPI, demoClips: DemoData.clips,
-                                demoProjects: DemoData.projects, initialTab: 1)
+                                demoProjects: DemoData.projects,
+                                demoChannels: DemoData.channels, demoVods: DemoData.vods,
+                                initialTab: 1)
+                } else if AppLaunch.demoScreen == "sources" {
+                    MainTabView(api: demoAPI, demoClips: DemoData.clips,
+                                demoProjects: DemoData.projects,
+                                demoChannels: DemoData.channels, demoVods: DemoData.vods,
+                                initialTab: 2)
                 } else {
                     // default + `--demo-screen home`: the new dashboard shell
                     MainTabView(api: demoAPI, demoClips: DemoData.clips,
-                                demoProjects: DemoData.projects)
+                                demoProjects: DemoData.projects,
+                                demoChannels: DemoData.channels, demoVods: DemoData.vods)
                 }
             } else if settings.isConfigured, let url = settings.baseURL, let key = settings.apiKey {
                 MainTabView(api: ForgeAPI(baseURL: url, apiKey: key))

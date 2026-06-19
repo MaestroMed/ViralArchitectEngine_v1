@@ -79,6 +79,35 @@ enum DemoData {
             segmentsCount: 462, averageScore: 45.5,
         ),
     ]
+
+    /// Demo watched channels for the Sources tab.
+    static let channels: [WatchedChannel] = [
+        WatchedChannel(
+            id: "demo-ch-1", channelId: "etostark", channelName: "EtoStark",
+            displayName: "EtoStark", platform: "twitch", profileImageUrl: nil,
+            enabled: true, checkInterval: 3600, autoImport: false,
+            lastCheckAt: "2026-06-15T08:30:00.000000",
+            createdAt: "2026-06-10T10:00:00.000000", updatedAt: "2026-06-15T08:30:00.000000",
+        ),
+    ]
+
+    /// Demo detected VODs (a fresh one + an already-imported one).
+    static let vods: [DetectedVOD] = [
+        DetectedVOD(
+            id: "demo-vod-1", externalId: "2798116116", title: "WAITING ROOM FRANCE-SÉNÉGAL",
+            channelId: "etostark", channelName: "EtoStark", platform: "twitch",
+            url: "https://www.twitch.tv/videos/2798116116", thumbnailUrl: nil,
+            duration: 8280, publishedAt: "2026-06-15T20:00:00.000000", viewCount: 24500,
+            status: "new", projectId: nil, estimatedScore: 72, detectedAt: "2026-06-15T22:10:00.000000",
+        ),
+        DetectedVOD(
+            id: "demo-vod-2", externalId: "2796529250", title: "STARK NIGHTTTT EYWAAAAAAAAA",
+            channelId: "etostark", channelName: "EtoStark", platform: "twitch",
+            url: "https://www.twitch.tv/videos/2796529250", thumbnailUrl: nil,
+            duration: 7930, publishedAt: "2026-06-14T21:00:00.000000", viewCount: 31200,
+            status: "imported", projectId: "demo-proj-1", estimatedScore: 68, detectedAt: "2026-06-14T23:00:00.000000",
+        ),
+    ]
 }
 
 /// Single source of truth for launch-time flags.

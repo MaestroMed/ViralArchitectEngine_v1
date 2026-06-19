@@ -41,6 +41,28 @@ action-sheets (ingest/analyze triggers), publish, and any write path.
 
 ---
 
+## ✅ §5 DECISIONS — RESOLVED by Mehdi (2026-06-17): "oui à tout / débloque le vrai loop pilote"
+
+All six forks answered YES → the write/compute/publish surfaces are now **unblocked**.
+
+1. **Trigger heavy runs from phone → YES.** Build remote import-VOD + kick ingest/analyze (long GPU jobs on the Mac).
+2. **APNs + off-LAN reachability → YES.** Access model = the **existing cloudflared quick-tunnel** (iPhone points `baseURL` at the `*.trycloudflare.com` URL when off-LAN). Push deep-links into the app, which loads the clip via the tunnel. *Note: real APNs send needs Mehdi's Apple APNs auth key (.p8 + key id + team id) + a physical-device test — build the infra now, gate the actual send on those secrets.*
+3. **Studio → CUT (confirmed).** No authoring tab; fold any single "re-export with template X" into Review clip-detail only if later demanded.
+4. **Publish → YES, YouTube-only in-app** (build the publish-by-`clip_id` backend GAP first) **+ manual-creds accepted** (server already stores social creds encrypted — see task #2). TikTok/IG stay save-to-Photos + manual post.
+5. **Analytics → YES**, glance-set = {views, engagement, top-clips}. No A/B variant comparison for v1.
+6. **Multi-project everywhere → YES** (Pilot already surfaces all projects; Sources surfaces all channels).
+
+**Build sequence from here (each verified + committed before the next):**
+- **C3 — Sources + remote triggers** (FIRST: highest pilot value, backend endpoints exist, verifiable in sim): Sources tab (channels list / manual check / detected-VOD import → job) + URL-import sheet + ingest/analyze action sheets on project detail, with **polling-based job progress** (WS deferred to C2).
+  - ✅ **C3 core DELIVERED 2026-06-17:** new **Sources** tab (4th tab — Accueil/Pilote/Sources/Clips, stable tags). Watched channels (list + add-channel sheet + per-channel manual check) + detected-VOD list (import → pipeline job / ignore) + **paste-URL import sheet** (url-info preview → import). Models `WatchedChannel`/`DetectedVOD`/`VideoInfo` + request bodies (snake_case via CodingKeys — a camelCase body 422s, verified live) + `ForgeAPI+Sources`. Verified: clean build, 22 unit (incl. `SourcesContractTests`) + 7 UI tests; **URL-import path validated live** (url-info via yt-dlp returns the exact `VideoInfo` shape); multi-agent review (4 async/UI fixes applied). Bootstrapped the real EtoStark channel.
+  - ⚠️ **Backend gap:** channel auto-detect (`POST /channels/{id}/check`) 500s — Playwright not installed in `.venv-full` (`pip install playwright && playwright install chromium`). App degrades gracefully (error toast). The **URL-paste path works without Playwright** (yt-dlp).
+  - ⏭️ **Deferred (C3c):** ingest/analyze re-trigger action sheets on ProjectDetailView + live job polling. The import flow already triggers the full download→ingest→analyze pipeline, so this is a lower-value follow-up.
+- **C2 — Realtime WS spine** (layer live progress over C3's polling): WS client w/ reconnect, the 9 message types (throttle TRANSCRIPT_CHUNK/ANALYSIS_PROGRESS), live job overlays, one-tap cancel + recover/pipeline-stop behind confirm.
+- **C5 — Stats** (read-only KPIs + top-clips).
+- **Backend GAPs** (need Mehdi's external secrets / physical device): publish-by-`clip_id` + YouTube publish; APNs infra (device-token table + migration + triggers + .p8 sender).
+
+---
+
 # WS-C — FORGE/LAB iOS Transposition Plan (decision-ready, revised)
 
 **Frame:** This is a *remote-pilot cockpit*, not a desktop clone. Mehdi's phone is for **monitoring the engine, controlling ingest/VOD runs, and reviewing/approving clips** — heavy authoring (drag-crop, manual zone editing, multi-track mixing) stays on the Mac. Every call below biases toward **Adapt** over 1:1 Port, and toward **read + one-tap-act** over deep editing.

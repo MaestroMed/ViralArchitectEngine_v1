@@ -76,6 +76,22 @@ final class ForgeLabUITests: XCTestCase {
         attach(app, "project-detail")
     }
 
+    /// The Sources tab lists watched channels + detected VODs and the URL CTA.
+    func testSourcesShowsChannelsAndVods() {
+        let app = launchDemo(["--demo-screen", "sources"])
+        XCTAssertTrue(
+            app.staticTexts["Chaînes surveillées"].waitForExistence(timeout: 15),
+            "Sources tab should show the channels section",
+        )
+        XCTAssertTrue(
+            app.staticTexts["WAITING ROOM FRANCE-SÉNÉGAL"].waitForExistence(timeout: 5),
+            "Sources should render a detected VOD",
+        )
+        // The paste-URL import CTA is present.
+        XCTAssertTrue(app.buttons["sources.importUrl"].waitForExistence(timeout: 5))
+        attach(app, "sources")
+    }
+
     /// Queue renders yesterday's clips with their titles + scores.
     func testQueueShowsDemoClips() {
         // Route straight to the queue surface (home is now the default landing).

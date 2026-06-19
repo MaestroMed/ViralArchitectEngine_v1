@@ -56,8 +56,8 @@ struct Project: Identifiable, Codable, Hashable, Sendable {
 // MARK: - Display helpers
 
 extension Project {
-    /// French human label for the lifecycle status.
-    var statusLabel: String {
+    /// French human label for any lifecycle status string.
+    static func statusLabel(_ status: String) -> String {
         switch status {
         case "created": return "Créé"
         case "downloading": return "Téléchargement"
@@ -71,7 +71,7 @@ extension Project {
         }
     }
 
-    var statusColor: Color {
+    static func statusColor(_ status: String) -> Color {
         switch status {
         case "ready", "analyzed": return Theme.success
         case "error": return Theme.danger
@@ -80,10 +80,15 @@ extension Project {
         }
     }
 
-    /// True while the engine is actively working the project (pulsing pill).
-    var isProcessing: Bool {
+    static func isProcessing(_ status: String) -> Bool {
         ["downloading", "ingesting", "analyzing"].contains(status)
     }
+
+    var statusLabel: String { Self.statusLabel(status) }
+    var statusColor: Color { Self.statusColor(status) }
+
+    /// True while the engine is actively working the project (pulsing pill).
+    var isProcessing: Bool { Self.isProcessing(status) }
 
     var platformLabel: String? {
         guard let p = metadata?.platform, !p.isEmpty else { return nil }

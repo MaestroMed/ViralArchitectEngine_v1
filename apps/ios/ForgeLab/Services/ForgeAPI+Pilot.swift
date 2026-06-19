@@ -43,6 +43,13 @@ extension ForgeAPI {
         return try env.unwrapped()
     }
 
+    /// Cancel a running/pending job. Job control (not a destructive admin route).
+    /// Returns `{success, data:{cancelled:true}}`; we only need the HTTP success,
+    /// so decode leniently with `MessageResponse` (the `data` key is ignored).
+    func cancelJob(id: String) async throws {
+        _ = try await request(MessageResponse.self, path: "/v1/jobs/\(id)/cancel", method: "POST")
+    }
+
     // MARK: Capabilities (NOT enveloped — body is the object directly)
 
     func fetchCapabilities() async throws -> Capabilities {

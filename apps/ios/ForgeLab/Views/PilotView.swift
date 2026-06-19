@@ -8,6 +8,7 @@ struct PilotView: View {
     /// When set, render these instead of networking (--demo / previews).
     var demoProjects: [Project]? = nil
     @EnvironmentObject var settings: Settings
+    @StateObject private var socket: ForgeSocket
 
     @State private var projects: [Project] = []
     @State private var health: HealthResponse?
@@ -16,6 +17,13 @@ struct PilotView: View {
     @State private var loading = false
     @State private var loadFailed = false
     @State private var settingsOpen = false
+    @State private var jobsSheetOpen = false
+
+    init(api: ForgeAPI, demoProjects: [Project]? = nil) {
+        self.api = api
+        self.demoProjects = demoProjects
+        _socket = StateObject(wrappedValue: ForgeSocket(baseURL: api.baseURL, apiKey: api.apiKey))
+    }
 
     private var isDemo: Bool { demoProjects != nil }
 
@@ -43,8 +51,17 @@ struct PilotView: View {
                 }
             }
             .sheet(isPresented: $settingsOpen) { NavigationStack { SettingsView() } }
+            .sheet(isPresented: $jobsSheetOpen) {
+                JobsSheet(
+                    jobs: Array(socket.liveJobs.values),
+                    projectName: { pid in projects.first { $0.id == pid }?.name },
+                    onCancel: { job in await cancelJob(job) },
+                    demo: isDemo,
+                )
+            }
             .refreshable { await load() }
             .task { await load() }
+            .onDisappear { socket.stop() }
         }
     }
 
@@ -70,24 +87,37 @@ struct PilotView: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .forgeGlassCard(cornerRadius: 20)
-        .accessibilityIdentifier("pilot.status")
     }
 
-    @ViewBuilder
+    /// Prefer the live WS count; fall back to the polled stats before connect.
+    private var liveActiveCount: Int {
+        socket.connected ? socket.activeJobs.count : (jobStats?.active ?? 0)
+    }
+
     private var jobsIndicator: some View {
-        let active = jobStats?.active ?? 0
-        if active > 0 {
-            HStack(spacing: 6) {
-                ProgressView().controlSize(.mini).tint(Theme.accent)
-                Text("\(active) en cours")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Theme.accent)
+        Button { jobsSheetOpen = true } label: {
+            if liveActiveCount > 0 {
+                HStack(spacing: 6) {
+                    // Static icon (not an indeterminate spinner — those animate
+                    // forever and stall XCUITest's idle sync).
+                    Image(systemName: "bolt.fill").font(.caption2).foregroundStyle(Theme.accent)
+                    Text("\(liveActiveCount) en cours")
+                        .font(.caption.weight(.semibold)).foregroundStyle(Theme.accent)
+                }
+                .padding(.horizontal, 8).padding(.vertical, 3)
+                .background(Theme.accentSoft).clipShape(Capsule())
+            } else {
+                HStack(spacing: 5) {
+                    Image(systemName: "bolt.horizontal.fill").font(.caption2)
+                    Text("Jobs").font(.caption.weight(.medium))
+                }
+                .foregroundStyle(Theme.textSecondary)
+                .padding(.horizontal, 8).padding(.vertical, 3)
+                .background(Theme.textSecondary.opacity(0.12)).clipShape(Capsule())
             }
-            .padding(.horizontal, 8).padding(.vertical, 3)
-            .background(Theme.accentSoft).clipShape(Capsule())
-        } else if engineUp {
-            Text("au repos").font(.caption).foregroundStyle(Theme.textSecondary)
         }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("pilot.jobs")
     }
 
     private var capabilityChips: some View {
@@ -141,7 +171,11 @@ struct PilotView: View {
                         NavigationLink {
                             ProjectDetailView(api: api, project: project, demo: isDemo)
                         } label: {
-                            ProjectCard(project: project, api: api, demo: isDemo)
+                            ProjectCard(
+                                project: project, api: api, demo: isDemo,
+                                liveJob: socket.activeJob(forProject: project.id),
+                                statusOverride: socket.projectStatus[project.id],
+                            )
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("project-\(project.id)")
@@ -181,6 +215,7 @@ struct PilotView: View {
                 storage: Capabilities.Storage(libraryPath: "/FORGE_LIBRARY", freeSpace: 459_318_706_176),
             )
             jobStats = JobStats(pending: 0, running: 1, completed: 12, failed: 0, cancelled: 0)
+            socket.seedDemo(jobs: DemoData.jobs)
             return
         }
         loading = true; loadFailed = false
@@ -196,5 +231,13 @@ struct PilotView: View {
         } catch {
             loadFailed = true
         }
+        // Seed any in-flight jobs, then stream live updates over the WS.
+        if let jobs = try? await api.fetchJobs() { socket.prime(jobs) }
+        socket.start()
+    }
+
+    private func cancelJob(_ job: Job) async {
+        guard !isDemo else { return }
+        try? await api.cancelJob(id: job.id)
     }
 }

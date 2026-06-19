@@ -59,6 +59,25 @@ final class ForgeLabUITests: XCTestCase {
         attach(app, "pilot")
     }
 
+    /// The Pilot jobs indicator opens a live Jobs sheet with the active job.
+    func testPilotJobsSheetShowsActiveJob() {
+        let app = launchDemo(["--demo-screen", "pilot"])
+        // The demo seeds one running job → the chip reads "1 en cours".
+        XCTAssertTrue(
+            app.staticTexts["1 en cours"].waitForExistence(timeout: 15),
+            "Pilot should show the live jobs indicator",
+        )
+        let jobs = app.buttons["pilot.jobs"]
+        XCTAssertTrue(jobs.waitForExistence(timeout: 5), "Jobs indicator should be a button")
+        jobs.tap()
+        // The demo job is an 'analyze' job → "Analyse" label in the sheet.
+        XCTAssertTrue(
+            app.staticTexts["Analyse"].waitForExistence(timeout: 5),
+            "Jobs sheet should list the active demo job",
+        )
+        attach(app, "jobs")
+    }
+
     /// Tapping a project card opens its read-only detail.
     func testTapProjectOpensDetail() {
         let app = launchDemo(["--demo-screen", "pilot"])

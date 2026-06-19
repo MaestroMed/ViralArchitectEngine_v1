@@ -108,6 +108,15 @@ enum DemoData {
             status: "imported", projectId: "demo-proj-1", estimatedScore: 68, detectedAt: "2026-06-14T23:00:00.000000",
         ),
     ]
+
+    /// Demo in-flight job (drives the Pilot live overlay + Jobs sheet).
+    static let jobs: [Job] = [
+        Job(
+            id: "demo-job-1", type: "analyze", projectId: "demo-proj-2", status: "running",
+            progress: 62, stage: "transcription", message: "Transcription en cours", error: nil,
+            createdAt: "2026-06-15T09:40:00.000000", startedAt: "2026-06-15T09:41:00.000000", completedAt: nil,
+        ),
+    ]
 }
 
 /// Single source of truth for launch-time flags.

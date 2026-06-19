@@ -8,6 +8,12 @@ struct ProjectCard: View {
     let api: ForgeAPI
     /// Demo mode renders a deterministic gradient instead of hitting the engine.
     var demo: Bool = false
+    /// Live job for this project from the WS feed (drives the progress overlay).
+    var liveJob: Job? = nil
+    /// Fresher status from a WS PROJECT_UPDATE, if any (overrides the fetched one).
+    var statusOverride: String? = nil
+
+    private var effectiveStatus: String { statusOverride ?? project.status }
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -24,12 +30,30 @@ struct ProjectCard: View {
                         chip(platform, system: "dot.radiowaves.up.forward")
                     }
                 }
-                metaRow
+                if let job = liveJob, job.isActive {
+                    liveProgress(job)
+                } else {
+                    metaRow
+                }
             }
             Spacer(minLength: 0)
         }
         .padding(14)
         .forgeGlassCard(cornerRadius: 18)
+    }
+
+    /// Replaces the metrics row with a live progress bar while a job runs.
+    private func liveProgress(_ job: Job) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ProgressView(value: job.fraction).tint(Theme.accent)
+            HStack(spacing: 6) {
+                Image(systemName: "bolt.fill").font(.system(size: 9)).foregroundStyle(Theme.accent)
+                Text(job.stage?.isEmpty == false ? "\(job.typeLabel) · \(job.stage!)" : job.typeLabel)
+                    .font(.caption2).foregroundStyle(Theme.accent).lineLimit(1)
+                Spacer(minLength: 0)
+                Text("\(Int(job.progress))%").font(.caption2.monospacedDigit()).foregroundStyle(Theme.textSecondary)
+            }
+        }
     }
 
     // MARK: Thumbnail (16:9 source frame)
@@ -74,14 +98,15 @@ struct ProjectCard: View {
     // MARK: Status + metrics
 
     private var statusPill: some View {
-        HStack(spacing: 4) {
-            Circle().fill(project.statusColor).frame(width: 6, height: 6)
-            Text(project.statusLabel)
+        let color = Project.statusColor(effectiveStatus)
+        return HStack(spacing: 4) {
+            Circle().fill(color).frame(width: 6, height: 6)
+            Text(Project.statusLabel(effectiveStatus))
                 .font(.caption2.weight(.semibold))
-                .foregroundStyle(project.statusColor)
+                .foregroundStyle(color)
         }
         .padding(.horizontal, 7).padding(.vertical, 3)
-        .background(project.statusColor.opacity(0.14))
+        .background(color.opacity(0.14))
         .clipShape(Capsule())
     }
 

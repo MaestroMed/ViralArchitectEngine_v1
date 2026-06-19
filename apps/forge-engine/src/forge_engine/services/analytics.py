@@ -445,6 +445,154 @@ class AnalyticsService:
 
         return summary
 
+    # ------------------------------------------------------------------
+    # DB-backed dashboard API — consumed by /v1/analytics/* and the mobile
+    # Stats tab. Figures are derived from the clip queue (real); external
+    # view/engagement metrics stay 0 until a publisher records them.
+    # ------------------------------------------------------------------
+
+    async def get_overview(self) -> dict:
+        """Quick KPI snapshot from the clip queue."""
+        from datetime import timedelta
+
+        from sqlalchemy import func, select
+
+        from forge_engine.core.database import async_session_maker
+        from forge_engine.models.review import ClipQueue
+
+        async with async_session_maker() as db:
+            total = (await db.execute(select(func.count()).select_from(ClipQueue))).scalar() or 0
+            avg_score = (await db.execute(select(func.avg(ClipQueue.viral_score)))).scalar() or 0.0
+            top_score = (await db.execute(select(func.max(ClipQueue.viral_score)))).scalar() or 0.0
+            status_rows = (
+                await db.execute(select(ClipQueue.status, func.count()).group_by(ClipQueue.status))
+            ).all()
+            week_ago = datetime.utcnow() - timedelta(days=7)
+            last7 = (
+                await db.execute(
+                    select(func.count()).select_from(ClipQueue).where(ClipQueue.created_at >= week_ago)
+                )
+            ).scalar() or 0
+
+        counts = dict(status_rows)
+        return {
+            "totalClips": int(total),
+            "pendingReview": int(counts.get("pending_review", 0)),
+            "approved": int(counts.get("approved", 0)),
+            "published": int(counts.get("published", 0)),
+            "rejected": int(counts.get("rejected", 0)),
+            "scheduled": int(counts.get("scheduled", 0)),
+            "clipsLast7Days": int(last7),
+            "avgViralScore": round(float(avg_score), 1),
+            "topViralScore": round(float(top_score), 1),
+            "totalViews": 0,
+            "totalEngagement": 0,
+        }
+
+    async def get_top_clips(self, limit: int = 10, metric: str = "score", days: int = 30) -> list[dict]:
+        """Top clips, ranked by viral score (no external view data yet)."""
+        from sqlalchemy import select
+
+        from forge_engine.core.database import async_session_maker
+        from forge_engine.models.review import ClipQueue
+
+        async with async_session_maker() as db:
+            rows = (
+                await db.execute(
+                    select(ClipQueue).order_by(ClipQueue.viral_score.desc()).limit(max(1, min(limit, 100)))
+                )
+            ).scalars().all()
+
+        return [
+            {
+                "clipId": c.id,
+                "title": c.title,
+                "viralScore": round(float(c.viral_score or 0.0), 1),
+                "status": c.status,
+                "channelName": c.channel_name,
+                "duration": float(c.duration or 0.0),
+                "createdAt": c.created_at.isoformat() if c.created_at else None,
+                "views": 0,
+            }
+            for c in rows
+        ]
+
+    async def get_trends(
+        self, project_id: str | None = None, days: int = 30, granularity: str = "day"
+    ) -> dict:
+        """Clip production over time (bucketed per day)."""
+        from collections import Counter
+        from datetime import timedelta
+
+        from sqlalchemy import select
+
+        from forge_engine.core.database import async_session_maker
+        from forge_engine.models.review import ClipQueue
+
+        since = datetime.utcnow() - timedelta(days=max(1, days))
+        async with async_session_maker() as db:
+            q = select(ClipQueue.created_at).where(ClipQueue.created_at >= since)
+            if project_id:
+                q = q.where(ClipQueue.project_id == project_id)
+            dates = (await db.execute(q)).scalars().all()
+
+        buckets = Counter(d.date().isoformat() for d in dates if d)
+        points = [{"date": day, "clips": n, "views": 0} for day, n in sorted(buckets.items())]
+        return {"granularity": granularity, "periodDays": days, "points": points}
+
+    async def get_dashboard(self, project_id: str | None = None, days: int = 30) -> dict:
+        """Combined snapshot for the mobile Stats tab."""
+        return {
+            "overview": await self.get_overview(),
+            "topClips": await self.get_top_clips(limit=5, metric="score", days=days),
+            "trends": await self.get_trends(project_id=project_id, days=days),
+        }
+
+    async def get_project_stats(self, project_id: str, days: int = 30) -> dict:
+        """Per-project clip stats."""
+        from sqlalchemy import func, select
+
+        from forge_engine.core.database import async_session_maker
+        from forge_engine.models.review import ClipQueue
+
+        async with async_session_maker() as db:
+            total = (
+                await db.execute(
+                    select(func.count()).select_from(ClipQueue).where(ClipQueue.project_id == project_id)
+                )
+            ).scalar() or 0
+            avg_score = (
+                await db.execute(
+                    select(func.avg(ClipQueue.viral_score)).where(ClipQueue.project_id == project_id)
+                )
+            ).scalar() or 0.0
+        return {
+            "projectId": project_id,
+            "totalClips": int(total),
+            "avgViralScore": round(float(avg_score), 1),
+            "periodDays": days,
+        }
+
+    async def get_clip_stats(self, clip_id: str):
+        """External performance for a clip — none recorded yet (endpoint maps None to an empty payload)."""
+        return None
+
+    async def record_event(self, **kwargs) -> None:
+        """No-op until an events table exists; keeps the endpoint from 500ing."""
+        logger.debug("analytics event ignored (no store): %s", kwargs.get("event_type"))
+
+    async def update_clip_performance(self, **kwargs) -> None:
+        """No-op until external performance ingestion is wired."""
+        logger.debug("clip performance update ignored (no store): %s", kwargs.get("clip_id"))
+
+    async def export_data(self, project_id: str | None = None, format: str = "json", days: int = 90) -> dict:
+        """Export the clip-derived analytics."""
+        return {
+            "overview": await self.get_overview(),
+            "topClips": await self.get_top_clips(limit=1000, days=days),
+            "format": format,
+        }
+
     def get_cached_metrics(self, platform: Platform | None = None) -> list[VideoMetrics]:
         """Get all cached metrics, optionally filtered by platform."""
         metrics = list(self._cache.values())

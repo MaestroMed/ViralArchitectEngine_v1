@@ -122,8 +122,24 @@ struct SourcesView: View {
                         }
                     }
                 }
+                if channels.count >= 2 {
+                    Button {
+                        Task { await checkAllChannels() }
+                    } label: {
+                        Label("Vérifier toutes les chaînes", systemImage: "arrow.triangle.2.circlepath")
+                            .font(.subheadline.weight(.medium))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.glass)
+                    .disabled(!busyChannels.isEmpty)
+                }
             }
         }
+    }
+
+    private func checkAllChannels() async {
+        for channel in channels { await checkChannel(channel) }
     }
 
     // MARK: - Detected VODs

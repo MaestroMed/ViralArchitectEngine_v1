@@ -248,7 +248,7 @@ struct HomePosterCard: View {
                 .frame(width: 150, height: 200)
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .overlay(alignment: .topLeading) {
-                    ScoreBadge(score: clip.viralScore).padding(8)
+                    ScoreBadge(score: clip.viralScore, large: true).padding(8)
                 }
                 .overlay(alignment: .bottomTrailing) {
                     Text(formatDuration(clip.duration))

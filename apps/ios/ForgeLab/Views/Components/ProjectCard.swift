@@ -99,16 +99,8 @@ struct ProjectCard: View {
     // MARK: Status + metrics
 
     private var statusPill: some View {
-        let color = Project.statusColor(effectiveStatus)
-        return HStack(spacing: 4) {
-            Circle().fill(color).frame(width: 6, height: 6)
-            Text(Project.statusLabel(effectiveStatus))
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(color)
-        }
-        .padding(.horizontal, 7).padding(.vertical, 3)
-        .background(color.opacity(0.14))
-        .clipShape(Capsule())
+        StatusPill(text: Project.statusLabel(effectiveStatus),
+                   color: Project.statusColor(effectiveStatus))
     }
 
     private func chip(_ text: String, system: String) -> some View {

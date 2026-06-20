@@ -59,3 +59,54 @@ struct PressableCardStyle: ButtonStyle {
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: configuration.isPressed)
     }
 }
+
+/// One canonical status pill (dot + tinted label) so project lifecycle and clip
+/// review states read identically everywhere.
+struct StatusPill: View {
+    let text: String
+    let color: Color
+    var body: some View {
+        HStack(spacing: 4) {
+            Circle().fill(color).frame(width: 6, height: 6)
+            Text(text)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(color)
+        }
+        .padding(.horizontal, 7).padding(.vertical, 3)
+        .background(color.opacity(0.14))
+        .clipShape(Capsule())
+    }
+}
+
+/// Engine-unreachable card with real recovery actions (the audit found
+/// dead-end "Moteur injoignable" text with no retry anywhere).
+struct EngineErrorCard: View {
+    var title: String = "Moteur injoignable"
+    var onRetry: () -> Void
+    var onSettings: () -> Void
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "wifi.exclamationmark")
+                .font(.largeTitle).foregroundStyle(Theme.danger)
+                .accessibilityHidden(true)
+            Text(title).font(.headline).foregroundStyle(Theme.textPrimary)
+            Text("Vérifie que le moteur tourne et que l'URL + la clé sont bonnes.")
+                .font(.subheadline).foregroundStyle(Theme.textSecondary)
+                .multilineTextAlignment(.center)
+            HStack(spacing: 12) {
+                Button(action: onRetry) {
+                    Label("Réessayer", systemImage: "arrow.clockwise").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.glassProminent).tint(Theme.accent)
+                Button(action: onSettings) {
+                    Label("Réglages", systemImage: "gearshape").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.glass)
+            }
+            .font(.subheadline.weight(.semibold))
+        }
+        .frame(maxWidth: .infinity).padding(24)
+        .forgeGlassCard(cornerRadius: 18)
+    }
+}

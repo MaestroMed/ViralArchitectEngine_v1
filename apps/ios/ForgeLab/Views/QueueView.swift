@@ -55,6 +55,9 @@ struct QueueView: View {
         ScrollView {
             GlassEffectContainer(spacing: 14) {
                 LazyVStack(spacing: 14) {
+                    if !Calendar.current.isDateInToday(date) {
+                        todayJumpChip
+                    }
                     ForEach(clips) { clip in
                         NavigationLink {
                             ClipDetailView(api: api, clip: clip, demo: demoClips != nil)
@@ -80,6 +83,28 @@ struct QueueView: View {
         .overlay(alignment: .bottom) {
             if selectionMode { batchBar }
         }
+    }
+
+    /// Jump back to today's clips — the queue defaults to "Hier", so fresh
+    /// output is otherwise invisible without a manual date swipe.
+    private var todayJumpChip: some View {
+        Button {
+            withAnimation { date = Date() }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "sparkles")
+                Text("Voir les clips d'aujourd'hui")
+                Spacer()
+                Image(systemName: "arrow.right")
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.white)
+            .padding(.vertical, 11).padding(.horizontal, 14)
+            .frame(maxWidth: .infinity)
+            .forgeGlassAccent(cornerRadius: 14)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("queue.jumpToday")
     }
 
     private var batchBar: some View {

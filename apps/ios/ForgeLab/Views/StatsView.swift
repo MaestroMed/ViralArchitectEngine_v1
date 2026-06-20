@@ -182,13 +182,21 @@ struct StatsView: View {
         }
     }
 
+    @ViewBuilder
     private var emptyState: some View {
-        EmptyStateCard(
-            icon: loadFailed ? "wifi.exclamationmark" : "chart.bar",
-            title: loadFailed ? "Stats indisponibles" : "Pas encore de stats",
-            message: loadFailed ? "Le moteur est injoignable."
-                : "Les statistiques apparaîtront dès qu'il y a des clips.",
-        )
+        if loadFailed {
+            EngineErrorCard(
+                title: "Stats indisponibles",
+                onRetry: { Task { await load() } },
+                onSettings: { settingsOpen = true },
+            )
+        } else {
+            EmptyStateCard(
+                icon: "chart.bar",
+                title: "Pas encore de stats",
+                message: "Les statistiques apparaîtront dès qu'il y a des clips.",
+            )
+        }
     }
 
     // MARK: Data

@@ -39,13 +39,7 @@ struct ClipCard: View {
                         .font(.caption2)
                         .foregroundStyle(Theme.textSecondary)
                     if clip.status != "pending_review" {
-                        Text(statusLabel(clip.status))
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(statusColor(clip.status))
-                            .clipShape(Capsule())
+                        StatusPill(text: statusLabel(clip.status), color: statusColor(clip.status))
                     }
                 }
             }
@@ -125,13 +119,20 @@ struct ClipCard: View {
 
 struct ScoreBadge: View {
     let score: Double
+    /// Larger, glowing treatment for hero placements (poster covers, top clips).
+    var large: Bool = false
+
+    private var color: Color { Theme.scoreColor(score) }
+    private var isHot: Bool { score >= 75 }   // a "winner" — make it pop
+
     var body: some View {
         Text("\(Int(score.rounded()))")
-            .font(.caption.weight(.bold).monospacedDigit())
+            .font((large ? Font.subheadline : Font.caption).weight(.bold).monospacedDigit())
             .foregroundStyle(.white)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(Theme.scoreColor(score))
+            .padding(.horizontal, large ? 10 : 8)
+            .padding(.vertical, large ? 4 : 3)
+            .background(color)
             .clipShape(Capsule())
+            .shadow(color: isHot ? color.opacity(0.7) : .clear, radius: isHot ? (large ? 8 : 5) : 0)
     }
 }

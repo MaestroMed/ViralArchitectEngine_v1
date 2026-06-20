@@ -32,6 +32,7 @@ struct PilotView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     statusHeader
+                    if let warning = healthWarning { warningBanner(warning) }
                     libraryHeader
                     libraryBody
                 }
@@ -122,6 +123,29 @@ struct PilotView: View {
         .accessibilityIdentifier("pilot.jobs")
     }
 
+    /// Predictive heads-up from data we already fetch (disk + job failures).
+    private var healthWarning: String? {
+        if let free = caps?.storage?.freeSpace, free > 0, free < 20 * 1024 * 1024 * 1024 {
+            let f = ByteCountFormatter(); f.countStyle = .file; f.allowedUnits = [.useGB]
+            return "Espace disque faible — \(f.string(fromByteCount: Int64(free))) restants"
+        }
+        if let failed = jobStats?.failed, failed > 0 {
+            return "\(failed) job\(failed > 1 ? "s" : "") en échec récemment"
+        }
+        return nil
+    }
+
+    private func warningBanner(_ text: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Theme.danger)
+            Text(text).font(.subheadline.weight(.medium)).foregroundStyle(Theme.textPrimary)
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.danger.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
+    }
+
     private var capabilityChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
@@ -179,14 +203,21 @@ struct PilotView: View {
         }
     }
 
+    @ViewBuilder
     private var emptyState: some View {
-        EmptyStateCard(
-            icon: loadFailed ? "wifi.exclamationmark" : "tray",
-            title: loadFailed ? "Bibliothèque indisponible" : "Aucun projet",
-            message: loadFailed
-                ? "Le moteur est injoignable. Vérifie l'URL et la clé dans les réglages."
-                : "Les VOD traitées par le moteur apparaîtront ici.",
-        )
+        if loadFailed {
+            EngineErrorCard(
+                title: "Bibliothèque indisponible",
+                onRetry: { Task { await load() } },
+                onSettings: { settingsOpen = true },
+            )
+        } else {
+            EmptyStateCard(
+                icon: "tray",
+                title: "Aucun projet",
+                message: "Les VOD traitées par le moteur apparaîtront ici. Importe-en une dans Sources →",
+            )
+        }
     }
 
     // MARK: - Data

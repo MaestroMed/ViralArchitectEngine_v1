@@ -18,8 +18,11 @@ struct TriageDeckView: View {
     @State private var approvedCount = 0
     @State private var exportedIds: Set<String> = []
     @State private var busy = false
+    @State private var decidingClipId: String?   // re-entrancy guard during fly-away
     @State private var decisionTick = 0          // success haptic
     @State private var rejectTick = 0            // warning haptic
+
+    private var locked: Bool { busy || decidingClipId != nil }
 
     private let swipeThreshold: CGFloat = 130
 
@@ -84,8 +87,8 @@ struct TriageDeckView: View {
                 .overlay(decisionOverlay)
                 .gesture(
                     DragGesture()
-                        .onChanged { drag = $0.translation }
-                        .onEnded { handleDragEnd($0.translation) }
+                        .onChanged { if !locked { drag = $0.translation } }
+                        .onEnded { if !locked { handleDragEnd($0.translation) } }
                 )
                 .animation(.spring(response: 0.35, dampingFraction: 0.8), value: drag)
         }
@@ -165,7 +168,7 @@ struct TriageDeckView: View {
                 .frame(maxWidth: .infinity).padding(.vertical, 14)
             }
             .buttonStyle(.glassProminent).tint(Theme.accent)
-            .opacity(busy ? 0.6 : 1).disabled(busy)
+            .opacity(locked ? 0.6 : 1).disabled(locked)
             circleButton("checkmark", Theme.success) { decide(approve: true) }
                 .accessibilityLabel("Approuver")
         }
@@ -177,7 +180,7 @@ struct TriageDeckView: View {
                 .frame(width: 58, height: 58).background(color.opacity(0.14), in: Circle())
                 .overlay(Circle().stroke(color.opacity(0.4), lineWidth: 1))
         }
-        .disabled(busy)
+        .disabled(locked)
     }
 
     private var finishedState: some View {
@@ -215,7 +218,8 @@ struct TriageDeckView: View {
     }
 
     private func decide(approve: Bool) {
-        guard let clip = current else { return }
+        guard let clip = current, !locked else { return }   // one decision per card
+        decidingClipId = clip.id
         if approve { approvedCount += 1; decisionTick += 1 } else { rejectTick += 1 }
         Task {
             if !demo {
@@ -228,19 +232,23 @@ struct TriageDeckView: View {
 
     private func advance() {
         player?.pause()
+        player = nil   // release the old player before the next card prepares one
         // small delay lets the fly-away animation read before the next card snaps in
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+            decidingClipId = nil
             drag = .zero
             index += 1
         }
     }
 
+    /// Export the current clip, then advance (export auto-approves on save).
     private func export() async {
-        guard let clip = current, !demo else {
-            if let id = current?.id { exportedIds.insert(id) }
-            return
+        guard let clip = current, !locked else { return }
+        if demo {
+            exportedIds.insert(clip.id); decisionTick += 1
+            advance(); return
         }
-        busy = true; defer { busy = false }
+        busy = true
         let downloader = BundleDownloader(api: api)
         if let outcome = try? await downloader.saveToPhotosAndShare(clip: clip), outcome.savedToPhotos {
             exportedIds.insert(clip.id)
@@ -248,10 +256,14 @@ struct TriageDeckView: View {
             decisionTick += 1
             try? await api.approve(clipId: clip.id)
         }
+        busy = false
+        advance()
     }
 
     private func preparePlayer() async {
-        guard !demo, let clip = current else { player = nil; return }
+        player?.pause()
+        player = nil
+        guard !demo, let clip = current else { return }
         let asset = AVURLAsset(
             url: api.videoURL(clipId: clip.id),
             options: ["AVURLAssetHTTPHeaderFieldsKey": ["X-API-Key": api.apiKey]],

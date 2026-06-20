@@ -100,9 +100,8 @@ struct PilotView: View {
         Button { jobsSheetOpen = true } label: {
             if liveActiveCount > 0 {
                 HStack(spacing: 6) {
-                    // Static icon (not an indeterminate spinner — those animate
-                    // forever and stall XCUITest's idle sync).
                     Image(systemName: "bolt.fill").font(.caption2).foregroundStyle(Theme.accent)
+                        .forgePulse()   // "live" heartbeat (off in demo/Reduce-Motion)
                     Text("\(liveActiveCount) en cours")
                         .font(.caption.weight(.semibold)).foregroundStyle(Theme.accent)
                 }

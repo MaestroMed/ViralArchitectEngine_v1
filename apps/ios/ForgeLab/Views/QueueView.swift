@@ -93,7 +93,7 @@ struct QueueView: View {
     }
 
     private func exportApproved() async {
-        guard demoClips == nil else { return }   // demo: no network
+        guard demoClips == nil, !exportInFlight else { return }   // demo / re-entry
         let toExport = approvedClips
         exportInFlight = true; exportProgress = 0
         defer { exportInFlight = false }

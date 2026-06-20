@@ -68,7 +68,7 @@ final class BundleDownloader {
     }
 
     /// Export several clips sequentially to Photos, collecting their captions.
-    func exportBatch(clips: [Clip], onProgress: @escaping (Int, Int) -> Void) async -> BatchOutcome {
+    func exportBatch(clips: [Clip], onProgress: @escaping @MainActor (Int, Int) -> Void) async -> BatchOutcome {
         var out = BatchOutcome()
         let total = clips.count
         for (i, clip) in clips.enumerated() {

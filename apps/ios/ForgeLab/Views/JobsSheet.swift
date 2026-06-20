@@ -77,6 +77,7 @@ struct JobsSheet: View {
             }
             if job.isActive {
                 ProgressView(value: job.fraction).tint(Theme.accent)
+                    .forgeShimmer(active: true)
                 HStack {
                     if let stage = job.stage, !stage.isEmpty {
                         Text(stage).font(.caption2).foregroundStyle(Theme.textSecondary)

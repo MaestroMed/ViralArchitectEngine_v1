@@ -47,6 +47,7 @@ struct ProjectCard: View {
         VStack(alignment: .leading, spacing: 4) {
             ProgressView(value: job.fraction).tint(Theme.accent)
                 .animation(.easeInOut(duration: 0.3), value: job.fraction)
+                .forgeShimmer(active: job.isActive)   // running = alive
             HStack(spacing: 6) {
                 Image(systemName: "bolt.fill").font(.system(size: 9)).foregroundStyle(Theme.accent)
                 Text(job.stage?.isEmpty == false ? "\(job.typeLabel) · \(job.stage!)" : job.typeLabel)

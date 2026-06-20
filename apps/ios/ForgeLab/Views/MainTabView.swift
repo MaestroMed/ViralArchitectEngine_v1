@@ -15,6 +15,7 @@ struct MainTabView: View {
     var demoChannels: [WatchedChannel]? = nil
     var demoVods: [DetectedVOD]? = nil
     var demoDashboard: AnalyticsDashboard? = nil
+    @EnvironmentObject private var router: DeepLinkRouter
     @State private var selectedTab: Int
 
     init(api: ForgeAPI,
@@ -52,5 +53,8 @@ struct MainTabView: View {
                 .tag(4)
         }
         .tint(Theme.accent)
+        .onChange(of: router.target) { _, new in
+            if let new { selectedTab = new; router.target = nil }   // deep-link → tab
+        }
     }
 }

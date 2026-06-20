@@ -43,6 +43,11 @@ targets:
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: false
           NSAllowsLocalNetworking: true
+        # Deep links (notification taps → a tab): forge-lab://clips etc.
+        CFBundleURLTypes:
+          - CFBundleURLName: com.maestromed.forgelab
+            CFBundleURLSchemes:
+              - forge-lab
     # No special entitlements: LAN access to the engine is granted at runtime
     # via Info.plist NSAppTransportSecurity + NSLocalNetworkUsageDescription.
     # (A HotspotConfiguration entitlement here broke automatic-signing archives:

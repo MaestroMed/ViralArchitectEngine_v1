@@ -6,9 +6,11 @@ import Foundation
 // TRANSCRIPT_CHUNK) only reach project-channel subscribers, which we never join
 // — so the global socket is exactly the live-job feed Pilote needs, no throttle.
 //
-// The WS routes are unauthenticated server-side (no Depends), so we don't strictly
-// need the key — we send it anyway (harmless, future-proof). Reconnects with
-// capped exponential backoff; an app-level ping keeps NAT/tunnel warm.
+// When the engine requires auth (FORGE_BIND_LAN / FORGE_REQUIRE_AUTH) the WS
+// handshake is gated server-side by authorize_websocket(): the key must arrive
+// as the `?key=` query param (URLSession also sends it as the X-API-Key header
+// below, which the server accepts as a fallback). Reconnects with capped
+// exponential backoff; an app-level ping keeps NAT/tunnel warm.
 @MainActor
 final class ForgeSocket: ObservableObject {
     /// Latest state per job id (active + recently-finished).
@@ -84,7 +86,9 @@ final class ForgeSocket: ObservableObject {
         guard var comps = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else { return nil }
         comps.scheme = (comps.scheme == "https") ? "wss" : "ws"
         comps.path = "/v1/ws"
-        comps.query = nil
+        // Carry the key as `?key=` so the handshake authenticates even off-LAN
+        // via the cloudflared tunnel. URLComponents percent-encodes the value.
+        comps.queryItems = apiKey.isEmpty ? nil : [URLQueryItem(name: "key", value: apiKey)]
         return comps.url
     }
 
@@ -116,7 +120,13 @@ final class ForgeSocket: ObservableObject {
         switch env.type {
         case "JOB_UPDATE":
             if let job = try? JSONDecoder().decode(WSPayload<Job>.self, from: data).payload {
+                let wasActive = liveJobs[job.id]?.status != "completed"
                 liveJobs[job.id] = job
+                // Notify on the analyze/render → completed edge (clips are ready).
+                if wasActive, job.status == "completed",
+                   job.type == "analyze" || job.type == "render_final" {
+                    LocalNotifier.clipsReady()
+                }
             }
         case "PROJECT_UPDATE":
             if let p = try? JSONDecoder().decode(WSPayload<ProjectStatusUpdate>.self, from: data).payload {

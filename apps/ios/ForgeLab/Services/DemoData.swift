@@ -146,7 +146,7 @@ enum DemoData {
             tags: ["rage", "outplay", "clutch", "hype"]),
         hookText: "Le outplay de Cabochard là c'est ILLÉGAL",
         topicLabel: "KC vs G2 — la diff top",
-        transcript: nil)
+        transcript: "Le outplay de Cabochard là c'est ILLÉGAL frère, regarde, regarde ce qu'il fait ! Non mais attends, il a juke les trois en même temps, c'est pas possible. KC vs G2, la diff top qui fait basculer toute la game, c'est de la folie.")
 
     /// Demo in-flight job (drives the Pilot live overlay + Jobs sheet).
     static let jobs: [Job] = [

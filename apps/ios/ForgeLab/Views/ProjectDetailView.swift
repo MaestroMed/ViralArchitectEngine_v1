@@ -14,6 +14,7 @@ struct ProjectDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 hero
+                pipelineTimeline
                 metadataCard
                 if let url = project.metadata?.importUrl, let link = URL(string: url) {
                     sourceLink(link, raw: url)
@@ -83,6 +84,56 @@ struct ProjectDetailView: View {
         }
         .padding(.horizontal, 8).padding(.vertical, 3)
         .background(.black.opacity(0.35)).clipShape(Capsule())
+    }
+
+    // MARK: Pipeline timeline
+
+    private static let stages: [(label: String, icon: String)] = [
+        ("Téléch.", "arrow.down.circle.fill"),
+        ("Ingestion", "tray.and.arrow.down.fill"),
+        ("Analyse", "waveform"),
+        ("Prêt", "checkmark.seal.fill"),
+    ]
+
+    private static func stageIndex(_ status: String) -> Int {
+        switch status {
+        case "created", "downloading": return 0
+        case "ingesting", "ingested": return 1
+        case "analyzing": return 2
+        case "analyzed", "ready": return 3
+        default: return 0
+        }
+    }
+
+    private var pipelineTimeline: some View {
+        let current = Self.stageIndex(project.status)
+        let isError = project.status == "error"
+        return HStack(spacing: 0) {
+            ForEach(Array(Self.stages.enumerated()), id: \.offset) { idx, stage in
+                VStack(spacing: 6) {
+                    Image(systemName: isError && idx == current ? "exclamationmark.triangle.fill" : stage.icon)
+                        .font(.subheadline)
+                        .foregroundStyle(stageColor(idx, current, isError))
+                    Text(stage.label)
+                        .font(.caption2)
+                        .foregroundStyle(idx <= current ? Theme.textPrimary : Theme.textSecondary)
+                }
+                if idx < Self.stages.count - 1 {
+                    Rectangle()
+                        .fill(idx < current ? Theme.accent : Theme.textSecondary.opacity(0.2))
+                        .frame(height: 2).frame(maxWidth: .infinity)
+                        .padding(.bottom, 16)
+                }
+            }
+        }
+        .padding(.vertical, 12).padding(.horizontal, 14)
+        .frame(maxWidth: .infinity)
+        .forgeGlassCard(cornerRadius: 16)
+    }
+
+    private func stageColor(_ idx: Int, _ current: Int, _ isError: Bool) -> Color {
+        if isError && idx == current { return Theme.danger }
+        return idx <= current ? Theme.accent : Theme.textSecondary.opacity(0.4)
     }
 
     // MARK: Metadata

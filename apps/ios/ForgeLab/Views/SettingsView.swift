@@ -22,6 +22,19 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            if !settings.isConfigured {
+                Section {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Bienvenue 👋")
+                            .font(.title2.weight(.bold)).foregroundStyle(Theme.textPrimary)
+                        Text("Connecte l'app au moteur FORGE qui tourne sur ton Mac pour piloter tes clips à distance — surveiller, reviewer, exporter.")
+                            .font(.subheadline).foregroundStyle(Theme.textSecondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+                .listRowBackground(Color.clear)
+            }
+
             Section {
                 TextField("192.168.1.50", text: $host)
                     .textContentType(.URL)

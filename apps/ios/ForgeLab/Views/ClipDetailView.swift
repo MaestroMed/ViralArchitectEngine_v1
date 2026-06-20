@@ -30,6 +30,9 @@ struct ClipDetailView: View {
                     if let seg = model.segment {
                         WhyCard(segment: seg).transition(.opacity)
                     }
+                    if let t = model.segment?.transcript, !t.isEmpty {
+                        TranscriptCard(transcript: t).transition(.opacity)
+                    }
                     actions
                     if let outcome = model.lastOutcome {
                         OutcomeBanner(outcome: outcome, onOpenSettings: openAppSettings)
@@ -320,6 +323,34 @@ private struct WhyCard: View {
                 }
             }
         }
+    }
+}
+
+/// Collapsible transcript — lets the user catch a Whisper hallucination before
+/// the clip ships.
+private struct TranscriptCard: View {
+    let transcript: String
+    @State private var expanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Label("Transcription", systemImage: "text.quote")
+                    .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.textPrimary)
+                Spacer()
+                Button(expanded ? "Réduire" : "Voir tout") {
+                    withAnimation { expanded.toggle() }
+                }
+                .font(.caption.weight(.semibold)).foregroundStyle(Theme.accent)
+            }
+            Text(transcript)
+                .font(.caption).foregroundStyle(Theme.textSecondary)
+                .lineLimit(expanded ? nil : 3)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .forgeGlassCard(cornerRadius: 16)
     }
 }
 

@@ -20,9 +20,25 @@ final class BundleDownloader {
         var savedToPhotos = false
         var captionCopied = false
         var photosError: String?
+        var caption: String?
     }
 
-    func saveToPhotosAndShare(clip: Clip) async throws -> Outcome {
+    /// One caption per exported clip (for the batch "Légendes" sheet).
+    struct CaptionItem: Identifiable {
+        let id = UUID()
+        let title: String
+        let caption: String
+    }
+
+    struct BatchOutcome {
+        var saved = 0
+        var failed = 0
+        var captions: [CaptionItem] = []
+    }
+
+    /// `setPasteboard` is false in batch mode — the captions go to a sheet
+    /// instead of each clip clobbering the previous one on the clipboard.
+    func saveToPhotosAndShare(clip: Clip, setPasteboard: Bool = true) async throws -> Outcome {
         let zipURL = try await api.downloadBundle(clipId: clip.id)
         defer { try? FileManager.default.removeItem(at: zipURL) }
         let extracted = try Self.extractZip(at: zipURL)
@@ -38,16 +54,37 @@ final class BundleDownloader {
             outcome.photosError = error.localizedDescription
         }
 
-        // 2. Caption clipboard. Prefer the server-prebuilt caption in
-        //    metadata.json (it already joins title + desc + #hashtags
-        //    consistently with what we'd compute locally).
+        // 2. Caption. Prefer the server-prebuilt caption in metadata.json.
         let caption = extracted.caption ?? clip.fallbackCaption
         if !caption.isEmpty {
-            UIPasteboard.general.string = caption
-            outcome.captionCopied = true
+            outcome.caption = caption
+            if setPasteboard {
+                UIPasteboard.general.string = caption
+                outcome.captionCopied = true
+            }
         }
 
         return outcome
+    }
+
+    /// Export several clips sequentially to Photos, collecting their captions.
+    func exportBatch(clips: [Clip], onProgress: @escaping (Int, Int) -> Void) async -> BatchOutcome {
+        var out = BatchOutcome()
+        let total = clips.count
+        for (i, clip) in clips.enumerated() {
+            onProgress(i, total)
+            do {
+                let outcome = try await saveToPhotosAndShare(clip: clip, setPasteboard: false)
+                if outcome.savedToPhotos { out.saved += 1 } else { out.failed += 1 }
+                if let cap = outcome.caption {
+                    out.captions.append(CaptionItem(title: clip.title ?? "Clip", caption: cap))
+                }
+            } catch {
+                out.failed += 1
+            }
+        }
+        onProgress(total, total)
+        return out
     }
 
     /// Open TikTok (or the share sheet if it isn't installed). The user finishes

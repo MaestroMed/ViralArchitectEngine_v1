@@ -17,6 +17,14 @@ struct QueueView: View {
     @State private var selectionMode = false
     @State private var settingsOpen = false
     @State private var batchInFlight = false
+    @State private var triageOpen = false
+    @State private var exportInFlight = false
+    @State private var exportProgress: Double = 0
+    @State private var captions: [BundleDownloader.CaptionItem] = []
+    @State private var captionsOpen = false
+
+    private var pendingClips: [Clip] { clips.filter { $0.status == "pending_review" } }
+    private var approvedClips: [Clip] { clips.filter { $0.status == "approved" } }
 
     var body: some View {
         NavigationStack {
@@ -26,6 +34,12 @@ struct QueueView: View {
                 .sheet(isPresented: $settingsOpen) {
                     NavigationStack { SettingsView() }
                 }
+                .fullScreenCover(isPresented: $triageOpen) {
+                    TriageDeckView(api: api, clips: pendingClips, demo: demoClips != nil) { _ in
+                        Task { await load() }
+                    }
+                }
+                .sheet(isPresented: $captionsOpen) { CaptionsSheet(captions: captions) }
                 .refreshable { await load() }
                 .task(id: date) { await load() }
         }
@@ -48,7 +62,48 @@ struct QueueView: View {
                     ErrorBanner(message: error)
                 }
             }
+            if !selectionMode, !approvedClips.isEmpty {
+                VStack { Spacer(); exportApprovedBar }
+            }
         }
+    }
+
+    /// One-tap batch export of every approved clip → Photos, captions to a sheet.
+    private var exportApprovedBar: some View {
+        Button {
+            Task { await exportApproved() }
+        } label: {
+            HStack(spacing: 8) {
+                if exportInFlight {
+                    ProgressView().tint(.white)
+                    Text("Export… \(Int(exportProgress * 100))%")
+                } else {
+                    Image(systemName: "square.and.arrow.down.fill")
+                    Text("Télécharger les \(approvedClips.count) approuvés")
+                }
+            }
+            .font(.subheadline.weight(.semibold)).foregroundStyle(.white)
+            .frame(maxWidth: .infinity).padding(.vertical, 14)
+            .forgeGlassAccent(cornerRadius: 18)
+        }
+        .buttonStyle(.plain)
+        .disabled(exportInFlight)
+        .padding()
+        .accessibilityIdentifier("queue.exportApproved")
+    }
+
+    private func exportApproved() async {
+        guard demoClips == nil else { return }   // demo: no network
+        let toExport = approvedClips
+        exportInFlight = true; exportProgress = 0
+        defer { exportInFlight = false }
+        let downloader = BundleDownloader(api: api)
+        let outcome = await downloader.exportBatch(clips: toExport) { done, total in
+            exportProgress = total > 0 ? Double(done) / Double(total) : 0
+        }
+        captions = outcome.captions
+        if !captions.isEmpty { captionsOpen = true }
+        await load()
     }
 
     private var list: some View {
@@ -136,6 +191,15 @@ struct QueueView: View {
         ToolbarItem(placement: .topBarLeading) {
             DatePicker("Date", selection: $date, displayedComponents: .date)
                 .labelsHidden()
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            if !pendingClips.isEmpty {
+                Button { triageOpen = true } label: {
+                    Image(systemName: "rectangle.stack.badge.play.fill").foregroundStyle(Theme.accent)
+                }
+                .accessibilityLabel("Trier les clips en attente")
+                .accessibilityIdentifier("queue.triage")
+            }
         }
         ToolbarItem(placement: .topBarTrailing) {
             Menu {

@@ -141,6 +141,21 @@ final class ForgeLabUITests: XCTestCase {
         attach(app, "queue")
     }
 
+    /// The Triage deck opens full-screen from the queue and shows progress.
+    func testTriageDeckOpens() {
+        let app = launchDemo(["--demo-screen", "queue"])
+        XCTAssertTrue(app.staticTexts["Hier"].waitForExistence(timeout: 15))
+        let triage = app.buttons["queue.triage"]
+        XCTAssertTrue(triage.waitForExistence(timeout: 5), "Triage entry should appear with pending clips")
+        triage.tap()
+        // 3 demo clips are pending_review → the deck counter reads "1 / 3".
+        XCTAssertTrue(
+            app.staticTexts["1 / 3"].waitForExistence(timeout: 5),
+            "Triage deck should show the progress counter",
+        )
+        attach(app, "triage")
+    }
+
     /// Tapping a clip opens the detail screen with the download action.
     func testTapClipOpensDetail() {
         let app = launchDemo(["--demo-screen", "queue"])

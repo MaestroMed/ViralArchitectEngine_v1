@@ -27,6 +27,9 @@ struct ClipDetailView: View {
                 VStack(spacing: 16) {
                     playerCard
                     metadata
+                    if let seg = model.segment {
+                        WhyCard(segment: seg).transition(.opacity)
+                    }
                     actions
                     if let outcome = model.lastOutcome {
                         OutcomeBanner(outcome: outcome, onOpenSettings: openAppSettings)
@@ -36,10 +39,12 @@ struct ClipDetailView: View {
             }
             .padding()
             .animation(.easeInOut(duration: 0.25), value: model.exported)
+            .animation(.easeInOut(duration: 0.25), value: model.segment != nil)
         }
         .background(Theme.background)
         .navigationTitle(clip.title ?? "Clip")
         .navigationBarTitleDisplayMode(.inline)
+        .task { await model.loadSegment() }
         // Distinct haptics per outcome: approve/export = success, reject =
         // warning, failure = error.
         .sensoryFeedback(.success, trigger: model.successTick)
@@ -176,6 +181,7 @@ struct ClipDetailView: View {
 final class DetailModel: ObservableObject {
     let api: ForgeAPI
     let clip: Clip
+    let demo: Bool
     /// nil in demo mode (no network player); the view renders a placeholder.
     let player: AVPlayer?
     private let downloader: BundleDownloader
@@ -184,6 +190,8 @@ final class DetailModel: ObservableObject {
     @Published var lastOutcome: BundleDownloader.Outcome?
     /// True once the clip was saved to Photos — reveals the "Ouvrir TikTok" CTA.
     @Published var exported = false
+    /// The clip's segment (score breakdown + hook + transcript) for "why viral".
+    @Published var segment: Segment?
     // Per-outcome counters so the view can fire DISTINCT haptics.
     @Published var successTick = 0
     @Published var rejectTick = 0
@@ -192,6 +200,7 @@ final class DetailModel: ObservableObject {
     init(api: ForgeAPI, clip: Clip, demo: Bool = false) {
         self.api = api
         self.clip = clip
+        self.demo = demo
         if demo {
             self.player = nil
         } else {
@@ -232,6 +241,13 @@ final class DetailModel: ObservableObject {
         _ = downloader.openTikTokOrShare(from: nil)
     }
 
+    /// Fetch the score breakdown + hook + transcript behind this clip.
+    func loadSegment() async {
+        if demo { segment = DemoData.segment; return }
+        guard !clip.projectId.isEmpty, !clip.segmentId.isEmpty else { return }
+        segment = try? await api.fetchSegment(projectId: clip.projectId, segmentId: clip.segmentId)
+    }
+
     func approve() async {
         busy = true; defer { busy = false }
         try? await api.approve(clipId: clip.id)
@@ -242,6 +258,68 @@ final class DetailModel: ObservableObject {
         busy = true; defer { busy = false }
         try? await api.reject(clipId: clip.id)
         rejectTick += 1
+    }
+}
+
+/// "Pourquoi ce clip" — surfaces the engine's real score breakdown: the hook
+/// line, per-axis component bars, content tags, and any completion caveat.
+private struct WhyCard: View {
+    let segment: Segment
+
+    var body: some View {
+        if let score = segment.score, !score.components.isEmpty {
+            card(score)
+        }
+    }
+
+    private func card(_ score: SegmentScore) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Pourquoi ce clip", systemImage: "sparkles")
+                .font(.headline).foregroundStyle(Theme.accent)
+
+            if let hook = segment.hookText, !hook.isEmpty {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("L'ACCROCHE").font(.caption2.weight(.bold)).tracking(1.2)
+                        .foregroundStyle(Theme.textSecondary)
+                    Text("« \(hook) »").font(.callout).italic().foregroundStyle(Theme.textPrimary)
+                }
+            }
+
+            componentBars(score)
+
+            if let tags = score.tags, !tags.isEmpty {
+                HashtagFlow(tags: tags.map { $0.capitalized })
+            }
+            ForEach(score.caveats, id: \.self) { caveat in
+                Label(caveat, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption2).foregroundStyle(Theme.textSecondary)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .forgeGlassCard(cornerRadius: 16)
+    }
+
+    private func componentBars(_ score: SegmentScore) -> some View {
+        let maxVal = max(score.components.map(\.value).max() ?? 1, 1)
+        return VStack(spacing: 7) {
+            ForEach(score.components) { c in
+                HStack(spacing: 8) {
+                    Text(c.label).font(.caption).foregroundStyle(Theme.textSecondary)
+                        .frame(width: 62, alignment: .leading)
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(Theme.textSecondary.opacity(0.12))
+                            Capsule().fill(Theme.accent.gradient)
+                                .frame(width: max(8, geo.size.width * c.value / maxVal))
+                        }
+                    }
+                    .frame(height: 8)
+                    Text("\(Int(c.value))").font(.caption2.monospacedDigit())
+                        .foregroundStyle(Theme.textPrimary).frame(width: 22, alignment: .trailing)
+                }
+            }
+        }
     }
 }
 

@@ -1,0 +1,33 @@
+{
+  "success": true,
+  "data": {
+    "id": "ee00c499-2036-41b5-8569-6be3f0e22584",
+    "score": {
+      "total": 74.0,
+      "hookStrength": 23.0,
+      "payoff": 6.0,
+      "humourReaction": 14.0,
+      "tensionSurprise": 8.0,
+      "clarityAutonomy": 13.0,
+      "rhythm": 10.0,
+      "reasons": [
+        "Hook: french_streaming",
+        "Hook: french_reaction",
+        "Hook: direct_address",
+        "Hook: setup_phrase",
+        "Hook: intensifier",
+        "Too long (178s — completion drops)",
+        "Combo bonus: strong hook + humour"
+      ],
+      "tags": [
+        "rage",
+        "fail",
+        "humour",
+        "surprise"
+      ]
+    },
+    "hookText": "Il y a une polaire au goût, en fait, c'est ça ?",
+    "topicLabel": "Nation, c'est RER quoi",
+    "transcript": "Nation, c'est RER quoi ? C'est RER... Ah non ? Ah je crois ! C'est surtout con, ouais c'est ah ! Le RER provincial de te"
+  }
+}

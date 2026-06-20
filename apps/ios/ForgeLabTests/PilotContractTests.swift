@@ -85,6 +85,19 @@ final class PilotContractTests: XCTestCase {
         XCTAssertNotNil(caps.whisperLabel)
     }
 
+    func testSegmentScoreBreakdownDecodes() throws {
+        let env = try load(ApiEnvelope<Segment>.self, "segment.sample.json")
+        let seg = try XCTUnwrap(env.data)
+        let score = try XCTUnwrap(seg.score)
+        XCTAssertGreaterThan(score.total, 0)
+        // The breakdown drives the "pourquoi ce clip" bars.
+        XCTAssertFalse(score.components.isEmpty)
+        XCTAssertNotNil(seg.hookText)
+        // Reasons split into positives + completion caveats.
+        XCTAssertEqual(score.positiveReasons.count + score.caveats.count,
+                       (score.reasons ?? []).count)
+    }
+
     func testJobStatsEnvelopeDecodes() throws {
         // Inline sample of GET /v1/jobs/stats/summary.
         let json = """

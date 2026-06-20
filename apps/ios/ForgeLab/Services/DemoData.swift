@@ -136,6 +136,18 @@ enum DemoData {
             TrendPoint(date: "2026-06-16", clips: 42, views: 0),
         ]))
 
+    /// Demo segment with a real-shaped score breakdown (the "pourquoi" card).
+    static let segment = Segment(
+        id: "demo-seg",
+        score: SegmentScore(
+            total: 92, hookStrength: 25, payoff: 12, humourReaction: 18,
+            tensionSurprise: 14, clarityAutonomy: 15, rhythm: 8,
+            reasons: ["Hook: french_reaction", "Combo bonus: strong hook + humour"],
+            tags: ["rage", "outplay", "clutch", "hype"]),
+        hookText: "Le outplay de Cabochard là c'est ILLÉGAL",
+        topicLabel: "KC vs G2 — la diff top",
+        transcript: nil)
+
     /// Demo in-flight job (drives the Pilot live overlay + Jobs sheet).
     static let jobs: [Job] = [
         Job(

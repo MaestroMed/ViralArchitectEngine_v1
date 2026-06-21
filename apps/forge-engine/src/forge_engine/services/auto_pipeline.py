@@ -34,13 +34,16 @@ ETOSTARK_CONFIG = {
     "auto_analyze": True,
     "auto_export": True,
     "export_config": {
-        "min_score": 58,
-        "max_clips": 15,
+        # Quality-first detection (2026-06-21): only bangers become clips. Raised
+        # the floor (58→65) so the mediocre 58-64 band is dropped, and tightened
+        # the ceiling (120→85s) — short + punch-centered retains far better on
+        # TikTok (the scorer's own "Too long → completion drops" penalty agrees).
+        "min_score": 65,
+        "max_clips": 12,
         # Variable clip length: the best NON-OVERLAPPING scored windows are kept
         # at their natural duration (see _select_clips), capped at this ceiling
-        # and centered on the punch. The segmenter's multi-scale windows give a
-        # natural mix of ~1min and ~2min clips (Eto's reactions sustain long).
-        "max_clip_seconds": 120,
+        # and centered on the punch.
+        "max_clip_seconds": 85,
         "clip_lead_in_seconds": 8,
         # Two windows overlapping by more than this fraction of the shorter one
         # are treated as the same moment (only the higher-scoring kept).

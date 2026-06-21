@@ -64,7 +64,9 @@ ETOSTARK_CONFIG = {
         "include_captions": True,
         "burn_subtitles": True,
         "include_cover": True,
-        "use_nvenc": True,
+        # This Mac has no NVENC → software x264 (-crf). Forcing NVENC emits a
+        # `-cq` flag x264 rejects ("Unrecognized option 'cq'", rc=8).
+        "use_nvenc": False,
         "jump_cut_config": {
             "enabled": True,
             "sensitivity": "normal",

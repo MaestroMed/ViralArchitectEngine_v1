@@ -107,7 +107,7 @@ struct StatsView: View {
                         x: .value("Jour", point.shortLabel),
                         y: .value("Clips", point.clips),
                     )
-                    .foregroundStyle(Theme.accent.gradient)
+                    .foregroundStyle(Theme.accentGradient)
                     .cornerRadius(4)
                 }
                 .chartYAxis { AxisMarks(position: .leading) }

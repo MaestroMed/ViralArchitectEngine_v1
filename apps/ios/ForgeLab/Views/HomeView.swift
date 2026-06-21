@@ -77,44 +77,70 @@ struct HomeView: View {
     private var pendingTotal: Int { summary?.pendingReview ?? todayClips.filter { $0.status == "pending_review" }.count }
     private var todayPending: Int { todayClips.filter { $0.status == "pending_review" }.count }
 
+    private var heroCount: Int { todayClips.isEmpty ? pendingTotal : todayPending }
+    private var allCaughtUp: Bool { heroCount == 0 }
+
+    private var heroEyebrow: String {
+        if allCaughtUp { return "Tout est à jour" }
+        return todayClips.isEmpty ? "Dans la file" : "À reviewer aujourd'hui"
+    }
+    private var heroSubtitle: String {
+        allCaughtUp ? "Aucun clip en attente — beau boulot 🎉"
+                    : "Swipe pour trier, exporte les meilleurs."
+    }
+
     private var heroCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text("\(todayClips.isEmpty ? pendingTotal : todayPending)")
-                    .font(.system(size: 56, weight: .heavy, design: .rounded))
-                    .foregroundStyle(Theme.accent)
-                    .contentTransition(.numericText())
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(todayClips.isEmpty ? "clips en attente" : "clips à reviewer")
-                        .font(.headline).foregroundStyle(Theme.textPrimary)
-                    Text(todayClips.isEmpty ? "dans la file" : "aujourd'hui")
-                        .font(.subheadline).foregroundStyle(Theme.textSecondary)
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(heroEyebrow)
+                        .font(.caption.weight(.bold)).tracking(1.2)
+                        .foregroundStyle(.white.opacity(0.85)).textCase(.uppercase)
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text("\(heroCount)")
+                            .font(.system(size: 62, weight: .heavy, design: .rounded))
+                            .foregroundStyle(.white)
+                            .contentTransition(.numericText())
+                        if !allCaughtUp {
+                            Text("clips").font(.title3.weight(.semibold)).foregroundStyle(.white.opacity(0.9))
+                        }
+                    }
+                    Text(heroSubtitle).font(.subheadline).foregroundStyle(.white.opacity(0.88))
                 }
                 Spacer(minLength: 0)
-                Image(systemName: (todayPending == 0 && pendingTotal == 0) ? "checkmark.seal.fill" : "sparkles")
-                    .font(.largeTitle)
-                    .foregroundStyle((todayPending == 0 && pendingTotal == 0) ? Theme.success : Theme.accent)
+                Image(systemName: allCaughtUp ? "checkmark.seal.fill" : "sparkles")
+                    .font(.system(size: 34, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.2), radius: 6)
             }
             Button {
                 selectedTab?.wrappedValue = 3   // Clips tab (Pilote=1, Sources=2)
             } label: {
                 HStack {
-                    Text(pendingTotal > 0 ? "Reviewer la file" : "Ouvrir la file")
-                        .font(.subheadline.weight(.semibold))
+                    Text(allCaughtUp ? "Ouvrir la file" : "Reviewer maintenant")
+                        .font(.subheadline.weight(.bold))
                     Spacer()
-                    Image(systemName: "arrow.right")
+                    Image(systemName: "arrow.right").font(.subheadline.weight(.bold))
                 }
-                .foregroundStyle(.white)
-                .padding(.vertical, 12).padding(.horizontal, 16)
+                .foregroundStyle(Theme.accentDeep)
+                .padding(.vertical, 13).padding(.horizontal, 18)
                 .frame(maxWidth: .infinity)
-                .forgeGlassAccent(cornerRadius: 14)
+                .background(.white, in: Capsule())
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("home.openQueue")
         }
-        .padding(20)
+        .padding(22)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .forgeGlassCard(cornerRadius: 22)
+        .background {
+            ZStack {
+                Theme.heroGradient
+                Theme.glowGradient
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .shadow(color: Theme.accent.opacity(0.35), radius: 18, y: 10)
+        .animation(.easeInOut, value: heroCount)
     }
 
     // MARK: - Stats

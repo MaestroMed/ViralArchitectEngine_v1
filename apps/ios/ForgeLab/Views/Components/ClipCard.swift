@@ -131,8 +131,8 @@ struct ScoreBadge: View {
             .foregroundStyle(.white)
             .padding(.horizontal, large ? 10 : 8)
             .padding(.vertical, large ? 4 : 3)
-            .background(color)
+            .background(Theme.scoreGradient(score))
             .clipShape(Capsule())
-            .shadow(color: isHot ? color.opacity(0.7) : .clear, radius: isHot ? (large ? 8 : 5) : 0)
+            .shadow(color: isHot ? color.opacity(0.8) : .clear, radius: isHot ? (large ? 9 : 5) : 0)
     }
 }

@@ -26,9 +26,12 @@ extension View {
         glassEffect(.regular, in: .rect(cornerRadius: cornerRadius))
     }
 
-    /// Accent-tinted glass for primary call-to-action chips.
+    /// Primary call-to-action surface — now the signature blue→cyan gradient
+    /// (with a soft glow) instead of a flat tint. The name is kept so every
+    /// existing CTA upgrades at once.
     func forgeGlassAccent(cornerRadius: CGFloat = 14) -> some View {
-        glassEffect(.regular.tint(Theme.accent.opacity(0.55)).interactive(),
-                    in: .rect(cornerRadius: cornerRadius))
+        self
+            .background(Theme.accentGradient, in: .rect(cornerRadius: cornerRadius))
+            .shadow(color: Theme.accent.opacity(0.35), radius: 10, y: 4)
     }
 }

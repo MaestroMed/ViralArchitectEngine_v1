@@ -313,7 +313,7 @@ private struct WhyCard: View {
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
                             Capsule().fill(Theme.textSecondary.opacity(0.12))
-                            Capsule().fill(Theme.accent.gradient)
+                            Capsule().fill(Theme.accentGradient)
                                 .frame(width: max(8, geo.size.width * c.value / maxVal))
                         }
                     }

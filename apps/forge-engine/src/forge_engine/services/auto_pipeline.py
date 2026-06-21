@@ -701,7 +701,9 @@ class AutoPipelineService:
                         hashtags=hashtags,
                         video_path=video_path,
                         cover_path=cover_path,
-                        duration=segment.duration,
+                        # The CLIP duration (cap-trimmed window), not the segment's
+                        # full multi-scale window — segment.duration was up to 210s.
+                        duration=spec["duration"],
                         viral_score=segment.score_total,
                         status="pending_review",
                         channel_name=channel_name,

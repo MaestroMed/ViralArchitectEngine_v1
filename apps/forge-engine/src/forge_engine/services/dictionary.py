@@ -98,12 +98,18 @@ class DictionaryService:
         )
 
         for wrong, correct in sorted_corrections:
-            if case_sensitive:
-                result = result.replace(wrong, correct)
-            else:
-                # Case-insensitive replacement while preserving word boundaries
-                pattern = re.compile(re.escape(wrong), re.IGNORECASE)
-                result = pattern.sub(correct, result)
+            if not wrong:
+                continue
+            # WHOLE-WORD match only. A bare substring sub mangles ordinary words:
+            # an "ez"->"EZ" hotword turns "avez"->"avEZ", "gardé"->"Guardian…" etc.
+            # Anchor \b only on edges that are word chars (\b is Unicode-aware in
+            # Py3 str regex, so it respects accented French letters), leaving
+            # symbol-y entries like "C+" able to match.
+            lb = r"\b" if (wrong[0].isalnum() or wrong[0] == "_") else ""
+            rb = r"\b" if (wrong[-1].isalnum() or wrong[-1] == "_") else ""
+            flags = 0 if case_sensitive else re.IGNORECASE
+            pattern = re.compile(rf"{lb}{re.escape(wrong)}{rb}", flags)
+            result = pattern.sub(correct, result)
 
         return result
 

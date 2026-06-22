@@ -38,6 +38,9 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>FORGE LAB se connecte au moteur de rendu sur ton réseau local (ton Mac) pour piloter l'analyse et récupérer les clips.
+</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>FORGE LAB enregistre les clips approuvés dans ta pellicule pour que tu puisses les poster directement sur TikTok.
 </string>

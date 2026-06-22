@@ -15,6 +15,23 @@ struct ProjectCard: View {
 
     private var effectiveStatus: String { statusOverride ?? project.status }
 
+    /// One spoken sentence for the whole card (name + status + key metrics),
+    /// so VoiceOver doesn't read 5-7 separate fragments.
+    private var a11ySummary: String {
+        var parts = [project.name, Project.statusLabel(effectiveStatus)]
+        if let platform = project.platformLabel { parts.append(platform) }
+        if let job = liveJob, job.isActive {
+            let stage = job.stage?.isEmpty == false ? "\(job.typeLabel) \(job.stage!)" : job.typeLabel
+            parts.append("\(stage) \(Int(job.progress)) %")
+        } else {
+            if let n = project.segmentsCount { parts.append("\(n) segments") }
+            if let s = project.averageScore { parts.append("score moyen \(Int(s.rounded()))") }
+            if let d = project.durationLabel { parts.append("durée \(d)") }
+            if let rel = project.relativeCreated { parts.append(rel) }
+        }
+        return parts.joined(separator: ", ")
+    }
+
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             thumbnail
@@ -40,6 +57,8 @@ struct ProjectCard: View {
         }
         .padding(14)
         .forgeGlassCard(cornerRadius: 18)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(a11ySummary)
     }
 
     /// Replaces the metrics row with a live progress bar while a job runs.

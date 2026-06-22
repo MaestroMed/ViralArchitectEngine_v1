@@ -17,6 +17,7 @@ struct AnimatedMeshHero: View {
             let p = animate ? CGFloat(timeline.date.timeIntervalSinceReferenceDate) : 0
             MeshGradient(width: 3, height: 3, points: points(p), colors: colors)
         }
+        .accessibilityHidden(true)   // purely decorative signature mesh
     }
 
     private func points(_ p: CGFloat) -> [SIMD2<Float>] {
@@ -58,6 +59,8 @@ struct ScoreRing: View {
                 .contentTransition(.numericText())
         }
         .frame(width: size, height: size)
+        .accessibilityElement(children: .ignore)   // gradient ring is decorative
+        .accessibilityLabel("Score \(Int(score.rounded()))")
         .onAppear {
             if reduceMotion || AppLaunch.isDemo {
                 trim = target

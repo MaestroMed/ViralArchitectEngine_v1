@@ -55,6 +55,7 @@ struct HomeView: View {
     private var header: some View {
         HStack(spacing: 14) {
             BrandMark(size: 44)
+                .accessibilityHidden(true)   // decorative brand mark; title text follows
             VStack(alignment: .leading, spacing: 2) {
                 Text("VIRAL ARCHITECT ENGINE")
                     .font(.caption2.weight(.bold))
@@ -102,6 +103,7 @@ struct HomeView: View {
                     Image(systemName: allCaughtUp ? "checkmark.seal.fill" : "sparkles")
                         .font(.system(size: 26, weight: .semibold)).foregroundStyle(.white)
                         .shadow(color: .black.opacity(0.25), radius: 6)
+                        .accessibilityHidden(true)   // state already in the eyebrow text
                 }
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text("\(heroCount)")
@@ -130,14 +132,15 @@ struct HomeView: View {
                     .shadow(color: .black.opacity(0.15), radius: 8, y: 3)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(allCaughtUp ? "Ouvrir la file" : "Reviewer maintenant")
                 .accessibilityIdentifier("home.openQueue")
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .padding(22)
         }
         .frame(maxWidth: .infinity).frame(height: 236)
-        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous).stroke(.white.opacity(0.14), lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.hero, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.hero, style: .continuous).stroke(.white.opacity(0.14), lineWidth: 1))
         .shadow(color: Theme.accent.opacity(0.4), radius: 22, y: 12)
         .animation(.easeInOut, value: heroCount)
     }
@@ -177,7 +180,7 @@ struct HomeView: View {
                 Image(systemName: "wand.and.stars").font(.title).foregroundStyle(Theme.accent)
                 Text("Pas de clip à la une").font(.subheadline).foregroundStyle(Theme.textSecondary)
             }
-            .frame(maxWidth: .infinity).frame(height: 232).forgeGlassCard(cornerRadius: 20)
+            .frame(maxWidth: .infinity).frame(height: 232).forgeGlassCard(cornerRadius: Theme.Radius.lg)
         }
     }
 
@@ -206,8 +209,9 @@ struct HomeView: View {
             .padding(12)
         }
         .background(Theme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(.white.opacity(0.08), lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous).stroke(.white.opacity(0.08), lineWidth: 1))
+        .accessibilityElement(children: .combine)
     }
 
     @ViewBuilder
@@ -233,7 +237,9 @@ struct HomeView: View {
         }
         .padding(.horizontal, 12).padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .forgeGlassCard(cornerRadius: 16)
+        .forgeGlassCard(cornerRadius: Theme.Radius.md)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label), \(value)")
     }
 
     // MARK: - Today's clips carousel
@@ -290,6 +296,7 @@ struct HomeView: View {
         } else {
             HStack(spacing: 8) {
                 Circle().fill(engineVersion != nil ? Theme.success : Theme.danger).frame(width: 8, height: 8)
+                    .accessibilityHidden(true)   // status is conveyed by the adjacent text
                 Text(engineVersion.map { "Moteur connecté · v\($0)" } ?? "Moteur injoignable")
                     .font(.caption).foregroundStyle(Theme.textSecondary)
                 Spacer()
@@ -370,6 +377,8 @@ struct HomePosterCard: View {
                 .lineLimit(2)
                 .frame(width: 150, alignment: .leading)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(clip.title ?? "Clip \(clip.id.prefix(6))"), score \(Int(clip.viralScore.rounded())), durée \(formatDuration(clip.duration))")
     }
 
     @ViewBuilder

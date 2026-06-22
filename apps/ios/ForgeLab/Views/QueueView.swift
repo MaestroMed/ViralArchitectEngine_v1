@@ -97,6 +97,7 @@ struct QueueView: View {
         .buttonStyle(.plain)
         .disabled(exportInFlight)
         .padding()
+        .accessibilityLabel("Télécharger les \(approvedClips.count) clips approuvés")
         .accessibilityIdentifier("queue.exportApproved")
     }
 
@@ -167,6 +168,7 @@ struct QueueView: View {
             .forgeGlassAccent(cornerRadius: 14)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Voir les clips d'aujourd'hui")
         .accessibilityIdentifier("queue.jumpToday")
     }
 
@@ -222,6 +224,7 @@ struct QueueView: View {
                     Label("Réglages", systemImage: "gear")
                 }
             } label: { Image(systemName: "ellipsis.circle") }
+            .accessibilityLabel("Plus d'options")
         }
     }
 

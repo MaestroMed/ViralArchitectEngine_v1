@@ -11,6 +11,16 @@ struct ClipCard: View {
     /// CI screenshots look right with no engine. Default false in production.
     var demo: Bool = false
 
+    /// Concise one-sentence summary so VoiceOver reads the card as a unit
+    /// instead of 5-7 separate fragments.
+    private var a11ySummary: String {
+        let name = (clip.title?.isEmpty == false) ? clip.title! : "Clip \(clip.id.prefix(6))"
+        var parts = ["\(name), score \(Int(clip.viralScore.rounded())), durée \(formatDuration(clip.duration))"]
+        if clip.status != "pending_review" { parts.append(statusLabel(clip.status)) }
+        if selectMode { parts.append(selected ? "sélectionné" : "non sélectionné") }
+        return parts.joined(separator: ", ")
+    }
+
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             cover
@@ -53,8 +63,11 @@ struct ClipCard: View {
                     .font(.title3)
                     .foregroundStyle(selected ? Theme.accent : Theme.textSecondary)
                     .padding(8)
+                    .accessibilityHidden(true)
             }
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(a11ySummary)
     }
 
     @ViewBuilder
@@ -80,6 +93,7 @@ struct ClipCard: View {
             .overlay(Image(systemName: "play.fill").foregroundStyle(.white.opacity(0.85)).font(.title2))
             .frame(width: 80, height: 142)
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .accessibilityHidden(true)
     }
 
     private var networkCover: some View {
@@ -134,5 +148,7 @@ struct ScoreBadge: View {
             .background(Theme.scoreGradient(score))
             .clipShape(Capsule())
             .shadow(color: isHot ? color.opacity(0.8) : .clear, radius: isHot ? (large ? 9 : 5) : 0)
+            .accessibilityElement()
+            .accessibilityLabel("Score \(Int(score.rounded()))")
     }
 }

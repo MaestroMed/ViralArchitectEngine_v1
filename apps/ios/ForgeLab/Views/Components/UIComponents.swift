@@ -68,6 +68,7 @@ struct StatusPill: View {
     var body: some View {
         HStack(spacing: 4) {
             Circle().fill(color).frame(width: 6, height: 6)
+                .accessibilityHidden(true)   // status meaning is in the adjacent text
             Text(text)
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(color)
@@ -75,6 +76,8 @@ struct StatusPill: View {
         .padding(.horizontal, 7).padding(.vertical, 3)
         .background(color.opacity(0.14))
         .clipShape(Capsule())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(text)
     }
 }
 

@@ -91,6 +91,8 @@ struct StatsView: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .forgeGlassCard(cornerRadius: 18)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label), \(value), \(sub)")
     }
 
     // MARK: Production trend (Swift Charts)
@@ -166,6 +168,8 @@ struct StatsView: View {
         }
         .padding(10)
         .forgeGlassCard(cornerRadius: 14)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Rang \(rank), \(clip.title ?? "Clip \(clip.clipId.prefix(6))"), durée \(clip.durationLabel), score \(Int(clip.viralScore.rounded()))")
     }
 
     @ViewBuilder

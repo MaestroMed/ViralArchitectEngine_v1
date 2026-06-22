@@ -12,6 +12,32 @@ from forge_engine.core.config import settings
 logger = logging.getLogger(__name__)
 
 
+def crf_to_videotoolbox_bitrate(crf: int) -> int:
+    """Map a libx264-style CRF target to a VideoToolbox average bitrate (kbps).
+
+    VideoToolbox has no CRF/CQ. Constant-quality ``-q:v`` is NOT supported by the
+    bundled ffmpeg build (8.1.x evermeet: "qscale not available for encoder, use
+    -b:v"), so we target an average bitrate instead. Anchored for vertical
+    1080x1920 @ 30fps H.264: CRF 18 -> ~11.5 Mbps (high), 23 -> 8 Mbps
+    (default), 28 -> ~4.5 Mbps. Clamped so out-of-range CRFs never produce a
+    garbage bitrate.
+    """
+    return max(4000, min(14000, 8000 + (23 - int(crf)) * 700))
+
+
+def videotoolbox_vcodec(crf: int) -> list[str]:
+    """Build the ``-c:v`` args for an Apple VideoToolbox hardware encode.
+
+    Always H.264: it's the only VideoToolbox codec with a real *hardware* session
+    on the M-series dev box — ``hevc_videotoolbox`` is advertised by -encoders
+    but its session fails (-12908) without ``-allow_sw`` (i.e. it would fall back
+    to slow software HEVC, defeating the point). H.264 hardware covers every
+    platform; VideoToolbox ignores ``-crf``/``-cq`` so we pass ``-b:v``.
+    """
+    br = crf_to_videotoolbox_bitrate(crf)
+    return ["-c:v", "h264_videotoolbox", "-b:v", f"{br}k", "-profile:v", "high"]
+
+
 @dataclass
 class PipelineConfig:
     """Configuration for the single-pass export pipeline."""
@@ -65,6 +91,10 @@ class PipelineConfig:
     fps: int = 30
     crf: int = 18
     use_nvenc: bool = False
+    # Apple Silicon hardware encode (h264_videotoolbox). Resolved by the caller
+    # (export.py) from the FFmpegService capability flags + FORGE_USE_VIDEOTOOLBOX
+    # — set only when the encoder actually exists on this machine.
+    use_videotoolbox: bool = False
     audio_bitrate: str = "192k"
     platform: str = "tiktok"  # tiktok | youtube_shorts | instagram | twitter
 
@@ -246,8 +276,9 @@ class PipelineSinglePass:
         )
 
         # Platform loudnorm to target LUFS, THEN a brick-wall true-peak limiter
-        # at -1 dBFS (0.891). Single-pass loudnorm's TP is only approximate, so
-        # the limiter is what actually guarantees no clipping on TikTok/Reels.
+        # at limit=0.85 (≈ -1.4 dBFS). Single-pass loudnorm's TP is only
+        # approximate, so the limiter is what actually guarantees no clipping on
+        # TikTok/Reels.
         platform_loudnorm = self._get_loudnorm_filter(cfg.platform)
         if platform_loudnorm:
             filters.append(
@@ -258,9 +289,16 @@ class PipelineSinglePass:
             filters.append(f"[final_a]alimiter=limit=0.85:level=false[norm_a]")
         out_audio_label = "norm_a"
 
-        # Codec selection
+        # Codec selection. Priority: NVIDIA NVENC -> Apple VideoToolbox -> CPU
+        # (libx265 for YT Shorts, else libx264). The caller resolves
+        # use_nvenc/use_videotoolbox against the real machine capabilities, so a
+        # flag is only set when that encoder actually exists here.
         if cfg.use_nvenc:
             vcodec = ["-c:v", "h264_nvenc", "-preset", "p4", "-cq", str(cfg.crf)]
+        elif cfg.use_videotoolbox:
+            # Apple Silicon HW encode (h264_videotoolbox). VideoToolbox has no
+            # CRF — map the CRF target to a -b:v average bitrate.
+            vcodec = videotoolbox_vcodec(cfg.crf)
         elif cfg.platform == "youtube_shorts":
             # H.265 for best quality/size ratio on YouTube Shorts (CPU encode)
             vcodec = ["-c:v", "libx265", "-preset", "medium", "-crf", str(cfg.crf), "-tag:v", "hvc1"]

@@ -42,6 +42,15 @@ class Settings(BaseSettings):
     FFMPEG_PATH: str = "ffmpeg"
     FFPROBE_PATH: str = "ffprobe"
     FORCE_CPU: bool = False
+    # Apple Silicon hardware encoder (VideoToolbox). Separate opt-in from the
+    # NVIDIA/NVENC path: used when NVENC is absent so renders on M-series Macs
+    # are GPU-accelerated instead of falling back to libx264. Deliberately NOT
+    # disabled by FORCE_CPU — on a Mac, FORCE_CPU means "no NVIDIA CUDA stack"
+    # (it also pins Whisper to CPU, see bottom of this file), which is the
+    # normal state where we still want VideoToolbox. Set
+    # FORGE_USE_VIDEOTOOLBOX=false for a true pure-libx264 encode
+    # (byte-stable / max-fidelity / determinism).
+    USE_VIDEOTOOLBOX: bool = True
 
     # Bundled caption fonts (Anton etc.) — passed to libass `fontsdir` so the
     # subtitle font always renders without a system install. apps/forge-engine/resources/fonts.

@@ -1065,6 +1065,30 @@ class ExportService:
                 intro_clip_path = None
                 intro_duration_val = 0.0
 
+        # ── Resolve the hardware encoder ─────────────────────────────────
+        # NVENC only when the GPU actually advertises it (and not FORCE_CPU);
+        # otherwise prefer Apple VideoToolbox on Apple Silicon. VideoToolbox is a
+        # separate opt-in (FORGE_USE_VIDEOTOOLBOX, default on) and is NOT gated
+        # by FORCE_CPU, so M-series Macs get HW encoding instead of libx264.
+        # Resolving against real capabilities also stops an h264_nvenc command
+        # from being emitted on a machine without NVENC (would fail the render).
+        from forge_engine.services.ffmpeg import FFmpegService
+        ffmpeg_svc = FFmpegService.get_instance()
+        if not ffmpeg_svc._initialized:
+            await ffmpeg_svc.check_availability()
+        hw_nvenc = bool(use_nvenc and ffmpeg_svc.has_nvenc and not settings.FORCE_CPU)
+        use_videotoolbox = bool(
+            not hw_nvenc
+            and getattr(settings, "USE_VIDEOTOOLBOX", True)
+            and ffmpeg_svc.has_videotoolbox
+        )
+        if use_videotoolbox:
+            logger.info("[SinglePass] Encoder: VideoToolbox (Apple HW) — NVENC absent")
+        elif hw_nvenc:
+            logger.info("[SinglePass] Encoder: h264_nvenc (NVIDIA HW)")
+        else:
+            logger.info("[SinglePass] Encoder: CPU (libx264/libx265)")
+
         # ── Build PipelineConfig ─────────────────────────────────────────
         pipeline_cfg = PipelineConfig(
             source_path=Path(project.source_path),
@@ -1090,7 +1114,8 @@ class ExportService:
             output_path=video_path,
             fps=settings.OUTPUT_FPS,
             crf=settings.OUTPUT_CRF,
-            use_nvenc=use_nvenc,
+            use_nvenc=hw_nvenc,
+            use_videotoolbox=use_videotoolbox,
             platform=platform,
         )
 

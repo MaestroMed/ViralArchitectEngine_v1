@@ -29,6 +29,7 @@ class FFmpegService:
         self.version: str | None = None
         self.has_nvenc: bool = False
         self.has_nvdec: bool = False  # Hardware decoding
+        self.has_videotoolbox: bool = False  # Apple Silicon H.264 HW encode
         self.has_scale_npp: bool = False  # GPU scaling
         self.has_libass: bool = False
         self.available_encoders: list[str] = []
@@ -107,6 +108,11 @@ class FFmpegService:
 
             # Check encoders
             self.has_nvenc = "h264_nvenc" in encoders_output
+            # Apple Silicon hardware H.264 encoder. NVENC does not exist on
+            # M-series Macs, so VideoToolbox is what lets renders stay off the
+            # CPU. (hevc_videotoolbox is advertised too but has no real hardware
+            # session on the dev box, so we don't rely on it.)
+            self.has_videotoolbox = "h264_videotoolbox" in encoders_output
             self.available_encoders = []
 
             for line in encoders_output.split("\n"):
@@ -131,8 +137,10 @@ class FFmpegService:
 
             self._initialized = True
             logger.info(
-                "FFmpeg %s initialized - NVENC: %s, NVDEC: %s, scale_npp: %s, libass: %s",
-                self.version, self.has_nvenc, self.has_nvdec, self.has_scale_npp, self.has_libass
+                "FFmpeg %s initialized - NVENC: %s, NVDEC: %s, VideoToolbox: %s, "
+                "scale_npp: %s, libass: %s",
+                self.version, self.has_nvenc, self.has_nvdec, self.has_videotoolbox,
+                self.has_scale_npp, self.has_libass
             )
             return True
 
@@ -345,6 +353,18 @@ class FFmpegService:
             encoder_opts = ["-preset", nvenc_preset, "-cq", str(crf), "-b:v", "0"]
             # Add hardware acceleration for decoding
             hwaccel_opts = ["-hwaccel", "cuda"]
+        elif self.has_videotoolbox and getattr(settings, "USE_VIDEOTOOLBOX", True):
+            # Apple Silicon HW encode when NVENC is absent. VideoToolbox has no
+            # CRF/CQ — map the CRF target to an average -b:v bitrate (the bundled
+            # ffmpeg rejects -q:v for videotoolbox). Deliberately NOT gated by
+            # FORCE_CPU (that flag disables the NVIDIA/CUDA path only; see
+            # config.USE_VIDEOTOOLBOX).
+            from forge_engine.services.pipeline_builder import crf_to_videotoolbox_bitrate
+            encoder = "h264_videotoolbox"
+            encoder_opts = [
+                "-b:v", f"{crf_to_videotoolbox_bitrate(crf)}k",
+                "-profile:v", "high", "-pix_fmt", "yuv420p",
+            ]
 
         logger.info(f"render_clip called with ass_path={ass_path}, has_libass={self.has_libass}")
 

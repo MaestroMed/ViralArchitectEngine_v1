@@ -80,6 +80,11 @@ class Settings(BaseSettings):
     # async scorer self-gates to heuristic-only when the LLM is unavailable, so
     # this is safe to leave on; FORGE_LLM_SCORING=0 forces pure heuristic.
     LLM_SCORING: bool = True
+
+    # Snap whisper word timings to CTC frames (±20-50ms) via torchaudio MMS_FA —
+    # tightens animated captions + cold-open anchoring. OFF by default: a whole-
+    # VOD pass is minutes on CPU (see forced_alignment.py for the per-clip path).
+    FORCED_ALIGN: bool = False
     WHISPER_NUM_WORKERS: int = 2  # Default, auto-detected based on VRAM
     WHISPER_BATCH_SIZE: int = 16  # Default, auto-detected based on VRAM
     WHISPER_TURBO_MODE: bool = True  # Enable batched inference for maximum speed

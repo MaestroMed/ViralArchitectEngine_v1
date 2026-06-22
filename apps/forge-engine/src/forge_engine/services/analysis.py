@@ -195,6 +195,22 @@ class AnalysisService:
                                 )
                             logger.info("Applied dictionary corrections to transcript")
 
+                        # Snap word timings to CTC frames (±20-50ms) when enabled.
+                        # Off by default — a whole-VOD pass is minutes on CPU; see
+                        # forced_alignment.py for the per-clip-at-export path.
+                        if settings.FORCED_ALIGN and transcript_data.get("segments"):
+                            try:
+                                from forge_engine.services.forced_alignment import ForcedAligner
+                                aligner = ForcedAligner.get_instance()
+                                if aligner.is_available():
+                                    transcribe_progress(98)
+                                    transcript_data = await aligner.align_transcription(
+                                        project.audio_path, transcript_data,
+                                        language=transcribe_language,
+                                    )
+                            except Exception as e:
+                                logger.warning("Forced alignment skipped (%s)", e)
+
                         # Validate transcription result
                         if not transcript_data or not transcript_data.get("segments"):
                             raise ValueError("Transcription returned empty result")

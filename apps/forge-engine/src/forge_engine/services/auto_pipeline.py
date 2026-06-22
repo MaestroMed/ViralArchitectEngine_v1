@@ -73,8 +73,15 @@ ETOSTARK_CONFIG = {
             "sensitivity": "normal",
             "transition": "zoom",
         },
+        # DISABLED: cold-open reorders the video to [hook][pre-hook][post-hook]
+        # in pipeline_builder, but the burned ASS captions keep their LINEAR
+        # timing (only jump-cut-remapped, never reordered) — so captions desync
+        # badly against the reordered video. Re-enable only once the caption
+        # pipeline reorders to match the hook-first timeline (and the hook times
+        # are in the post-jump-cut frame). A synced clip with no cold-open beats
+        # a hook-first clip with desynced captions.
         "cold_open_config": {
-            "enabled": True,
+            "enabled": False,
             "language": "fr",
         },
     },

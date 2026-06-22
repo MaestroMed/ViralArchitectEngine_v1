@@ -721,6 +721,14 @@ class AutoPipelineService:
             await db.commit()
             logger.info(f"[AutoPipeline] Finished: {len(specs)} clips exported and queued for review")
 
+        # Wake any backgrounded phones: real APNs push "N clips prêts pour QC".
+        # No-op (and never raises) until APNs is configured — see services/apns.py.
+        try:
+            from forge_engine.services.apns import notify_clips_ready
+            await notify_clips_ready(project_id, len(specs))
+        except Exception as exc:
+            logger.warning(f"[AutoPipeline] clips-ready push failed (ignored): {exc}")
+
     def get_status(self) -> dict[str, Any]:
         """Get auto pipeline status."""
         return {

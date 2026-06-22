@@ -2,6 +2,9 @@ import SwiftUI
 
 @main
 struct ForgeLabApp: App {
+    /// Bridges the UIKit app delegate so we can receive the APNs device token
+    /// (that callback is delegate-only). See PushRegistrar / AppDelegate.
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var settings = Settings.shared
     @StateObject private var router = DeepLinkRouter()
     /// Retained for the lifetime of the app: it owns the UN delegate.
@@ -19,6 +22,14 @@ struct ForgeLabApp: App {
                     guard notifications == nil else { return }
                     notifications = NotificationManager(router: router)
                     LocalNotifier.requestAuthorization()
+                    // Register for REMOTE push (APNs) on top of local notifs, so
+                    // a backgrounded phone wakes on "clips ready". No-op in demo.
+                    PushRegistrar.shared.registerForRemoteNotifications()
+                }
+                // If the engine is configured after a token already arrived,
+                // (re)sync it so registration isn't lost to ordering.
+                .onChange(of: settings.isConfigured) { _, configured in
+                    if configured { Task { await PushRegistrar.shared.syncToEngine() } }
                 }
         }
     }

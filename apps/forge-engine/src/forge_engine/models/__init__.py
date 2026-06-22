@@ -3,6 +3,7 @@
 from forge_engine.models.api_key import ApiKey
 from forge_engine.models.artifact import Artifact
 from forge_engine.models.channel import DetectedVOD, WatchedChannel
+from forge_engine.models.device_token import DeviceToken
 from forge_engine.models.job import JobRecord
 from forge_engine.models.profile import ExportProfile
 from forge_engine.models.project import Project
@@ -22,6 +23,7 @@ __all__ = [
     "Artifact",
     "WatchedChannel",
     "DetectedVOD",
+    "DeviceToken",
     "ClipReview",
     "ClipQueue",
     "SegmentFeedback",

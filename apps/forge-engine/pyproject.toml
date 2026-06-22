@@ -59,6 +59,14 @@ scraper = [
     #   python -m playwright install chromium
     "playwright>=1.60.0",
 ]
+apns = [
+    # Real remote push (APNs). The ES256 provider JWT is built with
+    # `cryptography` (already a core dep), so the only thing missing for a real
+    # send is HTTP/2: APNs requires an HTTP/2 connection, which httpx gets from
+    # the `h2` package. Install into the engine venv with:
+    #   .venv-full/bin/pip install "httpx[http2]"
+    "httpx[http2]>=0.25.0",
+]
 
 [project.scripts]
 forge-engine = "forge_engine.main:main"

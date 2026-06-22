@@ -12,6 +12,7 @@ from forge_engine.api.v1.endpoints import (
     clips_mobile,
     compilation,
     content,
+    devices,
     dictionaries,
     emotion,
     jobs,
@@ -60,6 +61,7 @@ api_router.include_router(analytics.router, prefix="/analytics", tags=["Analytic
 api_router.include_router(reviews.router, prefix="/clips", tags=["Clip Review & Queue"])
 api_router.include_router(clips_mobile.router, prefix="/clips", tags=["Clips (mobile)"])
 api_router.include_router(api_keys.router, prefix="/api-keys", tags=["API Keys"])
+api_router.include_router(devices.router, prefix="/devices", tags=["Devices (push)"])
 
 
 

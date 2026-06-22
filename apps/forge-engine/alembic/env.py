@@ -32,6 +32,7 @@ from forge_engine.models import (  # noqa: E402,F401
     api_key,
     artifact,
     channel,
+    device_token,
     job,
     profile,
     project,

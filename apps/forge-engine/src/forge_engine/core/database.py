@@ -44,6 +44,7 @@ async def init_db() -> None:
         api_key,
         artifact,
         channel,
+        device_token,
         job,
         profile,
         project,

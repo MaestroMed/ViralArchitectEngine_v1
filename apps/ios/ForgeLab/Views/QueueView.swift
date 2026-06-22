@@ -11,6 +11,7 @@ struct QueueView: View {
 
     @State private var clips: [Clip] = []
     @State private var loading = false
+    @State private var loadFailed = false
     @State private var error: String?
     @State private var date: Date = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
     @State private var selection: Set<String> = []
@@ -51,6 +52,13 @@ struct QueueView: View {
             Theme.background.ignoresSafeArea()
             if loading && clips.isEmpty {
                 ProgressView().scaleEffect(1.4)
+            } else if loadFailed && clips.isEmpty {
+                EngineErrorCard(
+                    title: "Clips indisponibles",
+                    onRetry: { Task { await load() } },
+                    onSettings: { settingsOpen = true }
+                )
+                .padding(.horizontal, 24)
             } else if clips.isEmpty {
                 emptyState
             } else {
@@ -218,22 +226,12 @@ struct QueueView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "moon.zzz")
-                .font(.system(size: 48))
-                .foregroundStyle(Theme.textSecondary)
-            Text("Pas de clip pour cette date.")
-                .font(.headline)
-                .foregroundStyle(Theme.textSecondary)
-            if let formatted = Self.dateFormatter.string(for: date) {
-                Text(formatted)
-                    .font(.caption)
-                    .foregroundStyle(Theme.textSecondary.opacity(0.6))
-            }
-        }
-        .padding(32)
-        .forgeGlassCard(cornerRadius: 28)
-        .padding(40)
+        EmptyStateCard(
+            icon: "moon.zzz.fill",
+            title: "Pas de clip pour cette date",
+            message: Self.dateFormatter.string(for: date) ?? "Reviens plus tard."
+        )
+        .padding(.horizontal, 24)
     }
 
     // MARK: - Actions
@@ -250,16 +248,19 @@ struct QueueView: View {
         }
         loading = true
         error = nil
+        loadFailed = false
         defer { loading = false }
         do {
             let resp = try await api.clipsByDate(date)
             clips = resp.items
         } catch let e as ApiError {
             error = e.errorDescription
+            loadFailed = clips.isEmpty
         } catch let other {
             // Bind to `other`, not the implicit `error`, which would shadow the
             // @State property of the same name and make the assignment illegal.
             error = other.localizedDescription
+            loadFailed = clips.isEmpty
         }
     }
 
@@ -306,8 +307,7 @@ private struct ErrorBanner: View {
             .foregroundStyle(.white)
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
-            .background(Theme.danger.opacity(0.9))
-            .cornerRadius(12)
+            .background(Theme.danger.opacity(0.9), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .padding()
             .transition(.move(edge: .bottom).combined(with: .opacity))
     }

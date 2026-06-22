@@ -420,14 +420,28 @@ class AnalysisService:
                     scene_data=scene_data
                 )
 
-                # Score segments
-                scored_segments = self.virality.score_segments(
-                    candidate_segments,
-                    transcript_data=transcript_data,
-                    audio_data=audio_data,
-                    scene_data=scene_data,
-                    chat_data=chat_data
-                )
+                # Score segments. Prefer the async path (heuristic + LLM merge on
+                # the top ~50 candidates); it self-gates to heuristic-only when
+                # the LLM is unavailable. Emotion blend stays off (deepface/fer
+                # not installed in this venv).
+                if settings.LLM_SCORING:
+                    scored_segments = await self.virality.score_segments_async(
+                        candidate_segments,
+                        transcript_data=transcript_data,
+                        audio_data=audio_data,
+                        scene_data=scene_data,
+                        chat_data=chat_data,
+                        use_llm=True,
+                        use_emotions=False,
+                    )
+                else:
+                    scored_segments = self.virality.score_segments(
+                        candidate_segments,
+                        transcript_data=transcript_data,
+                        audio_data=audio_data,
+                        scene_data=scene_data,
+                        chat_data=chat_data
+                    )
 
                 # Deduplicate overlapping segments
                 final_segments = self.virality.deduplicate_segments(scored_segments, max_segments=500)

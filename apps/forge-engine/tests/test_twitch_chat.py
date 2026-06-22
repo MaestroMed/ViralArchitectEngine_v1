@@ -98,3 +98,16 @@ def test_chat_spike_outside_window_ignored():
     far = s._score_segment(_seg(), chat_data={"spikes": [{"time": 200.0, "intensity": 5.0, "kind": "hype"}]})
     assert far["tension_surprise"] == base["tension_surprise"]
     assert "chat_spike" not in far["tags"]
+
+
+async def test_async_scorer_without_llm_matches_heuristic_and_threads_chat():
+    # The live path now calls score_segments_async; with the LLM unavailable it
+    # must degrade to the exact heuristic result AND still apply the chat signal.
+    s = ViralityScorer(use_llm=False)
+    chat = {"spikes": [{"time": 10.0, "intensity": 4.0, "kind": "hype"}]}
+    sync = s.score_segments([_seg()], chat_data=chat)
+    asyncd = await s.score_segments_async(
+        [_seg()], chat_data=chat, use_llm=True, use_emotions=False
+    )
+    assert asyncd[0]["score"]["tension_surprise"] == sync[0]["score"]["tension_surprise"]
+    assert "chat_spike" in asyncd[0]["score"]["tags"]

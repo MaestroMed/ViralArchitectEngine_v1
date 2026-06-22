@@ -75,6 +75,11 @@ class Settings(BaseSettings):
     # scoring). Best-effort: a chat outage never fails a VOD. FORGE_CHAT_SIGNAL=0
     # to disable. Only fires for Twitch-sourced projects.
     CHAT_SIGNAL: bool = True
+
+    # Enhance the top heuristic candidates with the local LLM (llama3.2). The
+    # async scorer self-gates to heuristic-only when the LLM is unavailable, so
+    # this is safe to leave on; FORGE_LLM_SCORING=0 forces pure heuristic.
+    LLM_SCORING: bool = True
     WHISPER_NUM_WORKERS: int = 2  # Default, auto-detected based on VRAM
     WHISPER_BATCH_SIZE: int = 16  # Default, auto-detected based on VRAM
     WHISPER_TURBO_MODE: bool = True  # Enable batched inference for maximum speed

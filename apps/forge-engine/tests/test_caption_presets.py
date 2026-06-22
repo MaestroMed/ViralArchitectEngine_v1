@@ -46,6 +46,26 @@ def test_unknown_preset_falls_back_to_classic():
     assert "&H0000FFFF" in out  # classic yellow
 
 
+def test_custom_overrides_convert_hex_and_layer_on_preset():
+    # The editor's fine-tune colours (#RRGGBB) override the preset, converted to
+    # ASS &HAABBGGRR — this was the dead link that made custom colours a no-op.
+    eng = CaptionEngine()
+    out = eng.generate_ass(SEG, style_name="hormozi", custom_style={
+        "color": "#FF0000", "highlightColor": "#00FF00", "fontFamily": "Inter",
+    })
+    assert "&H000000FF" in out   # #FF0000 red -> primary
+    assert "&H0000FF00" in out   # #00FF00 green -> active highlight (overrode preset green-ish)
+    assert "Inter" in out        # font family override applied
+
+
+def test_position_top_sets_top_alignment():
+    eng = CaptionEngine()
+    out = eng.generate_ass(SEG, style_name="classic", custom_style={"position": "top"})
+    # Style line alignment field = 8 (top-center)
+    style_line = next(line for line in out.splitlines() if line.startswith("Style: Default"))
+    assert style_line.split(",")[18] == "8"
+
+
 def test_edited_captions_pass_through():
     # The editor fixes a typo by passing corrected segments — they render verbatim.
     eng = CaptionEngine()

@@ -920,19 +920,15 @@ class ExportService:
                     "facecam_ratio": facecam_ratio_val,
                 }
                 if caption_style:
+                    # Pass the editor's overrides through verbatim (camelCase) so
+                    # generate_ass can layer them on the PRESET — but only the keys
+                    # actually present, so a preset's own colours/size aren't
+                    # clobbered by injected defaults (the old bug). presetId picks
+                    # the base look; per-field keys (color/fontSize/position/…) are
+                    # optional fine-tuning.
                     caption_config["custom_style"] = {
+                        **{k: v for k, v in caption_style.items() if v is not None},
                         "facecam_ratio": facecam_ratio_val,
-                        "font_family": caption_style.get("fontFamily", "Inter"),
-                        "font_size": caption_style.get("fontSize", 48),
-                        "font_weight": caption_style.get("fontWeight", 700),
-                        "color": caption_style.get("color", "#FFFFFF"),
-                        "background_color": caption_style.get("backgroundColor", "transparent"),
-                        "outline_color": caption_style.get("outlineColor", "#000000"),
-                        "outline_width": caption_style.get("outlineWidth", 2),
-                        "position": caption_style.get("position", "bottom"),
-                        "position_y": caption_style.get("positionY"),
-                        "animation": caption_style.get("animation", "none"),
-                        "highlight_color": caption_style.get("highlightColor", "#FFD700"),
                     }
                 elif template and template.caption_style:
                     caption_config.update(template.caption_style)
@@ -969,8 +965,15 @@ class ExportService:
                 # `transcript_segments` + `custom_style` (it does NOT write a file
                 # nor accept segments=/output_path=/config= — that was a stale call
                 # that silently dropped subtitles on every export).
+                # Preset selects the base look (classic/hormozi/pop/minimal/neon);
+                # caption_config still layers position/size overrides on top.
+                _preset = (
+                    (caption_style.get("presetId") or caption_style.get("preset"))
+                    if caption_style else None
+                ) or "classic"
                 ass_content = self.captions.generate_ass(
                     transcript_segments=adjusted,
+                    style_name=_preset,
                     custom_style=caption_config,
                 )
                 ass_file.write_text(ass_content, encoding="utf-8")

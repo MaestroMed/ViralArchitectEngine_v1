@@ -124,6 +124,44 @@ class CaptionEngine:
             if words_per_line:
                 max_words_per_line = max(2, min(words_per_line, 8))
 
+            # Per-field colour / weight / family / position overrides on top of
+            # the preset (camelCase from the editor). Hex #RRGGBB -> ASS via
+            # _hex_to_ass_color. Only EXPLICIT keys arrive, so presets aren't
+            # clobbered by defaults.
+            def _as_color(v: Any) -> Any:
+                return self._hex_to_ass_color(v) if isinstance(v, str) and v.startswith("#") else v
+
+            if custom_style.get("color"):
+                style["primary_color"] = _as_color(custom_style["color"])
+            hl = custom_style.get("highlightColor") or custom_style.get("highlight_color")
+            if hl:
+                style["highlight_color"] = _as_color(hl)
+            oc = custom_style.get("outlineColor") or custom_style.get("outline_color")
+            if oc:
+                style["outline_color"] = _as_color(oc)
+            ow = custom_style.get("outlineWidth", custom_style.get("outline_width"))
+            if ow is not None:
+                try:
+                    style["outline_width"] = max(0, min(int(ow), 16))
+                except (TypeError, ValueError):
+                    pass
+            fw = custom_style.get("fontWeight")
+            if fw is not None:
+                try:
+                    style["bold"] = int(fw) >= 700
+                except (TypeError, ValueError):
+                    pass
+            ff = custom_style.get("fontFamily") or custom_style.get("font_family")
+            if ff:
+                style["font_family"] = ff
+            pos = custom_style.get("position")
+            if pos in ("top", "center", "bottom"):
+                style["alignment"] = {"top": 8, "center": 5, "bottom": 2}[pos]
+                if pos == "top":
+                    style["margin_v"] = int(self.output_height * 0.12)
+                elif pos == "center":
+                    style["margin_v"] = int(self.output_height * 0.5)
+
         logger.info(f"[Captions] World Class style: font={style['font_family']} size={style['font_size']} margin_v={style['margin_v']}")
 
         # Build ASS file

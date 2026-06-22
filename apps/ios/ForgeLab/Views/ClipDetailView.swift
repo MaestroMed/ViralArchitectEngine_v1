@@ -47,6 +47,19 @@ struct ClipDetailView: View {
         .background(Theme.background)
         .navigationTitle(clip.title ?? "Clip")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            // Entry into the in-app editor: restyle captions + re-render.
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink {
+                    ClipEditorView(api: api, clip: clip, demo: demo)
+                } label: {
+                    Image(systemName: "pencil.and.outline")
+                        .foregroundStyle(Theme.accent)
+                }
+                .accessibilityLabel("Éditer le clip")
+                .accessibilityIdentifier("clip.edit")
+            }
+        }
         .task { await model.loadSegment() }
         // Distinct haptics per outcome: approve/export = success, reject =
         // warning, failure = error.

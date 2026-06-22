@@ -15,6 +15,9 @@ struct RootView: View {
                 let demoAPI = ForgeAPI(baseURL: URL(string: "http://demo.local")!, apiKey: "demo")
                 if AppLaunch.demoScreen == "detail", let first = DemoData.clips.first {
                     NavigationStack { ClipDetailView(api: demoAPI, clip: first, demo: true) }
+                } else if AppLaunch.demoScreen == "editor", let first = DemoData.clips.first {
+                    // Screenshot the in-app clip editor (preset carousel + inert CTA).
+                    NavigationStack { ClipEditorView(api: demoAPI, clip: first, demo: true) }
                 } else if AppLaunch.demoScreen == "settings" {
                     NavigationStack { SettingsView() }
                 } else if AppLaunch.demoScreen == "queue" {

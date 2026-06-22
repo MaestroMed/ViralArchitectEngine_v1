@@ -148,6 +148,17 @@ enum DemoData {
         topicLabel: "KC vs G2 — la diff top",
         transcript: "Le outplay de Cabochard là c'est ILLÉGAL frère, regarde, regarde ce qu'il fait ! Non mais attends, il a juke les trois en même temps, c'est pas possible. KC vs G2, la diff top qui fait basculer toute la game, c'est de la folie.")
 
+    /// Demo caption-style presets for the Clip Editor (--demo / previews), so
+    /// the carousel renders without hitting the engine. Mirrors the engine's
+    /// `/v1/clips/caption-presets` ids: classic/hormozi/pop/minimal/neon.
+    static let captionPresets: [CaptionPreset] = [
+        CaptionPreset(id: "classic", label: "Classic", highlight: "#FFFFFF", pop: false),
+        CaptionPreset(id: "hormozi", label: "Hormozi", highlight: "#00FF66", pop: true),
+        CaptionPreset(id: "pop", label: "Pop", highlight: "#FFD23F", pop: true),
+        CaptionPreset(id: "minimal", label: "Minimal", highlight: "#C9D1D9", pop: false),
+        CaptionPreset(id: "neon", label: "Neon", highlight: "#33D9F2", pop: true),
+    ]
+
     /// Demo in-flight job (drives the Pilot live overlay + Jobs sheet).
     static let jobs: [Job] = [
         Job(

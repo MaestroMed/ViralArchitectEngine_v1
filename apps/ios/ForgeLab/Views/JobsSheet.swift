@@ -55,6 +55,7 @@ struct JobsSheet: View {
     private var empty: some View {
         VStack(spacing: 10) {
             Image(systemName: "bolt.horizontal.circle").font(.largeTitle).foregroundStyle(Theme.textSecondary)
+                .accessibilityHidden(true)
             Text("Aucun job actif").font(.headline).foregroundStyle(Theme.textPrimary)
             Text("Les imports, ingestions et analyses s'afficheront ici en temps réel.")
                 .font(.subheadline).foregroundStyle(Theme.textSecondary).multilineTextAlignment(.center)
@@ -72,6 +73,8 @@ struct JobsSheet: View {
                     .padding(.horizontal, 7).padding(.vertical, 2)
                     .background(job.statusColor).clipShape(Capsule())
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(job.typeLabel), \(job.statusLabel)")
             if let pid = job.projectId, let name = projectName(pid) {
                 Text(name).font(.caption).foregroundStyle(Theme.textSecondary).lineLimit(1)
             }
@@ -103,7 +106,7 @@ struct JobsSheet: View {
             }
         }
         .padding(14)
-        .forgeGlassCard(cornerRadius: 16)
+        .forgeGlassCard(cornerRadius: Theme.Radius.md)
     }
 
     private func cancel(_ job: Job) async {

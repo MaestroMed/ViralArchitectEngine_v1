@@ -107,7 +107,7 @@ struct SettingsView: View {
         .scrollContentBackground(.hidden)
         .background(Theme.background.ignoresSafeArea())
         .listRowBackground(
-            Color.clear.glassEffect(.regular, in: .rect(cornerRadius: 12))
+            Color.clear.glassEffect(.regular, in: .rect(cornerRadius: Theme.Radius.sm))
         )
         .navigationTitle("Réglages")
         .onAppear(perform: hydrateFromSettings)

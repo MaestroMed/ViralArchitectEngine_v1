@@ -69,21 +69,27 @@ struct ProjectDetailView: View {
             LinearGradient(colors: [Color(red: 0.20, green: 0.10, blue: 0.28), Color(red: 0.05, green: 0.03, blue: 0.09)],
                            startPoint: .topLeading, endPoint: .bottomTrailing)
                 .overlay(Image(systemName: "film.stack").foregroundStyle(.white.opacity(0.7)).font(.largeTitle))
+                .accessibilityHidden(true)
         } else {
             RemoteImage(url: api.projectThumbnailURL(projectId: project.id, width: 960, height: 540), api: api) {
                 Rectangle().fill(Theme.surface)
                     .overlay(Image(systemName: "film").foregroundStyle(Theme.textSecondary))
             }
+            .accessibilityHidden(true)
         }
     }
 
     private var statusPill: some View {
         HStack(spacing: 4) {
+            // Colour echoes status; the adjacent label is the real cue.
             Circle().fill(project.statusColor).frame(width: 6, height: 6)
+                .accessibilityHidden(true)
             Text(project.statusLabel).font(.caption.weight(.semibold)).foregroundStyle(.white)
         }
         .padding(.horizontal, 8).padding(.vertical, 3)
         .background(.black.opacity(0.35)).clipShape(Capsule())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Statut : \(project.statusLabel)")
     }
 
     // MARK: Pipeline timeline
@@ -128,7 +134,9 @@ struct ProjectDetailView: View {
         }
         .padding(.vertical, 12).padding(.horizontal, 14)
         .frame(maxWidth: .infinity)
-        .forgeGlassCard(cornerRadius: 16)
+        .forgeGlassCard(cornerRadius: Theme.Radius.md)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Pipeline, étape \(min(current + 1, Self.stages.count)) sur \(Self.stages.count) : \(Self.stages[min(current, Self.stages.count - 1)].label)\(isError ? " — en erreur" : "")")
     }
 
     private func stageColor(_ idx: Int, _ current: Int, _ isError: Bool) -> Color {
@@ -183,9 +191,11 @@ struct ProjectDetailView: View {
             }
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .forgeGlassCard(cornerRadius: 16)
+            .forgeGlassCard(cornerRadius: Theme.Radius.md)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Source : \(raw)")
+        .accessibilityHint("Ouvre le lien")
     }
 
     // MARK: Jobs
@@ -212,6 +222,8 @@ struct ProjectDetailView: View {
                     .padding(.horizontal, 7).padding(.vertical, 2)
                     .background(job.statusColor).clipShape(Capsule())
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(job.typeLabel), \(job.statusLabel)")
             if job.isActive {
                 ProgressView(value: job.fraction).tint(Theme.accent)
                 if let stage = job.stage, !stage.isEmpty {
@@ -222,7 +234,7 @@ struct ProjectDetailView: View {
             }
         }
         .padding(14)
-        .forgeGlassCard(cornerRadius: 16)
+        .forgeGlassCard(cornerRadius: Theme.Radius.md)
     }
 
     private func loadJobs() async {

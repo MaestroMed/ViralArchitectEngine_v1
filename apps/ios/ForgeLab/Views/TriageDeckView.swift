@@ -68,6 +68,7 @@ struct TriageDeckView: View {
             Spacer()
             // Symmetry spacer so the counter stays centred.
             Image(systemName: "xmark").font(.headline).opacity(0).padding(10)
+                .accessibilityHidden(true)
         }
     }
 
@@ -113,10 +114,11 @@ struct TriageDeckView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(14)
+                    .accessibilityElement(children: .combine)
                 }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(.white.opacity(0.08), lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous).stroke(.white.opacity(0.08), lineWidth: 1))
         .shadow(color: .black.opacity(isTop ? 0.4 : 0), radius: 16, y: 8)
     }
 
@@ -138,6 +140,7 @@ struct TriageDeckView: View {
             LinearGradient(colors: palettes[idx], startPoint: .top, endPoint: .bottom)
                 .aspectRatio(9 / 16, contentMode: .fit)
                 .overlay(Image(systemName: "play.circle.fill").font(.system(size: 54)).foregroundStyle(.white.opacity(0.85)))
+                .accessibilityHidden(true)
         }
     }
 
@@ -151,6 +154,7 @@ struct TriageDeckView: View {
             .foregroundStyle(approving ? Theme.success : Theme.danger)
             .opacity(drag.width == 0 ? 0 : Double(progress))
             .rotationEffect(.degrees(approving ? -12 : 12))
+            .accessibilityHidden(true)
     }
 
     // MARK: Action bar

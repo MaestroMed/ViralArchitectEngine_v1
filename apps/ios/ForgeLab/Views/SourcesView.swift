@@ -98,6 +98,8 @@ struct SourcesView: View {
             .forgeGlassAccent(cornerRadius: 18)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Importer une VOD par URL")
+        .accessibilityHint("Colle un lien Twitch ou YouTube")
         .accessibilityIdentifier("sources.importUrl")
     }
 
@@ -311,6 +313,7 @@ private struct ChannelRow: View {
     var body: some View {
         HStack(spacing: 12) {
             avatar
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
                 Text(channel.title).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.textPrimary).lineLimit(1)
                 HStack(spacing: 6) {
@@ -322,6 +325,7 @@ private struct ChannelRow: View {
                     }
                 }
             }
+            .accessibilityElement(children: .combine)
             Spacer(minLength: 0)
             Button(action: onCheck) {
                 if busy {
@@ -336,7 +340,7 @@ private struct ChannelRow: View {
             .accessibilityIdentifier("channel-check-\(channel.id)")
         }
         .padding(12)
-        .forgeGlassCard(cornerRadius: 16)
+        .forgeGlassCard(cornerRadius: Theme.Radius.md)
     }
 
     @ViewBuilder
@@ -371,6 +375,7 @@ private struct DetectedVodRow: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 12) {
                 thumbnail
+                    .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 5) {
                     Text(vod.title).font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.textPrimary).lineLimit(2)
@@ -381,12 +386,13 @@ private struct DetectedVodRow: View {
                         if let s = vod.estimatedScore { ScoreBadge(score: s) }
                     }
                 }
+                .accessibilityElement(children: .combine)
                 Spacer(minLength: 0)
             }
             actions
         }
         .padding(12)
-        .forgeGlassCard(cornerRadius: 16)
+        .forgeGlassCard(cornerRadius: Theme.Radius.md)
     }
 
     @ViewBuilder

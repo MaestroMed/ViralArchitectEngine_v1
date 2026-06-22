@@ -74,7 +74,10 @@ struct PilotView: View {
     private var statusHeader: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
+                // Status is dot-colour AND text — VoiceOver reads the text, so
+                // the dot is decorative here.
                 Circle().fill(engineUp ? Theme.success : Theme.danger).frame(width: 9, height: 9)
+                    .accessibilityHidden(true)
                 Text(engineUp ? "Moteur connecté" : "Moteur injoignable")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.textPrimary)
@@ -88,7 +91,7 @@ struct PilotView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .forgeGlassCard(cornerRadius: 20)
+        .forgeGlassCard(cornerRadius: Theme.Radius.lg)
     }
 
     /// Prefer the live WS count; fall back to the polled stats before connect.
@@ -137,12 +140,15 @@ struct PilotView: View {
     private func warningBanner(_ text: String) -> some View {
         HStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Theme.danger)
+                .accessibilityHidden(true)
             Text(text).font(.subheadline.weight(.medium)).foregroundStyle(Theme.textPrimary)
             Spacer(minLength: 0)
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.danger.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
+        .background(Theme.danger.opacity(0.12), in: RoundedRectangle(cornerRadius: Theme.Radius.sm))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Avertissement : \(text)")
     }
 
     private var capabilityChips: some View {
@@ -166,6 +172,8 @@ struct PilotView: View {
         .padding(.horizontal, 9).padding(.vertical, 4)
         .background(Theme.textSecondary.opacity(0.12))
         .clipShape(Capsule())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(text)
     }
 
     // MARK: - Library

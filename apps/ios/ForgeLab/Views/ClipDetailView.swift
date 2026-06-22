@@ -66,7 +66,7 @@ struct ClipDetailView: View {
         if demo || model.player == nil {
             // Demo / no-player: static 9:16 placeholder so screenshots and
             // offline states still look intentional.
-            RoundedRectangle(cornerRadius: 20)
+            RoundedRectangle(cornerRadius: Theme.Radius.lg)
                 .fill(LinearGradient(
                     colors: [Color(red: 0.09, green: 0.20, blue: 0.31), Color.black],
                     startPoint: .top, endPoint: .bottom,
@@ -74,14 +74,17 @@ struct ClipDetailView: View {
                 .aspectRatio(9 / 16, contentMode: .fit)
                 .frame(maxWidth: .infinity)
                 .overlay(Image(systemName: "play.circle.fill").font(.system(size: 56)).foregroundStyle(.white.opacity(0.9)))
+                .accessibilityElement()
+                .accessibilityLabel("Aperçu vidéo indisponible")
         } else if let player = model.player {
             VideoPlayer(player: player)
                 .aspectRatio(9 / 16, contentMode: .fit)
                 .frame(maxWidth: .infinity)
                 .background(Color.black)
-                .clipShape(RoundedRectangle(cornerRadius: 20))
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg))
                 .onAppear { player.play() }
                 .onDisappear { player.pause() }
+                .accessibilityLabel("Lecteur vidéo du clip")
         }
     }
 
@@ -94,6 +97,8 @@ struct ClipDetailView: View {
                     .font(.caption)
                     .foregroundStyle(Theme.textSecondary)
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Score viral \(Int(clip.viralScore.rounded())), durée \(formatDuration(clip.duration))")
             if let desc = clip.description, !desc.isEmpty {
                 Text(desc)
                     .font(.body)
@@ -104,7 +109,7 @@ struct ClipDetailView: View {
             }
         }
         .padding()
-        .forgeGlassCard(cornerRadius: 16)
+        .forgeGlassCard(cornerRadius: Theme.Radius.md)
     }
 
     private var actions: some View {
@@ -125,7 +130,7 @@ struct ClipDetailView: View {
             }
             .padding()
             .foregroundStyle(.white)
-            .forgeGlassAccent(cornerRadius: 16)
+            .forgeGlassAccent(cornerRadius: Theme.Radius.md)
             .opacity(model.busy ? 0.6 : 1)
             .disabled(model.busy)
             .accessibilityIdentifier("download-button")
@@ -140,7 +145,7 @@ struct ClipDetailView: View {
                 }
                 .padding()
                 .foregroundStyle(Theme.textPrimary)
-                .forgeGlassCard(cornerRadius: 14)
+                .forgeGlassCard(cornerRadius: Theme.Radius.sm)
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
 
@@ -153,7 +158,7 @@ struct ClipDetailView: View {
                 }
                 .padding()
                 .foregroundStyle(Theme.danger)
-                .forgeGlassCard(cornerRadius: 14)
+                .forgeGlassCard(cornerRadius: Theme.Radius.sm)
                 .opacity(model.busy ? 0.6 : 1)
                 .disabled(model.busy)
                 .accessibilityLabel("Rejeter le clip")
@@ -166,7 +171,7 @@ struct ClipDetailView: View {
                 }
                 .padding()
                 .foregroundStyle(Theme.success)
-                .forgeGlassCard(cornerRadius: 14)
+                .forgeGlassCard(cornerRadius: Theme.Radius.sm)
                 .opacity(model.busy ? 0.6 : 1)
                 .disabled(model.busy)
                 .accessibilityLabel("Approuver le clip")
@@ -300,7 +305,7 @@ private struct WhyCard: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .forgeGlassCard(cornerRadius: 16)
+        .forgeGlassCard(cornerRadius: Theme.Radius.md)
     }
 
     private func componentBars(_ score: SegmentScore) -> some View {
@@ -350,7 +355,7 @@ private struct TranscriptCard: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .forgeGlassCard(cornerRadius: 16)
+        .forgeGlassCard(cornerRadius: Theme.Radius.md)
     }
 }
 
@@ -430,6 +435,6 @@ private struct OutcomeBanner: View {
         .font(.subheadline)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .forgeGlassCard(cornerRadius: 14)
+        .forgeGlassCard(cornerRadius: Theme.Radius.sm)
     }
 }

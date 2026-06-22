@@ -644,6 +644,34 @@ class ViralityScorer:
                         tension_score += 5
                         reasons.append("High audio variance")
 
+            # Detected audio EVENTS (laughter/cheer/scream/...): the highest-signal
+            # "something funny/hype happened here" cues, previously computed then
+            # discarded. Laughter/cheer/applause lift humour; scream/gasp/excitement/
+            # game beats lift tension. Weighted by the detector's confidence-scaled
+            # viral_score (0-1). Humour is re-capped since it was clamped above.
+            HUMOUR_EVENTS = {"laughter", "cheer", "applause"}
+            TENSION_EVENTS = {
+                "scream", "gasp", "speech_excitement",
+                "game_explosion", "game_achievement", "game_gunshot",
+            }
+            seg_events = [
+                ev for ev in audio_data.get("events", [])
+                if segment["start_time"] <= ev.get("start", ev.get("time", 0)) <= segment["end_time"]
+            ]
+            humour_hits = [e for e in seg_events if e.get("type") in HUMOUR_EVENTS]
+            tension_hits = [e for e in seg_events if e.get("type") in TENSION_EVENTS]
+            if humour_hits:
+                strength = max(e.get("viral_score") or e.get("confidence", 0.0) for e in humour_hits)
+                humour_score = min(humour_score + round(8 * strength), 15)
+                tags.add("audio_reaction")
+                kinds = ", ".join(sorted({e["type"] for e in humour_hits}))
+                reasons.append(f"Audio reaction ({kinds})")
+            if tension_hits:
+                strength = max(e.get("viral_score") or e.get("confidence", 0.0) for e in tension_hits)
+                tension_score += round(6 * strength)
+                kinds = ", ".join(sorted({e["type"] for e in tension_hits}))
+                reasons.append(f"Audio spike ({kinds})")
+
         # Scene changes
         if scene_data:
             scenes = scene_data.get("scenes", [])

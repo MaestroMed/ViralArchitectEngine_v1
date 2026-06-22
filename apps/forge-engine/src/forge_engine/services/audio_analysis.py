@@ -65,6 +65,34 @@ class AudioAnalysisResult:
     speech_rate_estimate: float = 0.0
     summary: dict[str, Any] = field(default_factory=dict)
 
+    def to_dict(self) -> dict[str, Any]:
+        """Plain JSON-serializable form. The dataclass itself isn't
+        json-serializable (AudioEvent + StrEnum), which silently emptied
+        audio_analysis.json and starved the scorer of every audio signal —
+        always hand callers this dict, never the raw dataclass. Event keys
+        mirror the summary/profile convention ('type'/'start'/'end')."""
+        return {
+            "duration": self.duration,
+            "energy_timeline": self.energy_timeline,
+            "peaks": self.peaks,
+            "silences": self.silences,
+            "events": [
+                {
+                    "type": e.event_type.value,
+                    "start": e.start_time,
+                    "end": e.end_time,
+                    "confidence": e.confidence,
+                    "viral_score": e.viral_score,
+                    "metadata": e.metadata,
+                }
+                for e in self.events
+            ],
+            "average_energy": self.average_energy,
+            "energy_variance": self.energy_variance,
+            "speech_rate_estimate": self.speech_rate_estimate,
+            "summary": self.summary,
+        }
+
 
 class AudioAnalyzer:
     """Advanced service for analyzing audio characteristics and detecting events."""
@@ -225,7 +253,7 @@ class AudioAnalyzer:
             energy_variance=float(np.var(rms_normalized)),
             speech_rate_estimate=speech_rate,
             summary=summary
-        )
+        ).to_dict()
 
     def _detect_audio_events(
         self,

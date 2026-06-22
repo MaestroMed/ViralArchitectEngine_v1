@@ -65,6 +65,7 @@ targets:
       - target: ForgeLab
     settings:
       base:
+        GENERATE_INFOPLIST_FILE: "YES"
         BUNDLE_LOADER: "$(TEST_HOST)"
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/ForgeLab.app/ForgeLab"
 
@@ -76,6 +77,7 @@ targets:
       - target: ForgeLab
     settings:
       base:
+        GENERATE_INFOPLIST_FILE: "YES"
         PRODUCT_BUNDLE_IDENTIFIER: com.maestromed.forgelab.uitests
 
 schemes:

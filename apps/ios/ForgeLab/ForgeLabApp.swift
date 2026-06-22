@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftUI
 
 @main
@@ -20,6 +21,9 @@ struct ForgeLabApp: App {
                 .onOpenURL { router.handle($0) }
                 .task {
                     guard notifications == nil else { return }
+                    // Clip audio must play through the SILENT switch — without the
+                    // .playback category AVPlayer mutes video on a silenced phone.
+                    try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
                     notifications = NotificationManager(router: router)
                     LocalNotifier.requestAuthorization()
                     // Register for REMOTE push (APNs) on top of local notifs, so

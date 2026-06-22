@@ -159,6 +159,21 @@ enum DemoData {
         CaptionPreset(id: "neon", label: "Neon", highlight: "#33D9F2", pop: true),
     ]
 
+    /// Demo caption lines for the editor's text-edit section (offline screenshots).
+    static let captionLines: [CaptionLine] = [
+        CaptionLine(start: 0.0, end: 1.6, text: "Le outplay de Cabochard", words: [
+            CaptionWord(word: "Le", start: 0.0, end: 0.3),
+            CaptionWord(word: "outplay", start: 0.3, end: 0.9),
+            CaptionWord(word: "de", start: 0.9, end: 1.1),
+            CaptionWord(word: "Cabochard", start: 1.1, end: 1.6),
+        ]),
+        CaptionLine(start: 1.6, end: 3.0, text: "là c'est ILLÉGAL", words: [
+            CaptionWord(word: "là", start: 1.6, end: 1.9),
+            CaptionWord(word: "c'est", start: 1.9, end: 2.3),
+            CaptionWord(word: "ILLÉGAL", start: 2.3, end: 3.0),
+        ]),
+    ]
+
     /// Demo in-flight job (drives the Pilot live overlay + Jobs sheet).
     static let jobs: [Job] = [
         Job(

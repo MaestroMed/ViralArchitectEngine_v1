@@ -35,6 +35,7 @@ extension ForgeAPI {
         highlightColorHex: String? = nil,
         trimIn: Double? = nil,
         trimOut: Double? = nil,
+        editedCaptions: [CaptionLine]? = nil,
     ) async throws -> String {
         let style: RerenderRequest.CaptionStyle?
         if presetId != nil || highlightColorHex != nil {
@@ -42,12 +43,41 @@ extension ForgeAPI {
         } else {
             style = nil
         }
-        let body = RerenderRequest(captionStyle: style, trimIn: trimIn, trimOut: trimOut)
+        let body = RerenderRequest(
+            captionStyle: style, trimIn: trimIn, trimOut: trimOut, editedCaptions: editedCaptions,
+        )
         let env = try await request(ApiEnvelope<RerenderResult>.self,
                                     path: "/v1/clips/queue/\(clipId)/rerender",
                                     method: "POST", body: body)
         return try env.unwrapped().jobId
     }
+
+    /// The clip's caption LINES (clip-relative) for the text editor.
+    func clipCaptions(clipId: String) async throws -> [CaptionLine] {
+        let env = try await request(ApiEnvelope<CaptionLinesPayload>.self,
+                                    path: "/v1/clips/queue/\(clipId)/captions")
+        return try env.unwrapped().lines
+    }
+}
+
+/// One editable caption line + its words. Round-trips to the engine verbatim
+/// (the engine keeps each word's timing on a same-count text fix).
+struct CaptionLine: Codable, Identifiable, Hashable {
+    let start: Double
+    let end: Double
+    var text: String
+    let words: [CaptionWord]
+    var id: String { "\(start)-\(end)" }
+}
+
+struct CaptionWord: Codable, Hashable {
+    let word: String
+    let start: Double
+    let end: Double
+}
+
+private struct CaptionLinesPayload: Decodable {
+    let lines: [CaptionLine]
 }
 
 /// A dynamic caption style the engine can render. `highlight` is a "#RRGGBB"
@@ -76,6 +106,7 @@ private struct RerenderRequest: Encodable {
     let captionStyle: CaptionStyle?
     let trimIn: Double?
     let trimOut: Double?
+    let editedCaptions: [CaptionLine]?
 
     struct CaptionStyle: Encodable {
         let presetId: String?

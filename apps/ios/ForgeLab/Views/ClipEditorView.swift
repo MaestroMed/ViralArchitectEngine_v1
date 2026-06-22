@@ -33,6 +33,7 @@ struct ClipEditorView: View {
                     presetSection
                     colourSection
                     trimSection
+                    captionSection
                     rerenderSection
                     if let job = model.trackedJob {
                         progressCard(job)
@@ -49,7 +50,10 @@ struct ClipEditorView: View {
         .background(Theme.background)
         .navigationTitle("Éditer")
         .navigationBarTitleDisplayMode(.inline)
-        .task { await model.loadPresets() }
+        .task {
+            await model.loadPresets()
+            await model.loadCaptions()
+        }
         .onDisappear { model.teardown() }
         .sensoryFeedback(.success, trigger: model.successTick)
         .sensoryFeedback(.error, trigger: model.errorTick)
@@ -222,6 +226,46 @@ struct ClipEditorView: View {
         let s = Int(t.rounded()); return String(format: "%d:%02d", s / 60, s % 60)
     }
 
+    // MARK: - Caption text editor
+
+    private var captionSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label("Légendes", systemImage: "captions.bubble")
+                    .font(.headline).foregroundStyle(Theme.textPrimary)
+                Spacer()
+                if model.captionsEdited {
+                    Text("modifié").font(.caption2.weight(.semibold)).foregroundStyle(Theme.accent)
+                }
+            }
+            Text("Corrige une faute — le rendu garde le timing.")
+                .font(.caption).foregroundStyle(Theme.textSecondary)
+
+            if model.captionLines.isEmpty {
+                Text("Pas de légendes pour ce clip.")
+                    .font(.caption).foregroundStyle(Theme.textSecondary)
+                    .frame(maxWidth: .infinity).padding(.vertical, 8)
+            } else {
+                VStack(spacing: 8) {
+                    ForEach($model.captionLines) { $line in
+                        HStack(alignment: .top, spacing: 10) {
+                            Text(timeStr(line.start))
+                                .font(.caption2.monospacedDigit()).foregroundStyle(Theme.textSecondary)
+                                .frame(width: 36, alignment: .leading).padding(.top, 2)
+                            TextField("Texte", text: $line.text, axis: .vertical)
+                                .font(.subheadline).foregroundStyle(Theme.textPrimary)
+                                .textFieldStyle(.plain).submitLabel(.done)
+                                .accessibilityLabel("Légende à \(timeStr(line.start))")
+                        }
+                        .padding(.horizontal, 12).padding(.vertical, 9)
+                        .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.sm))
+                    }
+                }
+            }
+        }
+        .accessibilityIdentifier("editor.captions")
+    }
+
     // MARK: - Re-render CTA
 
     private var rerenderSection: some View {
@@ -315,6 +359,10 @@ final class EditorModel: ObservableObject {
     @Published var inPoint: Double = 0
     @Published var outPoint: Double = 0
     @Published var highlightHex: String?
+    /// Editable caption lines + the pristine copy to detect edits.
+    @Published var captionLines: [CaptionLine] = []
+    private var originalLines: [CaptionLine] = []
+    var captionsEdited: Bool { captionLines != originalLines && !originalLines.isEmpty }
     var clipDuration: Double { max(1, clip.duration) }
     /// True once a handle has moved off the full range — only then do we trim.
     var isTrimmed: Bool { inPoint > 0.05 || outPoint < clipDuration - 0.05 }
@@ -357,6 +405,14 @@ final class EditorModel: ObservableObject {
         }
     }
 
+    func loadCaptions() async {
+        guard !demo else { captionLines = DemoData.captionLines; originalLines = captionLines; return }
+        if let lines = try? await api.clipCaptions(clipId: clip.id) {
+            captionLines = lines
+            originalLines = lines
+        }
+    }
+
     func rerender() async {
         guard !demo, let presetId = selectedPresetId else { return }
         busy = true; defer { busy = false }
@@ -368,6 +424,7 @@ final class EditorModel: ObservableObject {
                 highlightColorHex: highlightHex,
                 trimIn: isTrimmed ? inPoint : nil,
                 trimOut: isTrimmed ? outPoint : nil,
+                editedCaptions: captionsEdited ? captionLines : nil,
             )
             trackedJobId = jobId
             // Seed a pending row immediately so the UI reacts before the first

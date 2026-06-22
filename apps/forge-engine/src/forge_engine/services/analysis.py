@@ -380,6 +380,38 @@ class AnalysisService:
             if score_segments and transcript_data:
                 job_manager.update_progress(job, 85, "scoring", "Scoring viral potential...")
 
+                # Twitch chat signal (chat-velocity / emote bursts). Best-effort:
+                # cached, Twitch-only, and any failure leaves chat_data=None so a
+                # chat outage can never fail the analysis.
+                chat_data = None
+                if settings.CHAT_SIGNAL:
+                    try:
+                        from forge_engine.services.twitch_chat import (
+                            build_chat_intensity,
+                            extract_video_id,
+                            fetch_vod_chat,
+                        )
+                        chat_data = load_cached_step("chat_analysis.json")
+                        meta = project.project_meta or {}
+                        if not chat_data and "twitch" in str(meta.get("platform", "")).lower():
+                            vid = extract_video_id(meta, meta.get("importUrl"))
+                            if vid:
+                                job_manager.update_progress(job, 86, "scoring", "Lecture du chat Twitch...")
+                                msgs = await fetch_vod_chat(vid, duration=project.duration or None)
+                                dur = project.duration or ((msgs[-1]["offset"] + 3) if msgs else 0)
+                                chat_data = build_chat_intensity(msgs, dur)
+                                with open(analysis_dir / "chat_analysis.json", "w") as f:
+                                    json.dump(chat_data, f)
+                                logger.info(
+                                    "✓ Chat signal: %d msgs, %d spikes (peak z=%.1f)",
+                                    chat_data.get("total_messages", 0),
+                                    len(chat_data.get("spikes", [])),
+                                    chat_data.get("peak_z", 0.0),
+                                )
+                    except Exception as e:
+                        logger.warning("Chat signal failed (continuing without): %s", e)
+                        chat_data = None
+
                 # Generate candidate segments
                 candidate_segments = self.virality.generate_segments(
                     transcript_data.get("segments", []),
@@ -393,7 +425,8 @@ class AnalysisService:
                     candidate_segments,
                     transcript_data=transcript_data,
                     audio_data=audio_data,
-                    scene_data=scene_data
+                    scene_data=scene_data,
+                    chat_data=chat_data
                 )
 
                 # Deduplicate overlapping segments

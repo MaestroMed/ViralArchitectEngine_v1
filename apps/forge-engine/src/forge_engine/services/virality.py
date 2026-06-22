@@ -373,13 +373,14 @@ class ViralityScorer:
         segments: list[dict[str, Any]],
         transcript_data: dict[str, Any] | None = None,
         audio_data: dict[str, Any] | None = None,
-        scene_data: dict[str, Any] | None = None
+        scene_data: dict[str, Any] | None = None,
+        chat_data: dict[str, Any] | None = None
     ) -> list[dict[str, Any]]:
         """Score all candidate segments (sync wrapper)."""
         scored = []
 
         for segment in segments:
-            score = self._score_segment(segment, audio_data, scene_data)
+            score = self._score_segment(segment, audio_data, scene_data, chat_data)
             segment["score"] = score
             segment["topic_label"] = self._generate_topic_label(segment)
             segment["hook_text"] = self._find_best_hook(segment)
@@ -400,11 +401,12 @@ class ViralityScorer:
         scene_data: dict[str, Any] | None = None,
         emotion_data: Optional["EmotionAnalysisResult"] = None,
         use_llm: bool = True,
-        use_emotions: bool = True
+        use_emotions: bool = True,
+        chat_data: dict[str, Any] | None = None
     ) -> list[dict[str, Any]]:
         """Score all candidate segments with optional LLM and emotion enhancement."""
         # First, apply heuristic scoring
-        scored = self.score_segments(segments, transcript_data, audio_data, scene_data)
+        scored = self.score_segments(segments, transcript_data, audio_data, scene_data, chat_data)
 
         # Enhance with emotion data if available
         if use_emotions and emotion_data:
@@ -554,7 +556,8 @@ class ViralityScorer:
         self,
         segment: dict[str, Any],
         audio_data: dict[str, Any] | None = None,
-        scene_data: dict[str, Any] | None = None
+        scene_data: dict[str, Any] | None = None,
+        chat_data: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """Calculate viral score for a segment."""
         transcript = segment.get("transcript", "").lower()
@@ -629,6 +632,10 @@ class ViralityScorer:
         # Tension/Surprise (0-15)
         tension_score = 0
 
+        # Tracks whether this window has any acoustic excitement, for the
+        # chat+audio dual-gate combo below.
+        audio_hot = False
+
         # Audio energy variance (if available)
         if audio_data:
             energy = audio_data.get("energy_timeline", [])
@@ -642,6 +649,7 @@ class ViralityScorer:
                     variance = sum((v - sum(values)/len(values))**2 for v in values) / len(values)
                     if variance > 0.1:
                         tension_score += 5
+                        audio_hot = True
                         reasons.append("High audio variance")
 
             # Detected audio EVENTS (laughter/cheer/scream/...): the highest-signal
@@ -660,6 +668,8 @@ class ViralityScorer:
             ]
             humour_hits = [e for e in seg_events if e.get("type") in HUMOUR_EVENTS]
             tension_hits = [e for e in seg_events if e.get("type") in TENSION_EVENTS]
+            if seg_events:
+                audio_hot = True
             if humour_hits:
                 strength = max(e.get("viral_score") or e.get("confidence", 0.0) for e in humour_hits)
                 humour_score = min(humour_score + round(8 * strength), 15)
@@ -671,6 +681,28 @@ class ViralityScorer:
                 tension_score += round(6 * strength)
                 kinds = ", ".join(sorted({e["type"] for e in tension_hits}))
                 reasons.append(f"Audio spike ({kinds})")
+
+        # Twitch chat spikes — the strongest real-world "clip it" signal. A spike
+        # inside the window lifts tension (hype) / humour (laugh); when it
+        # COINCIDES with acoustic excitement ("chat spikes AND voice loud"), add a
+        # combo bonus — the canonical stream funny-moment marker.
+        if chat_data:
+            seg_spikes = [
+                s for s in chat_data.get("spikes", [])
+                if segment["start_time"] <= s.get("time", -1) <= segment["end_time"]
+            ]
+            if seg_spikes:
+                peak = max(s.get("intensity", 0.0) for s in seg_spikes)
+                chat_boost = min(7, round(1.5 * peak))  # z=2 -> ~3, z>=5 -> cap 7
+                if any(s.get("kind") == "laugh" for s in seg_spikes):
+                    humour_score = min(humour_score + chat_boost, 15)
+                    tags.add("chat_laugh")
+                tension_score += chat_boost
+                tags.add("chat_spike")
+                reasons.append(f"Chat spike (x{len(seg_spikes)}, z={peak:.1f})")
+                if audio_hot:
+                    tension_score += 3
+                    reasons.append("Chat + audio peak (combo)")
 
         # Scene changes
         if scene_data:

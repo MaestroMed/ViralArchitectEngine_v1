@@ -70,6 +70,11 @@ class Settings(BaseSettings):
     # float32 with negligible quality loss; set to "float32" for max fidelity.
     WHISPER_CPU_COMPUTE_TYPE: str = "int8"
     WHISPER_LANGUAGE: str = "fr"  # Default language (FR for streaming content)
+
+    # Twitch chat as a virality signal (chat-velocity / emote bursts fused into
+    # scoring). Best-effort: a chat outage never fails a VOD. FORGE_CHAT_SIGNAL=0
+    # to disable. Only fires for Twitch-sourced projects.
+    CHAT_SIGNAL: bool = True
     WHISPER_NUM_WORKERS: int = 2  # Default, auto-detected based on VRAM
     WHISPER_BATCH_SIZE: int = 16  # Default, auto-detected based on VRAM
     WHISPER_TURBO_MODE: bool = True  # Enable batched inference for maximum speed

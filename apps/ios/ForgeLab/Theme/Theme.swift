@@ -36,16 +36,21 @@ enum Theme {
         center: .topTrailing, startRadius: 8, endRadius: 320,
     )
 
+    // Cool score ramp — brighter/greener = better, no warm tones. Weak clips
+    // recede (slate), strong ones pop (cyan-green). Mehdi: "j'aime pas le orange".
+    static let scoreMid = Color(red: 0.42, green: 0.46, blue: 0.82)   // indigo = "correct"
+    static let scoreLow = Color(red: 0.52, green: 0.56, blue: 0.64)   // slate = "faible"
+
     static func scoreColor(_ score: Double) -> Color {
         switch score {
-        case ..<55: return Color.white.opacity(0.45)
-        case 55..<70: return Color(red: 0.96, green: 0.74, blue: 0.34)   // amber = "correct"
-        case 70..<85: return accent                                       // blue = "fort"
-        default: return success                                           // green = "banger"
+        case ..<55: return scoreLow                                      // slate = "faible"
+        case 55..<70: return scoreMid                                    // indigo = "correct"
+        case 70..<85: return accent                                      // blue = "fort"
+        default: return success                                          // green = "banger"
         }
     }
 
-    /// Gradient for a score badge — cyan-leaning when it's a banger.
+    /// Gradient for a score badge — the cooler/greener, the stronger the clip.
     static func scoreGradient(_ score: Double) -> LinearGradient {
         if score >= 85 {
             return LinearGradient(colors: [success, accentBright], startPoint: .topLeading, endPoint: .bottomTrailing)
@@ -53,7 +58,9 @@ enum Theme {
         if score >= 70 {
             return accentGradient
         }
-        let c = scoreColor(score)
-        return LinearGradient(colors: [c, c], startPoint: .top, endPoint: .bottom)
+        if score >= 55 {
+            return LinearGradient(colors: [scoreMid, accent], startPoint: .topLeading, endPoint: .bottomTrailing)
+        }
+        return LinearGradient(colors: [scoreLow, scoreMid], startPoint: .top, endPoint: .bottom)
     }
 }

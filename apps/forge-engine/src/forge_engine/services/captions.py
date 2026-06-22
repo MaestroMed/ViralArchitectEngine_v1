@@ -18,13 +18,13 @@ TIKTOK_HEIGHT = 1920
 # Font size: 5% of screen height for maximum visibility
 DEFAULT_FONT_SIZE = 96  # ~5% of 1920
 
-# THE ONE AND ONLY STYLE - World Class Viral Subtitles
-# Inspired by MrBeast, Hormozi, and top viral content
+# Base viral style — Anton, white + yellow active word. Presets below derive
+# from it. ASS colours are &HAABBGGRR (AA=00 opaque).
 DEFAULT_STYLE = {
     "font_family": "Anton",  # Bold condensed font - highly readable
     "font_size": DEFAULT_FONT_SIZE,
-    "primary_color": "&H00FFFFFF",  # White (ASS format: AABBGGRR)
-    "highlight_color": "&H0000FFFF",  # Yellow #FFFF00 (for active word)
+    "primary_color": "&H00FFFFFF",  # White
+    "highlight_color": "&H0000FFFF",  # Yellow #FFFF00 (active word)
     "outline_color": "&H00000000",  # Black outline
     "outline_width": 8,  # Thick outline for contrast
     "shadow_depth": 5,  # Strong shadow
@@ -32,7 +32,45 @@ DEFAULT_STYLE = {
     "alignment": 5,  # Center of screen
     "margin_v": 960,  # Default center (can be customized)
     "max_words_per_line": 4,  # Ultra-readable chunks
+    "active_scale": 110,  # active-word scale (%)
+    "active_pop": False,  # eased pop-in (\t) vs static scale
+    "all_caps": True,
 }
+
+# Selectable dynamic caption styles (the editor's "style" picker). Each derives
+# from DEFAULT_STYLE and overrides colour / active-word animation / sizing.
+# active_pop=True eases the active word from 100% to active_scale over ~120ms
+# (the animated word-pop CapCut/Submagic/Hormozi captions are known for).
+CAPTION_PRESETS: dict[str, dict[str, Any]] = {
+    # White words, yellow active, gentle static bump — the current look.
+    "classic": {**DEFAULT_STYLE},
+    # Hormozi "money" style: white words, GREEN active word that pops big.
+    "hormozi": {
+        **DEFAULT_STYLE, "highlight_color": "&H0066FF00",  # green #00FF66
+        "active_scale": 130, "active_pop": True, "outline_width": 10, "shadow_depth": 6,
+    },
+    # Bouncy cyan pop on the brand colour.
+    "pop": {
+        **DEFAULT_STYLE, "highlight_color": "&H00F2D933",  # cyan #33D9F2
+        "active_scale": 122, "active_pop": True,
+    },
+    # Clean & restrained: smaller, white-on-white highlight, no pop.
+    "minimal": {
+        **DEFAULT_STYLE, "font_size": 78, "highlight_color": "&H00FFFFFF",
+        "active_scale": 100, "active_pop": False, "outline_width": 5,
+        "shadow_depth": 2, "max_words_per_line": 3,
+    },
+    # Neon: magenta active word with a heavier glow.
+    "neon": {
+        **DEFAULT_STYLE, "highlight_color": "&H00CB3DFF",  # magenta #FF3DCB
+        "active_scale": 124, "active_pop": True, "shadow_depth": 9,
+    },
+}
+
+
+def resolve_caption_style(preset: str | None) -> dict[str, Any]:
+    """Base style dict for a preset name (falls back to classic/default)."""
+    return {**CAPTION_PRESETS.get((preset or "classic").lower(), DEFAULT_STYLE)}
 
 
 class CaptionEngine:
@@ -52,10 +90,13 @@ class CaptionEngine:
         max_lines: int = 2,
         facecam_position: str | None = None
     ) -> str:
-        """Generate ASS subtitle file with WORLD CLASS karaoke effect."""
+        """Generate ASS subtitle file with karaoke effect.
 
-        # Start with the perfect style
-        style = DEFAULT_STYLE.copy()
+        ``style_name`` selects a caption PRESET (classic/hormozi/pop/minimal/neon);
+        ``custom_style`` then overrides position/size/words-per-line on top.
+        """
+        # Start from the selected preset.
+        style = resolve_caption_style(style_name)
 
         # Layout-aware DEFAULT position: a safe band in the content zone — below
         # the facecam (two-zone vstack), above TikTok's bottom UI, never on the
@@ -175,9 +216,12 @@ class CaptionEngine:
 
         dialogues = []
 
-        # Colors from style
+        # Colours + active-word animation from the resolved preset.
         white = style.get("primary_color", "&H00FFFFFF")
-        yellow = style.get("highlight_color", "&H0000FFFF")
+        highlight = style.get("highlight_color", "&H0000FFFF")
+        active_scale = int(style.get("active_scale", 110))
+        active_pop = bool(style.get("active_pop", False))
+        all_caps = bool(style.get("all_caps", True))
 
         # Group words into chunks for display. Phrase-aware: break at sentence/
         # clause punctuation (. ? ! , ; :) as well as at max_words_per_line, so
@@ -213,19 +257,28 @@ class CaptionEngine:
                 word_start = active_word["start"]
                 word_end = active_word["end"]
 
-                # Build the text with inline color overrides
+                # Build the text with inline colour/scale overrides per word.
                 text_parts = []
                 for i, word in enumerate(chunk):
-                    # Clean and UPPERCASE the word
-                    clean_word = self._clean_word(word["word"]).upper()
+                    clean = self._clean_word(word["word"])
+                    clean_word = clean.upper() if all_caps else clean
 
                     if i == word_idx:
-                        # ACTIVE WORD: Yellow + 110% scale
+                        # ACTIVE WORD: highlight colour + scale. With active_pop,
+                        # ease from 100% -> active_scale over 120ms (\t) for the
+                        # animated word-pop; otherwise a static bump.
+                        if active_pop:
+                            anim = (
+                                f"\\fscx100\\fscy100"
+                                f"\\t(0,120,\\fscx{active_scale}\\fscy{active_scale})"
+                            )
+                        else:
+                            anim = f"\\fscx{active_scale}\\fscy{active_scale}"
                         text_parts.append(
-                            f"{{\\1c{yellow}\\fscx110\\fscy110}}{clean_word}{{\\r}}"
+                            f"{{\\1c{highlight}{anim}}}{clean_word}{{\\r}}"
                         )
                     else:
-                        # Other words: White, normal scale
+                        # Other words: primary colour, normal scale.
                         text_parts.append(
                             f"{{\\1c{white}}}{clean_word}{{\\r}}"
                         )

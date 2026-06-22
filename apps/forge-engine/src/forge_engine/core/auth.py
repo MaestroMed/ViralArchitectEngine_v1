@@ -18,7 +18,7 @@ import os
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, WebSocket, status
 from sqlalchemy import select, update
 
 from forge_engine.core.database import async_session_maker
@@ -98,3 +98,33 @@ async def require_api_key(
 # Convenience alias for endpoint signatures. Use as:
 #     async def endpoint(_auth: ApiAuth = Depends(require_api_key)): ...
 ApiAuth = Annotated[ApiKey | None, Depends(require_api_key)]
+
+
+async def authorize_websocket(websocket: WebSocket) -> bool:
+    """Gate a WebSocket handshake on the API key.
+
+    WS handshakes can't reuse the HTTP ``Depends(require_api_key)`` cleanly: a
+    Header dependency that raises aborts the handshake with an opaque error, and
+    browser WS clients can't set custom headers on the upgrade request at all.
+    So the WS endpoints call this helper directly instead.
+
+    When auth is OFF (local dev on 127.0.0.1) this always allows — no DB hit,
+    behavior unchanged. When ON it requires a valid key taken from the ``?key=``
+    query param (preferred, works from any client) or the ``X-API-Key`` header
+    (fallback), validated against the ApiKey table and touched like the HTTP
+    path. Both are read pre-accept, so the caller can reject before upgrading.
+
+    Returns True to proceed (caller then accepts), False to reject (caller
+    closes with code 1008, policy violation).
+    """
+    if not auth_required():
+        return True
+    raw_key = websocket.query_params.get("key") or websocket.headers.get(API_KEY_HEADER)
+    if not raw_key:
+        logger.warning("WebSocket auth failed: no key presented")
+        return False
+    row = await _lookup_and_touch(raw_key)
+    if row is None:
+        logger.warning("WebSocket auth failed: invalid or revoked key (length=%d)", len(raw_key))
+        return False
+    return True

@@ -5,8 +5,9 @@ import json
 import logging
 from dataclasses import dataclass, field
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 
+from forge_engine.core.auth import authorize_websocket
 from forge_engine.core.jobs import Job, JobManager
 
 logger = logging.getLogger(__name__)
@@ -270,6 +271,12 @@ def broadcast_project_update(project_data: dict):
 
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    # Gate the handshake before accepting (no-op when auth is off). Closing
+    # pre-accept rejects the upgrade; the iOS/web clients pass the key as
+    # `?key=` (and the X-API-Key header as a fallback). See core/auth.py.
+    if not await authorize_websocket(websocket):
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
     await manager.connect(websocket)
 
     try:
@@ -283,6 +290,9 @@ async def websocket_endpoint(websocket: WebSocket):
 @router.websocket("/ws/project/{project_id}")
 async def project_websocket(websocket: WebSocket, project_id: str):
     """WebSocket endpoint for project-specific updates."""
+    if not await authorize_websocket(websocket):
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
     await manager.connect(websocket)
     await manager.set_project_context(websocket, project_id)
 
@@ -297,6 +307,9 @@ async def project_websocket(websocket: WebSocket, project_id: str):
 @router.websocket("/ws/job/{job_id}")
 async def job_websocket(websocket: WebSocket, job_id: str):
     """WebSocket endpoint for job-specific updates."""
+    if not await authorize_websocket(websocket):
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
     await manager.connect(websocket)
     await manager.subscribe(websocket, f"job:{job_id}")
 

@@ -255,6 +255,14 @@ def create_app() -> FastAPI:
     from forge_engine.api.v1.endpoints import webhooks
     app.include_router(webhooks.router, prefix="/v1/webhooks", tags=["Webhooks"])
 
+    # Real-time WebSocket routes (/v1/ws*) self-authenticate via the `?key=`
+    # query param (or X-API-Key header) inside authorize_websocket(): a Header
+    # Depends can't gate a WS handshake cleanly. Mounted OUTSIDE the global
+    # auth dependency below, like webhooks above — the in-handler gate is the
+    # single chokepoint for WS, and stays OFF when auth is not required.
+    from forge_engine.api.v1.endpoints import websockets as websockets_endpoint
+    app.include_router(websockets_endpoint.router, prefix="/v1", tags=["Real-time"])
+
     # Include API router. When auth is required (BIND_LAN or FORGE_REQUIRE_AUTH),
     # every /v1/* route gets an X-API-Key check via the dependency below — this
     # is the single chokepoint, no risk of forgetting it on a new endpoint.

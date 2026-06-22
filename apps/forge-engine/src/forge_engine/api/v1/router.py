@@ -26,7 +26,6 @@ from forge_engine.api.v1.endpoints import (
     thumbnails,
     translation,
     virality,
-    websockets,
 )
 
 api_router = APIRouter()
@@ -40,7 +39,10 @@ api_router.include_router(channels.router, prefix="/channels", tags=["Channels"]
 api_router.include_router(dictionaries.router, tags=["Dictionaries"])
 api_router.include_router(capabilities.router, tags=["System"])
 api_router.include_router(thumbnails.router, tags=["Thumbnails"])
-api_router.include_router(websockets.router, tags=["Real-time"])
+# NOTE: websockets.router is intentionally NOT included here. WS handshakes
+# can't be gated by the global Depends(require_api_key) (Header dependency)
+# cleanly, so it is mounted separately in main.py and self-authenticates via
+# authorize_websocket(). See main.py and core/auth.py.
 api_router.include_router(monitor.router, prefix="/monitor", tags=["Monitor"])
 api_router.include_router(llm.router, prefix="/llm", tags=["AI/LLM"])
 api_router.include_router(assistant.router, prefix="/assistant", tags=["AI Assistant"])

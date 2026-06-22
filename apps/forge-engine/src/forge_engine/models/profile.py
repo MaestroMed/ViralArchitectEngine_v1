@@ -1,6 +1,7 @@
 """Export profile model for storing user presets."""
 
 from datetime import datetime
+from forge_engine.core.timeutils import utcnow
 
 from sqlalchemy import Boolean, Column, DateTime, String
 from sqlalchemy.dialects.sqlite import JSON as SQLiteJSON
@@ -48,8 +49,8 @@ class ExportProfile(Base):
         "auto_export_count": 0,  # 0 = disabled
     })
 
-    created_at: datetime = Column(DateTime, default=datetime.utcnow)
-    updated_at: datetime = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: datetime = Column(DateTime, default=utcnow)
+    updated_at: datetime = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     def to_dict(self) -> dict:
         """Convert to dictionary."""

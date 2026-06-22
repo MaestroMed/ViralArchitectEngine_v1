@@ -1,6 +1,7 @@
 """Auth layer tests — hashing, env gating, FastAPI integration."""
 
 from __future__ import annotations
+from forge_engine.core.timeutils import utcnow
 
 import os
 from collections.abc import AsyncIterator
@@ -180,7 +181,7 @@ async def test_revoked_key_is_rejected(isolated_db, monkeypatch):
 
     async with async_session_maker() as db:
         await db.execute(
-            update(ApiKey).where(ApiKey.id == key_id).values(revoked_at=datetime.utcnow())
+            update(ApiKey).where(ApiKey.id == key_id).values(revoked_at=utcnow())
         )
         await db.commit()
 

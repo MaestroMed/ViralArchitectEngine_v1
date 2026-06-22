@@ -5,6 +5,7 @@ import logging
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from forge_engine.core.timeutils import utcnow
 from enum import StrEnum
 from typing import Any, Optional
 
@@ -61,7 +62,7 @@ class Job:
     error: str | None = None
     result: dict[str, Any] | None = None
     metadata: dict[str, Any] = field(default_factory=dict)  # For warnings, jump cuts, etc.
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=utcnow)
     started_at: datetime | None = None
     completed_at: datetime | None = None
 
@@ -155,7 +156,7 @@ class JobManager:
                     .values(
                         status=JobStatus.FAILED.value,
                         error="Server restarted while job was running",
-                        completed_at=datetime.utcnow()
+                        completed_at=utcnow()
                     )
                 )
                 await db.commit()
@@ -197,7 +198,7 @@ class JobManager:
 
                 async with self._pick_lock:
                     async with async_session_maker() as db:
-                        cutoff = datetime.utcnow() - timedelta(hours=24)
+                        cutoff = utcnow() - timedelta(hours=24)
 
                         from sqlalchemy import case
                         priority_order = case(
@@ -230,7 +231,7 @@ class JobManager:
                             kwargs = record.result if record.result else {}
 
                             record.status = JobStatus.RUNNING.value
-                            record.started_at = datetime.utcnow()
+                            record.started_at = utcnow()
                             await db.commit()
 
                             priority = JOB_PRIORITY.get(job_type, 10)
@@ -284,7 +285,7 @@ class JobManager:
                             status=JobStatus.COMPLETED.value,
                             progress=100.0,
                             result=result or {},
-                            completed_at=datetime.utcnow()
+                            completed_at=utcnow()
                         )
                     )
                     await db.commit()
@@ -305,7 +306,7 @@ class JobManager:
                     .values(
                         status=JobStatus.FAILED.value,
                         error=error_msg if error_msg else full_traceback[:500],
-                        completed_at=datetime.utcnow()
+                        completed_at=utcnow()
                     )
                 )
                 await db.commit()
@@ -333,7 +334,7 @@ class JobManager:
                 status=JobStatus.PENDING.value,
                 # Store args in result column for now (hack)
                 result=kwargs,
-                created_at=datetime.utcnow()
+                created_at=utcnow()
             )
             db.add(record)
             await db.commit()
@@ -476,7 +477,7 @@ class JobManager:
             await db.execute(
                 update(JobRecord)
                 .where(JobRecord.id == job_id)
-                .values(status=JobStatus.CANCELLED.value, completed_at=datetime.utcnow())
+                .values(status=JobStatus.CANCELLED.value, completed_at=utcnow())
             )
             await db.commit()
         logger.info("Job %s cancelled", job_id)
@@ -532,7 +533,7 @@ class JobManager:
                     )
                     running_jobs = result.scalars().all()
 
-                    now = datetime.utcnow()
+                    now = utcnow()
 
                     for record in running_jobs:
                         job_id = record.id

@@ -1,6 +1,7 @@
 """Channel monitoring endpoints."""
 
 from datetime import datetime
+from forge_engine.core.timeutils import utcnow
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -226,7 +227,7 @@ async def check_channel_now(
             new_vods.append(detected)
 
     # Update channel state
-    channel.last_check_at = datetime.utcnow()
+    channel.last_check_at = utcnow()
     channel.last_vod_ids = [v.id for v in vods]
 
     await db.commit()
@@ -423,4 +424,3 @@ async def import_detected_vod(
             "jobId": job.id,
         }
     }
-

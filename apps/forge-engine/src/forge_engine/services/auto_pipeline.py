@@ -14,6 +14,7 @@ The user's workflow becomes:
 import asyncio
 import logging
 from datetime import datetime
+from forge_engine.core.timeutils import utcnow
 from pathlib import Path
 from typing import Any, Optional
 
@@ -357,7 +358,7 @@ class AutoPipelineService:
 
         from forge_engine.models import DetectedVOD, WatchedChannel
 
-        self._last_check = datetime.utcnow()
+        self._last_check = utcnow()
 
         async with async_session_maker() as db:
             # Ensure EtoStark channel is registered
@@ -419,7 +420,7 @@ class AutoPipelineService:
                     new_vods.append(detected)
 
             # Update channel state
-            channel.last_check_at = datetime.utcnow()
+            channel.last_check_at = utcnow()
             channel.last_vod_ids = [v.id for v in vods]
             await db.commit()
 
@@ -504,10 +505,10 @@ class AutoPipelineService:
 
         from forge_engine.models import Project
 
-        start = datetime.utcnow()
+        start = utcnow()
         poll_interval = 30  # Check every 30 seconds
 
-        while (datetime.utcnow() - start).total_seconds() < timeout:
+        while (utcnow() - start).total_seconds() < timeout:
             async with async_session_maker() as db:
                 result = await db.execute(
                     select(Project).where(Project.id == project_id)

@@ -12,6 +12,7 @@ the registry of *who* to notify.
 
 import uuid
 from datetime import datetime
+from forge_engine.core.timeutils import utcnow
 
 from sqlalchemy import DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -40,9 +41,9 @@ class DeviceToken(Base):
     platform: Mapped[str] = mapped_column(String(20), nullable=False, default="ios")
     # App bundle id, e.g. com.maestromed.forgelab — becomes the apns-topic.
     bundle_id: Mapped[str] = mapped_column(String(200), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     last_seen_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow
+        DateTime, default=utcnow
     )
 
     def to_dict(self) -> dict:

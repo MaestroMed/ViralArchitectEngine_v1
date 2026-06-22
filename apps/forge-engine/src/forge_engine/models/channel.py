@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import datetime
+from forge_engine.core.timeutils import utcnow
 
 from sqlalchemy import JSON, Boolean, DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -33,11 +34,11 @@ class WatchedChannel(Base):
     last_vod_ids: Mapped[list | None] = mapped_column(JSON, nullable=True)  # Cache of known VOD IDs
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=utcnow,
+        onupdate=utcnow
     )
 
     def to_dict(self) -> dict:
@@ -84,7 +85,7 @@ class DetectedVOD(Base):
     estimated_score: Mapped[float | None] = mapped_column(Integer, nullable=True)
 
     # Timestamps
-    detected_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    detected_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
     def to_dict(self) -> dict:
         return {

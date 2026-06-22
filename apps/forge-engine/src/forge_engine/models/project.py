@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import datetime
+from forge_engine.core.timeutils import utcnow
 
 from sqlalchemy import JSON, DateTime, Float, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -46,11 +47,11 @@ class Project(Base):
     project_meta: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=utcnow,
+        onupdate=utcnow
     )
 
     # Relationships

@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import datetime
+from forge_engine.core.timeutils import utcnow
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -154,7 +155,7 @@ async def update_profile(
     if request.is_default is not None:
         profile.is_default = request.is_default
 
-    profile.updated_at = datetime.utcnow()
+    profile.updated_at = utcnow()
 
     await db.commit()
     await db.refresh(profile)

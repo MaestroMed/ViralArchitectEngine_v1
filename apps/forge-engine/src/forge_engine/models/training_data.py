@@ -1,6 +1,7 @@
 """Database models for ML training data."""
 
 from datetime import datetime
+from forge_engine.core.timeutils import utcnow
 
 from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
@@ -35,7 +36,7 @@ class SegmentFeedback(Base):
     # Metadata
     platform = Column(String(50), nullable=True)  # tiktok, youtube, instagram
     notes = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     # Relationships
     segment = relationship("Segment", back_populates="feedback")
@@ -65,7 +66,7 @@ class MLModelVersion(Base):
     is_active = Column(Integer, default=1)  # SQLite doesn't have bool
 
     # Metadata
-    trained_at = Column(DateTime, default=datetime.utcnow)
+    trained_at = Column(DateTime, default=utcnow)
     notes = Column(Text, nullable=True)
 
 

@@ -7,6 +7,7 @@ Only posts clips with status "approved" or "scheduled".
 import asyncio
 import logging
 from datetime import datetime, time, timedelta
+from forge_engine.core.timeutils import utcnow
 from typing import Any, Optional
 
 from forge_engine.core.database import async_session_maker
@@ -171,7 +172,7 @@ class PublishSchedulerService:
 
                 if result.success:
                     clip.status = "published"
-                    clip.published_at = datetime.utcnow()
+                    clip.published_at = utcnow()
                     clip.published_url = result.video_url
                     self._posts_today += 1
                     # Keep tz-aware to match `now` in _check_and_publish

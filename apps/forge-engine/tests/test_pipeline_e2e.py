@@ -11,6 +11,7 @@ scenedetect / scipy) that are not installed in the CI-equivalent virtualenv.
 Run with: pytest tests/test_pipeline_e2e.py -v -m e2e
 """
 
+from forge_engine.core.timeutils import utcnow
 import importlib
 import shutil
 import tempfile
@@ -629,9 +630,9 @@ class TestMonitorService:
         )
 
         # Simulate job being stuck (started 30 minutes ago)
-        stuck_job.started_at = datetime.utcnow() - timedelta(minutes=30)
+        stuck_job.started_at = utcnow() - timedelta(minutes=30)
 
         # A job running for >10 minutes with no progress is considered stuck.
-        is_stuck = (datetime.utcnow() - stuck_job.started_at).total_seconds() > 600
+        is_stuck = (utcnow() - stuck_job.started_at).total_seconds() > 600
 
         assert is_stuck is True

@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import datetime
+from forge_engine.core.timeutils import utcnow
 
 from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
@@ -62,11 +63,11 @@ class ClipReview(Base):
     score_delta: Mapped[float | None] = mapped_column(Float, nullable=True)  # predicted - human
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=utcnow,
+        onupdate=utcnow
     )
 
     def to_dict(self) -> dict:
@@ -140,11 +141,11 @@ class ClipQueue(Base):
     review_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=utcnow,
+        onupdate=utcnow
     )
 
     def to_dict(self) -> dict:

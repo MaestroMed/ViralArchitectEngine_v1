@@ -15,6 +15,7 @@ import argparse
 import asyncio
 import sys
 from datetime import datetime
+from forge_engine.core.timeutils import utcnow
 
 from sqlalchemy import select, update
 
@@ -65,7 +66,7 @@ async def _revoke(key_id: str) -> int:
             print(f"Already revoked: {key_id}")
             return 0
         await db.execute(
-            update(ApiKey).where(ApiKey.id == key_id).values(revoked_at=datetime.utcnow())
+            update(ApiKey).where(ApiKey.id == key_id).values(revoked_at=utcnow())
         )
         await db.commit()
     print(f"Revoked: {key_id}")

@@ -17,6 +17,7 @@ import json
 import logging
 import zipfile
 from datetime import date, datetime, time, timedelta
+from forge_engine.core.timeutils import utcnow
 from pathlib import Path
 from typing import Annotated
 
@@ -127,7 +128,7 @@ async def batch_approve(request: BatchApproveRequest) -> BatchApproveResponse:
             await db.execute(
                 update(ClipQueue)
                 .where(ClipQueue.id.in_(eligible))
-                .values(status="approved", updated_at=datetime.utcnow())
+                .values(status="approved", updated_at=utcnow())
             )
             await db.commit()
 

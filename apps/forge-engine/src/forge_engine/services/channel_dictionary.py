@@ -11,6 +11,7 @@ Features:
 - Named entity extraction (player names, game terms)
 """
 
+from forge_engine.core.timeutils import utcnow
 import json
 import logging
 import re
@@ -176,7 +177,7 @@ class ChannelDictionaryService:
         """Save dictionary to disk."""
         from datetime import datetime
 
-        dictionary.last_updated = datetime.utcnow().isoformat()
+        dictionary.last_updated = utcnow().isoformat()
         dict_path = self._get_dictionary_path(dictionary.channel_id)
 
         try:

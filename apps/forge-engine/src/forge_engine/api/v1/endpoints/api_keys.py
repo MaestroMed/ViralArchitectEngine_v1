@@ -6,6 +6,7 @@ the CLI: `python -m forge_engine.scripts.seed_api_key create "iPhone"`.
 """
 
 from datetime import datetime
+from forge_engine.core.timeutils import utcnow
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -68,6 +69,6 @@ async def revoke_api_key(key_id: str) -> None:
         if row is None or row.revoked_at is not None:
             raise HTTPException(status_code=404, detail="Key not found")
         await db.execute(
-            update(ApiKey).where(ApiKey.id == key_id).values(revoked_at=datetime.utcnow())
+            update(ApiKey).where(ApiKey.id == key_id).values(revoked_at=utcnow())
         )
         await db.commit()

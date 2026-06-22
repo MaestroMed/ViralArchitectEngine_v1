@@ -7,6 +7,7 @@ dependency is applied at router include time in main.py).
 """
 
 from datetime import datetime
+from forge_engine.core.timeutils import utcnow
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
@@ -32,7 +33,7 @@ async def register_device(request: RegisterDeviceRequest) -> dict:
             select(DeviceToken).where(DeviceToken.token == request.token)
         )
         row = result.scalar_one_or_none()
-        now = datetime.utcnow()
+        now = utcnow()
         if row is None:
             row = DeviceToken(
                 token=request.token,

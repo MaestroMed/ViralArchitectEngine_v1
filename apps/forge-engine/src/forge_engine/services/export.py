@@ -17,6 +17,7 @@ import json
 import logging
 import shutil
 from datetime import datetime
+from forge_engine.core.timeutils import utcnow
 from pathlib import Path
 from typing import Any, Optional
 
@@ -655,7 +656,7 @@ class ExportService:
                         "fps": settings.OUTPUT_FPS,
                         "use_nvenc": use_nvenc,
                     },
-                    "exported_at": datetime.utcnow().isoformat(),
+                    "exported_at": utcnow().isoformat(),
                     "artifacts": [
                         {"type": a.type, "filename": a.filename}
                         for a in artifacts
@@ -1224,7 +1225,7 @@ class ExportService:
                 "end_time": segment.end_time,
                 "duration": segment.duration,
                 "pipeline": "single_pass",
-                "exported_at": datetime.utcnow().isoformat(),
+                "exported_at": utcnow().isoformat(),
                 "artifacts": [{"type": a.type, "filename": a.filename} for a in artifacts],
             }
             metadata_path = exports_dir / f"{base_name}_metadata.json"
@@ -2005,7 +2006,6 @@ class ExportService:
             return f"#{rr}{gg}{bb}"
 
         return "#FFFFFF"
-
 
 
 

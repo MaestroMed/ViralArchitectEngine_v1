@@ -1,6 +1,7 @@
 """Monitor/Admin endpoints - L'ŒIL."""
 
 
+from forge_engine.core.timeutils import utcnow
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
@@ -130,7 +131,7 @@ async def cleanup_old_jobs(days: int = 7) -> dict:
     from forge_engine.core.database import async_session_maker
     from forge_engine.models.job import JobRecord
 
-    cutoff = datetime.utcnow() - timedelta(days=days)
+    cutoff = utcnow() - timedelta(days=days)
 
     async with async_session_maker() as db:
         result = await db.execute(
@@ -337,4 +338,3 @@ async def disable_recovery() -> dict:
     monitor = MonitorService.get_instance()
     monitor.AUTO_RECOVERY_ENABLED = False
     return {"success": True, "message": "Auto-recovery disabled"}
-

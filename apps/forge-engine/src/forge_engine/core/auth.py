@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 import os
 from datetime import datetime
+from forge_engine.core.timeutils import utcnow
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, WebSocket, status
@@ -63,7 +64,7 @@ async def _lookup_and_touch(raw_key: str) -> ApiKey | None:
         await db.execute(
             update(ApiKey)
             .where(ApiKey.id == row.id)
-            .values(last_used_at=datetime.utcnow())
+            .values(last_used_at=utcnow())
         )
         await db.commit()
         return row

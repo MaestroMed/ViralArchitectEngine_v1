@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import datetime
+from forge_engine.core.timeutils import utcnow
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -32,7 +33,7 @@ class Artifact(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
     # Relationships
     project: Mapped["Project"] = relationship("Project", back_populates="artifacts")

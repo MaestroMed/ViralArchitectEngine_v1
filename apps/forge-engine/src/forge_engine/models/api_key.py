@@ -4,6 +4,7 @@ binds to LAN (mode requis pour que l'app iOS atteigne le moteur)."""
 import secrets
 import uuid
 from datetime import datetime
+from forge_engine.core.timeutils import utcnow
 from hashlib import sha256
 
 from sqlalchemy import DateTime, String
@@ -36,7 +37,7 @@ class ApiKey(Base):
     label: Mapped[str] = mapped_column(String(120), nullable=False)
     # SHA-256 of the raw key. 64 hex chars.
     key_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 

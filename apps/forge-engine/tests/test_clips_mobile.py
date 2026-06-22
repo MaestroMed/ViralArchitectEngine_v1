@@ -1,6 +1,7 @@
 """Mobile clip endpoints — by-date / batch-approve / bundle.zip / cover."""
 
 from __future__ import annotations
+from forge_engine.core.timeutils import utcnow
 
 import io
 import json
@@ -79,7 +80,7 @@ async def _insert_clip(sessionmaker, *, status="pending_review", channel="etosta
             title=title,
             description=f"{title} — description",
             hashtags=hashtags or ["forgelab", "etostark"],
-            created_at=datetime.utcnow() - timedelta(days=offset_days),
+            created_at=utcnow() - timedelta(days=offset_days),
         )
         db.add(clip)
         await db.commit()
@@ -92,8 +93,8 @@ async def _insert_clip(sessionmaker, *, status="pending_review", channel="etosta
 @pytest.mark.asyncio
 async def test_by_date_isolates_to_day(db_and_app):
     sessionmaker, app, _ = db_and_app
-    today = datetime.utcnow().date().isoformat()
-    yesterday = (datetime.utcnow().date() - timedelta(days=1)).isoformat()
+    today = utcnow().date().isoformat()
+    yesterday = (utcnow().date() - timedelta(days=1)).isoformat()
 
     await _insert_clip(sessionmaker, offset_days=1, title="yesterday")
     await _insert_clip(sessionmaker, offset_days=0, title="today")
@@ -113,7 +114,7 @@ async def test_by_date_isolates_to_day(db_and_app):
 @pytest.mark.asyncio
 async def test_by_date_filters_status_and_channel(db_and_app):
     sessionmaker, app, _ = db_and_app
-    today = datetime.utcnow().date().isoformat()
+    today = utcnow().date().isoformat()
     await _insert_clip(sessionmaker, channel="etostark__", status="pending_review", title="A")
     await _insert_clip(sessionmaker, channel="other", status="pending_review", title="B")
     await _insert_clip(sessionmaker, channel="etostark__", status="approved", title="C")

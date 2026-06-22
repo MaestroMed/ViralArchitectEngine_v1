@@ -1,5 +1,6 @@
 """Analytics Service for tracking clip performance."""
 
+from forge_engine.core.timeutils import utcnow
 import json
 import logging
 from dataclasses import dataclass, field
@@ -474,7 +475,7 @@ class AnalyticsService:
             status_rows = (
                 await db.execute(scoped(select(ClipQueue.status, func.count()).group_by(ClipQueue.status)))
             ).all()
-            week_ago = datetime.utcnow() - timedelta(days=7)
+            week_ago = utcnow() - timedelta(days=7)
             last7 = (
                 await db.execute(
                     scoped(
@@ -513,7 +514,7 @@ class AnalyticsService:
         from forge_engine.core.database import async_session_maker
         from forge_engine.models.review import ClipQueue
 
-        since = datetime.utcnow() - timedelta(days=max(1, days))
+        since = utcnow() - timedelta(days=max(1, days))
         async with async_session_maker() as db:
             q = select(ClipQueue).where(ClipQueue.created_at >= since)
             if project_id:
@@ -549,7 +550,7 @@ class AnalyticsService:
         from forge_engine.core.database import async_session_maker
         from forge_engine.models.review import ClipQueue
 
-        since = datetime.utcnow() - timedelta(days=max(1, days))
+        since = utcnow() - timedelta(days=max(1, days))
         async with async_session_maker() as db:
             q = select(ClipQueue.created_at).where(ClipQueue.created_at >= since)
             if project_id:

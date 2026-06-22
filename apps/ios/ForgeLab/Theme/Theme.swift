@@ -12,9 +12,20 @@ enum Theme {
     static let accentSoft = Color(red: 0.27, green: 0.56, blue: 1.0).opacity(0.18)
 
     static let textPrimary = Color.white
-    static let textSecondary = Color.white.opacity(0.58)
+    // 0.68 (was 0.58): lifts small secondary text to AA contrast on `background`.
+    static let textSecondary = Color.white.opacity(0.68)
     static let success = Color(red: 0.25, green: 0.86, blue: 0.58)
     static let danger = Color(red: 0.98, green: 0.36, blue: 0.46)
+
+    /// Shared corner-radius scale so spacing rhythm doesn't drift per view.
+    /// (chip → control → card → hero.)
+    enum Radius {
+        static let sm: CGFloat = 12
+        static let md: CGFloat = 16
+        static let lg: CGFloat = 20
+        static let card: CGFloat = 24
+        static let hero: CGFloat = 30
+    }
 
     // MARK: Signature gradients
 

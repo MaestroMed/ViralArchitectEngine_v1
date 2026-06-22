@@ -117,6 +117,7 @@ class ExportService:
         cold_open_config: dict[str, Any] | None = None,
         clip_start_override: float | None = None,
         clip_duration_override: float | None = None,
+        transcript_override: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Run the export pipeline.
 
@@ -170,12 +171,17 @@ class ExportService:
 
             artifacts = []
 
-            # Load transcript for this segment
+            # Load transcript for this segment. An explicit override (from the
+            # editor's caption-text edit) wins — it's already in ABSOLUTE coords
+            # (VOD seconds), the same frame the caption builder expects.
             transcript_segments = []
             analysis_dir = project_dir / "analysis"
             transcript_path = analysis_dir / "transcript.json"
 
-            if transcript_path.exists():
+            if transcript_override is not None:
+                transcript_segments = transcript_override
+                logger.info(f"Using caption override: {len(transcript_segments)} edited segments")
+            elif transcript_path.exists():
                 with open(transcript_path, encoding="utf-8") as f:
                     transcript_data = json.load(f)
 

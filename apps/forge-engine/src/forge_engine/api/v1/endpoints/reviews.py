@@ -555,6 +555,9 @@ class RerenderRequest(BaseModel):
     # VOD coords; the endpoint maps them onto the stored window.
     trim_in: float | None = Field(default=None, alias="trimIn")
     trim_out: float | None = Field(default=None, alias="trimOut")
+    # Edited caption lines (clip-relative {start,end,text,words?}) from the text
+    # editor — fixes typos / retimes without re-transcribing.
+    edited_captions: list[dict] | None = Field(default=None, alias="editedCaptions")
     intro_config: dict | None = Field(default=None, alias="intro")
     jump_cut_config: dict | None = Field(default=None, alias="jumpCut")
 
@@ -641,6 +644,14 @@ async def rerender_clip(
     caption_style = dict(request.caption_style or {})
     caption_style.setdefault("presetId", rp.get("presetId", "classic"))
 
+    # Edited captions are clip-relative to the ORIGINAL clip (origin base_start);
+    # convert to absolute. The caption builder re-subtracts the rendered window
+    # start, so a trim still correctly drops captions outside the new window.
+    transcript_override = None
+    if request.edited_captions:
+        from forge_engine.services.caption_edit import apply_caption_edits
+        transcript_override = apply_caption_edits(request.edited_captions, base_start)
+
     job_manager = JobManager.get_instance()
     job = await job_manager.create_job(
         job_type=JobType.EXPORT,
@@ -659,5 +670,36 @@ async def rerender_clip(
         jump_cut_config=request.jump_cut_config,
         clip_start_override=start,
         clip_duration_override=duration,
+        transcript_override=transcript_override,
     )
     return {"success": True, "data": {"jobId": job.id, "clipId": clip_id}}
+
+
+@router.get("/queue/{clip_id}/captions")
+async def get_clip_captions(clip_id: str, db: AsyncSession = Depends(get_db)) -> dict:
+    """The clip's caption LINES (clip-relative {start,end,text,words}) for the
+    text editor to display + edit. Empty when the transcript isn't on disk."""
+    import json as _json
+
+    from forge_engine.core.config import settings
+    from forge_engine.services.caption_edit import caption_lines_for_clip
+
+    clip = (await db.execute(select(ClipQueue).where(ClipQueue.id == clip_id))).scalar_one_or_none()
+    if not clip:
+        raise HTTPException(status_code=404, detail="Clip not found")
+    segment = (await db.execute(select(Segment).where(Segment.id == clip.segment_id))).scalar_one_or_none()
+
+    rp = clip.render_params or {}
+    start = rp.get("clipStart", segment.start_time if segment else 0.0)
+    duration = rp.get("clipDuration", clip.duration)
+
+    tpath = settings.LIBRARY_PATH / "projects" / clip.project_id / "analysis" / "transcript.json"
+    if not tpath.exists():
+        return {"success": True, "data": {"lines": []}}
+    try:
+        data = _json.loads(tpath.read_text(encoding="utf-8"))
+    except Exception:
+        return {"success": True, "data": {"lines": []}}
+
+    lines = caption_lines_for_clip(data.get("segments", []), start, start + duration)
+    return {"success": True, "data": {"lines": lines}}

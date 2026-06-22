@@ -705,6 +705,14 @@ class AutoPipelineService:
                         # The CLIP duration (cap-trimmed window), not the segment's
                         # full multi-scale window — segment.duration was up to 210s.
                         duration=spec["duration"],
+                        # Render params so the editor can re-render with one tweak
+                        # and reuse the EXACT trim window (not the full segment).
+                        render_params={
+                            "clipStart": spec["start"],
+                            "clipDuration": spec["duration"],
+                            "presetId": "classic",
+                            "platform": export_config.get("platform", "tiktok"),
+                        },
                         viral_score=segment.score_total,
                         status="pending_review",
                         channel_name=channel_name,

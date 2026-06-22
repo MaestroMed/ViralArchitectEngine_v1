@@ -14,9 +14,14 @@ from pydantic import BaseModel, Field
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from forge_engine.core.database import get_db
+from pathlib import Path
+
+from forge_engine.core.database import async_session_maker, get_db
+from forge_engine.core.jobs import JobManager, JobType
 from forge_engine.models.review import ClipQueue, ClipReview
 from forge_engine.models.segment import Segment
+from forge_engine.services.captions import CAPTION_PRESETS
+from forge_engine.services.export import ExportService
 
 router = APIRouter()
 
@@ -511,3 +516,134 @@ async def update_queued_clip(
         clip.hashtags = hashtags
 
     return {"success": True, "data": clip.to_dict()}
+
+
+# ================================================================
+# In-app editor — caption presets + re-render
+# ================================================================
+
+# Display spec per preset so the iOS picker renders a chip without hardcoding.
+# `highlight` is display hex (not ASS); `pop` flags the animated word-pop.
+_PRESET_SPECS = {
+    "classic": {"label": "Classique", "highlight": "#FFD400", "pop": False},
+    "hormozi": {"label": "Hormozi", "highlight": "#00FF66", "pop": True},
+    "pop": {"label": "Pop", "highlight": "#33D9F2", "pop": True},
+    "minimal": {"label": "Minimal", "highlight": "#FFFFFF", "pop": False},
+    "neon": {"label": "Neon", "highlight": "#FF3DCB", "pop": True},
+}
+
+
+@router.get("/caption-presets")
+async def list_caption_presets() -> dict:
+    """The dynamic caption styles the editor can pick from."""
+    presets = [
+        {"id": key, **_PRESET_SPECS.get(key, {"label": key.title(), "highlight": "#FFD400", "pop": False})}
+        for key in CAPTION_PRESETS
+    ]
+    return {"success": True, "data": {"presets": presets}}
+
+
+class RerenderRequest(BaseModel):
+    """Re-render an existing queued clip with editor tweaks (all optional)."""
+    model_config = {"populate_by_name": True}
+
+    caption_style: dict | None = Field(default=None, alias="captionStyle")
+    clip_start_override: float | None = Field(default=None, alias="clipStart")
+    clip_duration_override: float | None = Field(default=None, alias="clipDuration")
+    intro_config: dict | None = Field(default=None, alias="intro")
+    jump_cut_config: dict | None = Field(default=None, alias="jumpCut")
+
+
+async def _rerender_clip_handler(job, *, clip_id: str, **export_kwargs):
+    """Job handler: render the new clip, then update the SAME ClipQueue row
+    (video/cover/duration + render_params) so the edit replaces it in place."""
+    export_service = ExportService()
+    result = await export_service.run_export(job=job, **export_kwargs)
+
+    video_path, cover_path = "", ""
+    for a in result.get("artifacts", []) or []:
+        t = a.get("type") if isinstance(a, dict) else getattr(a, "type", None)
+        p = a.get("path") if isinstance(a, dict) else getattr(a, "path", None)
+        if t == "video":
+            video_path = p or ""
+        elif t == "cover":
+            cover_path = p or ""
+    if not video_path:
+        ed = result.get("export_dir", "")
+        if ed:
+            mp4s = list(Path(ed).glob("*.mp4"))
+            if mp4s:
+                video_path = str(mp4s[0])
+
+    async with async_session_maker() as db:
+        clip = (await db.execute(select(ClipQueue).where(ClipQueue.id == clip_id))).scalar_one_or_none()
+        if clip and video_path:
+            clip.video_path = video_path
+            if cover_path:
+                clip.cover_path = cover_path
+            dur = export_kwargs.get("clip_duration_override")
+            if dur:
+                clip.duration = dur
+            rp = dict(clip.render_params or {})
+            if export_kwargs.get("clip_start_override") is not None:
+                rp["clipStart"] = export_kwargs["clip_start_override"]
+            if dur:
+                rp["clipDuration"] = dur
+            cs = export_kwargs.get("caption_style") or {}
+            if cs.get("presetId"):
+                rp["presetId"] = cs["presetId"]
+            clip.render_params = rp
+            await db.commit()
+    return result
+
+
+@router.post("/queue/{clip_id}/rerender")
+async def rerender_clip(
+    clip_id: str,
+    request: RerenderRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Re-render a queued clip with editor tweaks (caption style / trim / intro).
+
+    Reuses the stored trim window (render_params) unless the request overrides it,
+    so a pure restyle keeps the exact same moment. Returns the EXPORT job id; the
+    client tracks it over the WS and the ClipQueue row updates in place on finish.
+    """
+    clip = (await db.execute(select(ClipQueue).where(ClipQueue.id == clip_id))).scalar_one_or_none()
+    if not clip:
+        raise HTTPException(status_code=404, detail="Clip not found")
+    segment = (await db.execute(select(Segment).where(Segment.id == clip.segment_id))).scalar_one_or_none()
+    if not segment:
+        raise HTTPException(status_code=404, detail="Source segment not found")
+
+    rp = clip.render_params or {}
+    start = request.clip_start_override
+    if start is None:
+        start = rp.get("clipStart", segment.start_time)
+    duration = request.clip_duration_override
+    if duration is None:
+        duration = rp.get("clipDuration", clip.duration)
+
+    caption_style = dict(request.caption_style or {})
+    caption_style.setdefault("presetId", rp.get("presetId", "classic"))
+
+    job_manager = JobManager.get_instance()
+    job = await job_manager.create_job(
+        job_type=JobType.EXPORT,
+        handler=_rerender_clip_handler,
+        clip_id=clip_id,
+        project_id=clip.project_id,
+        segment_id=clip.segment_id,
+        variant="edit",
+        platform=rp.get("platform", "tiktok"),
+        include_captions=True,
+        burn_subtitles=True,
+        include_cover=True,
+        use_nvenc=True,
+        caption_style=caption_style,
+        intro_config=request.intro_config,
+        jump_cut_config=request.jump_cut_config,
+        clip_start_override=start,
+        clip_duration_override=duration,
+    )
+    return {"success": True, "data": {"jobId": job.id, "clipId": clip_id}}

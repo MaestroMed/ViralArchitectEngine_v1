@@ -120,6 +120,11 @@ class ClipQueue(Base):
     cover_path: Mapped[str | None] = mapped_column(Text, nullable=True)
     duration: Mapped[float] = mapped_column(Float, default=0.0)
 
+    # Render parameters used to produce this clip (trim window + caption preset +
+    # intro/jump-cut config), so the editor can re-render with one tweak and
+    # reuse the exact same window. Null on clips rendered before this column.
+    render_params: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
     # Score
     viral_score: Mapped[float] = mapped_column(Float, default=0.0)
 

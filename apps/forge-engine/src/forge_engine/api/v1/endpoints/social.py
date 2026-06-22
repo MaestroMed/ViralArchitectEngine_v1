@@ -111,6 +111,11 @@ async def disconnect_account(platform: str):
 @router.post("/publish")
 async def publish_content(request: PublishRequest):
     """Publish content to a social platform."""
+    from datetime import datetime as _dt
+
+    from forge_engine.services.social_publish import Platform
+    from forge_engine.services.social_publish import PublishRequest as PublishJob
+
     service = SocialPublishService.get_instance()
 
     if request.platform not in service.get_connected_platforms():
@@ -119,20 +124,45 @@ async def publish_content(request: PublishRequest):
             detail=f"No account connected for {request.platform}"
         )
 
-    job_id = await service.publish(
-        platform=request.platform,
+    try:
+        platform = Platform(request.platform)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Unsupported platform: {request.platform}")
+
+    schedule_time = None
+    if request.schedule_time:
+        try:
+            schedule_time = _dt.fromisoformat(request.schedule_time)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="schedule_time must be ISO-8601")
+
+    # The service takes a single PublishRequest dataclass (NOT kwargs) and
+    # returns a PublishResult — map the HTTP body onto it and translate back.
+    job = PublishJob(
         video_path=request.video_path,
         title=request.title,
-        description=request.description,
-        hashtags=request.hashtags,
-        schedule_time=request.schedule_time,
-        visibility=request.visibility
+        description=request.description or "",
+        hashtags=request.hashtags or [],
+        platform=platform,
+        schedule_time=schedule_time,
+        privacy=request.visibility,
     )
 
+    result = await service.publish(job)
+
+    if not result.success:
+        raise HTTPException(
+            status_code=502,
+            detail=result.error or f"Publish to {request.platform} failed",
+        )
+
+    # GET /publish/{job_id} decodes a "<platform>:<video_id>" token.
+    job_id = f"{platform}:{result.video_id}" if result.video_id else str(platform)
     return {
         "job_id": job_id,
-        "status": "started",
-        "platform": request.platform
+        "status": str(result.status),
+        "platform": str(platform),
+        "url": result.video_url,
     }
 
 

@@ -71,9 +71,9 @@ struct StatsView: View {
     private func kpiGrid(_ o: AnalyticsOverview) -> some View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
             kpi("Clips", "\(o.totalClips)", "rectangle.stack.fill", Theme.accent, sub: "\(o.clipsLast7Days) cette semaine")
-            kpi("Score moyen", String(format: "%.0f", o.avgViralScore), "flame.fill", Theme.scoreColor(o.avgViralScore), sub: "top \(Int(o.topViralScore))")
+            kpi("Score moyen", String(format: "%.0f", o.avgViralScore), "bolt.fill", Theme.scoreColor(o.avgViralScore), sub: "top \(Int(o.topViralScore))")
             kpi("Publiés", "\(o.published)", "paperplane.fill", Theme.success, sub: "\(o.approved) approuvés")
-            kpi("Vues", o.totalViews > 0 ? "\(o.totalViews)" : "—", "eye.fill", Color(red: 0.4, green: 0.6, blue: 1.0),
+            kpi("Vues", o.totalViews > 0 ? "\(o.totalViews)" : "—", "eye.fill", Theme.accentBright,
                 sub: o.totalViews > 0 ? "\(o.totalEngagement) engagements" : "à venir")
         }
     }

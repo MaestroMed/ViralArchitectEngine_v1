@@ -90,7 +90,7 @@ struct ProjectCard: View {
         let palettes: [[Color]] = [
             [Color(red: 0.20, green: 0.10, blue: 0.28), Color(red: 0.06, green: 0.03, blue: 0.10)],
             [Color(red: 0.10, green: 0.20, blue: 0.30), Color(red: 0.03, green: 0.07, blue: 0.12)],
-            [Color(red: 0.28, green: 0.16, blue: 0.08), Color(red: 0.10, green: 0.06, blue: 0.03)],
+            [Color(red: 0.20, green: 0.10, blue: 0.28), Color(red: 0.06, green: 0.03, blue: 0.10)],
         ]
         let idx = abs(project.id.hashValue) % palettes.count
         return LinearGradient(colors: palettes[idx], startPoint: .topLeading, endPoint: .bottomTrailing)

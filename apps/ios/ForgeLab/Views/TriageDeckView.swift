@@ -132,7 +132,7 @@ struct TriageDeckView: View {
             let palettes: [[Color]] = [
                 [Color(red: 0.20, green: 0.10, blue: 0.28), Color.black],
                 [Color(red: 0.10, green: 0.20, blue: 0.30), Color.black],
-                [Color(red: 0.28, green: 0.16, blue: 0.08), Color.black],
+                [Color(red: 0.20, green: 0.10, blue: 0.28), Color.black],
             ]
             let idx = abs(clip.id.hashValue) % palettes.count
             LinearGradient(colors: palettes[idx], startPoint: .top, endPoint: .bottom)

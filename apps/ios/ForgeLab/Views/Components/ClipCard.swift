@@ -72,8 +72,8 @@ struct ClipCard: View {
         let palettes: [[Color]] = [
             [Color(red: 0.11, green: 0.23, blue: 0.42), Color(red: 0.04, green: 0.09, blue: 0.19)],
             [Color(red: 0.14, green: 0.27, blue: 0.20), Color(red: 0.05, green: 0.10, blue: 0.08)],
-            [Color(red: 0.36, green: 0.13, blue: 0.19), Color(red: 0.10, green: 0.04, blue: 0.06)],
-            [Color(red: 0.30, green: 0.22, blue: 0.06), Color(red: 0.10, green: 0.07, blue: 0.02)],
+            [Color(red: 0.10, green: 0.27, blue: 0.30), Color(red: 0.04, green: 0.10, blue: 0.11)],
+            [Color(red: 0.14, green: 0.14, blue: 0.34), Color(red: 0.05, green: 0.05, blue: 0.13)],
         ]
         let idx = abs(clip.id.hashValue) % palettes.count
         return LinearGradient(colors: palettes[idx], startPoint: .topLeading, endPoint: .bottomTrailing)

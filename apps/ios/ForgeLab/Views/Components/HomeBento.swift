@@ -32,23 +32,38 @@ struct AnimatedMeshHero: View {
 }
 
 /// Signature score visualisation — a gradient ring instead of a flat number.
+/// The trim sweeps in on appear (static under Reduce Motion + demo/CI so
+/// XCUITest screenshots stay deterministic).
 struct ScoreRing: View {
     let score: Double
     var size: CGFloat = 56
     var lineWidth: CGFloat = 5
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var trim: CGFloat = 0
+
+    private var target: CGFloat { max(0.02, min(1, CGFloat(score) / 100)) }
+
     var body: some View {
         ZStack {
             Circle().stroke(Color.white.opacity(0.14), lineWidth: lineWidth)
             Circle()
-                .trim(from: 0, to: max(0.02, min(1, score / 100)))
+                .trim(from: 0, to: trim)
                 .stroke(Theme.scoreGradient(score),
                         style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                 .rotationEffect(.degrees(-90))
             Text("\(Int(score.rounded()))")
                 .font(.system(size: size * 0.34, weight: .bold, design: .rounded).monospacedDigit())
                 .foregroundStyle(.white)
+                .contentTransition(.numericText())
         }
         .frame(width: size, height: size)
+        .onAppear {
+            if reduceMotion || AppLaunch.isDemo {
+                trim = target
+            } else {
+                withAnimation(.spring(response: 0.7, dampingFraction: 0.85)) { trim = target }
+            }
+        }
     }
 }

@@ -278,15 +278,25 @@ struct HomeView: View {
 
     // MARK: - Engine status
 
+    @ViewBuilder
     private var engineFooter: some View {
-        HStack(spacing: 8) {
-            Circle().fill(engineVersion != nil ? Theme.success : Theme.danger).frame(width: 8, height: 8)
-            Text(engineVersion.map { "Moteur connecté · v\($0)" } ?? "Moteur injoignable")
-                .font(.caption).foregroundStyle(Theme.textSecondary)
-            Spacer()
-            if let error { Text(error).font(.caption2).foregroundStyle(Theme.danger).lineLimit(1) }
+        if demoClips == nil && !loading && engineVersion == nil {
+            // Unreachable: a real recovery card, not a dead-end status line.
+            EngineErrorCard(
+                onRetry: { Task { await load() } },
+                onSettings: { settingsOpen = true }
+            )
+            .padding(.top, 4)
+        } else {
+            HStack(spacing: 8) {
+                Circle().fill(engineVersion != nil ? Theme.success : Theme.danger).frame(width: 8, height: 8)
+                Text(engineVersion.map { "Moteur connecté · v\($0)" } ?? "Moteur injoignable")
+                    .font(.caption).foregroundStyle(Theme.textSecondary)
+                Spacer()
+                if let error { Text(error).font(.caption2).foregroundStyle(Theme.danger).lineLimit(1) }
+            }
+            .padding(.horizontal, 4)
         }
-        .padding(.horizontal, 4)
     }
 
     // MARK: - Data
@@ -366,10 +376,10 @@ struct HomePosterCard: View {
     private var cover: some View {
         if demo {
             let palettes: [[Color]] = [
-                [Color(red: 0.36, green: 0.13, blue: 0.19), Color(red: 0.10, green: 0.04, blue: 0.06)],
+                [Color(red: 0.10, green: 0.27, blue: 0.30), Color(red: 0.04, green: 0.10, blue: 0.11)],
                 [Color(red: 0.11, green: 0.23, blue: 0.42), Color(red: 0.04, green: 0.09, blue: 0.19)],
                 [Color(red: 0.14, green: 0.27, blue: 0.20), Color(red: 0.05, green: 0.10, blue: 0.08)],
-                [Color(red: 0.30, green: 0.22, blue: 0.06), Color(red: 0.10, green: 0.07, blue: 0.02)],
+                [Color(red: 0.14, green: 0.14, blue: 0.34), Color(red: 0.05, green: 0.05, blue: 0.13)],
             ]
             let idx = abs(clip.id.hashValue) % palettes.count
             LinearGradient(colors: palettes[idx], startPoint: .topLeading, endPoint: .bottomTrailing)

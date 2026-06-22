@@ -90,6 +90,35 @@ async def test_rerender_reuses_window_and_forwards_preset(app_db, monkeypatch):
     assert captured["clip_duration_override"] == 58.0
 
 
+async def test_rerender_clip_relative_trim_maps_onto_window(app_db, monkeypatch):
+    sm, app = app_db
+    async with sm() as db:
+        db.add(Project(id="p1", name="t", source_path="/tmp/s.mp4", source_filename="s.mp4", status="ready"))
+        db.add(Segment(id="seg-1", project_id="p1", start_time=100.0, end_time=300.0, duration=200.0, score_total=70.0))
+        db.add(ClipQueue(
+            id="clip-1", project_id="p1", segment_id="seg-1", video_path="/tmp/c.mp4", duration=58.0,
+            render_params={"clipStart": 120.0, "clipDuration": 58.0, "presetId": "classic"},
+        ))
+        await db.commit()
+
+    captured: dict = {}
+
+    class FakeJob:
+        id = "j1"
+
+    class FakeMgr:
+        async def create_job(self, **kw):
+            captured.update(kw)
+            return FakeJob()
+
+    monkeypatch.setattr(reviews.JobManager, "get_instance", classmethod(lambda cls: FakeMgr()))
+    # Trim to [5s, 30s) of the current clip → absolute start 125, duration 25.
+    r = TestClient(app).post("/v1/clips/queue/clip-1/rerender", json={"trimIn": 5, "trimOut": 30})
+    assert r.status_code == 200, r.text
+    assert captured["clip_start_override"] == 125.0
+    assert captured["clip_duration_override"] == 25.0
+
+
 async def test_rerender_unknown_clip_404(app_db):
     _, app = app_db
     r = TestClient(app).post("/v1/clips/queue/nope/rerender", json={})

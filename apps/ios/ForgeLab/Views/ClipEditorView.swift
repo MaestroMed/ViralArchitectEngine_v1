@@ -31,6 +31,8 @@ struct ClipEditorView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     playerCard
                     presetSection
+                    colourSection
+                    trimSection
                     rerenderSection
                     if let job = model.trackedJob {
                         progressCard(job)
@@ -151,6 +153,75 @@ struct ClipEditorView: View {
         .accessibilityIdentifier("editor.preset.\(preset.id)")
     }
 
+    // MARK: - Custom highlight colour
+
+    private let swatches = ["#FFFFFF", "#FFD400", "#00FF66", "#33D9F2", "#FF3DCB", "#FF4D4D"]
+
+    private var colourSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Couleur du mot actif", systemImage: "paintpalette")
+                .font(.headline).foregroundStyle(Theme.textPrimary)
+            HStack(spacing: 12) {
+                // "Auto" = use the preset's own highlight colour.
+                Button { model.highlightHex = nil } label: {
+                    ZStack {
+                        Circle().strokeBorder(Theme.textSecondary, lineWidth: 1.5).frame(width: 30, height: 30)
+                        Image(systemName: "a.circle").font(.system(size: 13)).foregroundStyle(Theme.textSecondary)
+                    }
+                }
+                .buttonStyle(.plain)
+                .overlay { if model.highlightHex == nil { selectionRing } }
+                .accessibilityLabel("Couleur auto (style)")
+
+                ForEach(swatches, id: \.self) { hex in
+                    Button { model.highlightHex = hex } label: {
+                        Circle().fill(Color(hex: hex) ?? .white).frame(width: 30, height: 30)
+                            .overlay(Circle().strokeBorder(.white.opacity(0.25), lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                    .overlay { if model.highlightHex?.caseInsensitiveCompare(hex) == .orderedSame { selectionRing } }
+                    .accessibilityLabel("Couleur \(hex)")
+                }
+
+                ColorPicker("", selection: Binding(
+                    get: { Color(hex: model.highlightHex ?? "#FFFFFF") ?? .white },
+                    set: { model.highlightHex = $0.toHex() },
+                ), supportsOpacity: false)
+                .labelsHidden().frame(width: 30, height: 30)
+                .accessibilityLabel("Couleur personnalisée")
+            }
+        }
+        .accessibilityIdentifier("editor.colour")
+    }
+
+    private var selectionRing: some View {
+        Circle().strokeBorder(Theme.accent, lineWidth: 2.5).frame(width: 37, height: 37)
+    }
+
+    // MARK: - Trim
+
+    private var trimSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label("Rogner", systemImage: "scissors").font(.headline).foregroundStyle(Theme.textPrimary)
+                Spacer()
+                Text(model.isTrimmed
+                     ? "\(timeStr(model.inPoint))–\(timeStr(model.outPoint)) · \(Int((model.outPoint - model.inPoint).rounded()))s"
+                     : "Clip entier · \(Int(model.clipDuration.rounded()))s")
+                    .font(.caption.monospacedDigit()).foregroundStyle(Theme.textSecondary)
+            }
+            TrimTrack(duration: model.clipDuration, inPoint: $model.inPoint, outPoint: $model.outPoint)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .forgeGlassCard(cornerRadius: Theme.Radius.md)
+        .accessibilityIdentifier("editor.trim")
+    }
+
+    private func timeStr(_ t: Double) -> String {
+        let s = Int(t.rounded()); return String(format: "%d:%02d", s / 60, s % 60)
+    }
+
     // MARK: - Re-render CTA
 
     private var rerenderSection: some View {
@@ -240,6 +311,14 @@ final class EditorModel: ObservableObject {
     /// Bumped to force a fresh VideoPlayer view after we swap the item.
     @Published var playerGeneration = 0
 
+    /// Clip-relative trim (seconds) + optional custom active-word highlight.
+    @Published var inPoint: Double = 0
+    @Published var outPoint: Double = 0
+    @Published var highlightHex: String?
+    var clipDuration: Double { max(1, clip.duration) }
+    /// True once a handle has moved off the full range — only then do we trim.
+    var isTrimmed: Bool { inPoint > 0.05 || outPoint < clipDuration - 0.05 }
+
     private(set) var player: AVPlayer?
     private let socket: ForgeSocket?
     private var trackedJobId: String?
@@ -249,6 +328,7 @@ final class EditorModel: ObservableObject {
         self.api = api
         self.clip = clip
         self.demo = demo
+        self.outPoint = max(1, clip.duration)
         if demo {
             self.player = nil
             self.socket = nil
@@ -282,7 +362,13 @@ final class EditorModel: ObservableObject {
         busy = true; defer { busy = false }
         succeeded = false
         do {
-            let jobId = try await api.rerenderClip(clipId: clip.id, presetId: presetId)
+            let jobId = try await api.rerenderClip(
+                clipId: clip.id,
+                presetId: presetId,
+                highlightColorHex: highlightHex,
+                trimIn: isTrimmed ? inPoint : nil,
+                trimOut: isTrimmed ? outPoint : nil,
+            )
             trackedJobId = jobId
             // Seed a pending row immediately so the UI reacts before the first
             // WS broadcast arrives.
@@ -366,6 +452,47 @@ final class EditorModel: ObservableObject {
     }
 }
 
+// MARK: - Trim track (dual-handle range slider)
+
+private struct TrimTrack: View {
+    let duration: Double
+    @Binding var inPoint: Double
+    @Binding var outPoint: Double
+
+    var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width
+            let inX = CGFloat(inPoint / duration) * w
+            let outX = CGFloat(outPoint / duration) * w
+            ZStack(alignment: .leading) {
+                Capsule().fill(Theme.surface).frame(height: 6)
+                Capsule().fill(Theme.accentGradient)
+                    .frame(width: max(2, outX - inX), height: 6).offset(x: inX)
+                handle.offset(x: inX - 12).gesture(drag(isIn: true, width: w))
+                    .accessibilityLabel("Début du clip, \(Int(inPoint))s")
+                handle.offset(x: outX - 12).gesture(drag(isIn: false, width: w))
+                    .accessibilityLabel("Fin du clip, \(Int(outPoint))s")
+            }
+            .frame(height: 24)
+            .coordinateSpace(name: "trim")
+        }
+        .frame(height: 24)
+    }
+
+    private var handle: some View {
+        Circle().fill(.white).frame(width: 24, height: 24)
+            .shadow(color: .black.opacity(0.35), radius: 2, y: 1)
+            .overlay(Circle().strokeBorder(Theme.accent, lineWidth: 2.5))
+    }
+
+    private func drag(isIn: Bool, width: CGFloat) -> some Gesture {
+        DragGesture(coordinateSpace: .named("trim")).onChanged { v in
+            let t = max(0, min(duration, Double(v.location.x / max(width, 1)) * duration))
+            if isIn { inPoint = min(t, outPoint - 1) } else { outPoint = max(t, inPoint + 1) }
+        }
+    }
+}
+
 // MARK: - Color hex parsing
 
 extension Color {
@@ -379,6 +506,14 @@ extension Color {
             green: Double((value >> 8) & 0xFF) / 255,
             blue: Double(value & 0xFF) / 255,
         )
+    }
+
+    /// "#RRGGBB" string for sending a chosen colour to the engine.
+    func toHex() -> String {
+        let ui = UIColor(self)
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        ui.getRed(&r, green: &g, blue: &b, alpha: &a)
+        return String(format: "#%02X%02X%02X", Int((r * 255).rounded()), Int((g * 255).rounded()), Int((b * 255).rounded()))
     }
 
     /// Black or white, whichever reads better on this colour — for the sparkle

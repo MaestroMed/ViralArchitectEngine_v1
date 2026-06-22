@@ -19,10 +19,30 @@ extension ForgeAPI {
         return try env.unwrapped().presets
     }
 
-    /// Queue a re-render of `clipId` with the given caption preset. Returns the
-    /// jobId of the spawned EXPORT job (track it over the WS feed).
-    func rerenderClip(clipId: String, presetId: String) async throws -> String {
-        let body = RerenderRequest(captionStyle: .init(presetId: presetId))
+    /// Queue a re-render of `clipId`. Every field is optional so the same call
+    /// powers a plain restyle, a trim, a custom highlight colour, or any mix:
+    ///
+    /// - `presetId`           — caption style id (classic/hormozi/…); nil keeps current.
+    /// - `highlightColorHex`  — "#RRGGBB" override for the active-word highlight; nil = preset default.
+    /// - `trimIn` / `trimOut` — clip-relative seconds; send ONLY when the user moved a handle off the full range.
+    ///
+    /// Builds the enveloped body `{captionStyle:{presetId?,highlightColor?}, trimIn?, trimOut?}`,
+    /// omitting any nil key (and dropping `captionStyle` entirely when empty).
+    /// Returns the jobId of the spawned EXPORT job (track it over the WS feed).
+    func rerenderClip(
+        clipId: String,
+        presetId: String?,
+        highlightColorHex: String? = nil,
+        trimIn: Double? = nil,
+        trimOut: Double? = nil,
+    ) async throws -> String {
+        let style: RerenderRequest.CaptionStyle?
+        if presetId != nil || highlightColorHex != nil {
+            style = .init(presetId: presetId, highlightColor: highlightColorHex)
+        } else {
+            style = nil
+        }
+        let body = RerenderRequest(captionStyle: style, trimIn: trimIn, trimOut: trimOut)
         let env = try await request(ApiEnvelope<RerenderResult>.self,
                                     path: "/v1/clips/queue/\(clipId)/rerender",
                                     method: "POST", body: body)
@@ -50,9 +70,15 @@ private struct RerenderResult: Decodable {
     let clipId: String
 }
 
+/// Enveloped re-render body. `Encodable` synthesis already omits `nil`
+/// Optionals from the JSON, so the engine only sees the keys the user touched.
 private struct RerenderRequest: Encodable {
-    let captionStyle: CaptionStyle
+    let captionStyle: CaptionStyle?
+    let trimIn: Double?
+    let trimOut: Double?
+
     struct CaptionStyle: Encodable {
-        let presetId: String
+        let presetId: String?
+        let highlightColor: String?   // "#RRGGBB"
     }
 }

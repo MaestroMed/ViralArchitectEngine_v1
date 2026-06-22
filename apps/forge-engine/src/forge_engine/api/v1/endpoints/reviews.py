@@ -550,6 +550,11 @@ class RerenderRequest(BaseModel):
     caption_style: dict | None = Field(default=None, alias="captionStyle")
     clip_start_override: float | None = Field(default=None, alias="clipStart")
     clip_duration_override: float | None = Field(default=None, alias="clipDuration")
+    # Clip-RELATIVE trim (seconds within the current clip, 0 = its start). The
+    # editor scrubs the existing clip and sends in/out without needing absolute
+    # VOD coords; the endpoint maps them onto the stored window.
+    trim_in: float | None = Field(default=None, alias="trimIn")
+    trim_out: float | None = Field(default=None, alias="trimOut")
     intro_config: dict | None = Field(default=None, alias="intro")
     jump_cut_config: dict | None = Field(default=None, alias="jumpCut")
 
@@ -617,12 +622,21 @@ async def rerender_clip(
         raise HTTPException(status_code=404, detail="Source segment not found")
 
     rp = clip.render_params or {}
-    start = request.clip_start_override
-    if start is None:
-        start = rp.get("clipStart", segment.start_time)
-    duration = request.clip_duration_override
-    if duration is None:
-        duration = rp.get("clipDuration", clip.duration)
+    base_start = rp.get("clipStart", segment.start_time)
+    base_dur = rp.get("clipDuration", clip.duration)
+
+    if request.trim_in is not None or request.trim_out is not None:
+        # Clip-relative trim → map onto the current window. Clamp to the clip and
+        # keep a ≥1s floor; ignore a nonsensical range and fall back to the window.
+        ti = max(0.0, request.trim_in or 0.0)
+        to = base_dur if request.trim_out is None else min(float(request.trim_out), base_dur)
+        if to - ti >= 1.0:
+            start, duration = base_start + ti, to - ti
+        else:
+            start, duration = base_start, base_dur
+    else:
+        start = request.clip_start_override if request.clip_start_override is not None else base_start
+        duration = request.clip_duration_override if request.clip_duration_override is not None else base_dur
 
     caption_style = dict(request.caption_style or {})
     caption_style.setdefault("presetId", rp.get("presetId", "classic"))

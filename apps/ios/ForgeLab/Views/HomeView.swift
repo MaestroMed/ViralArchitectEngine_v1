@@ -22,14 +22,16 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
+                VStack(alignment: .leading, spacing: 16) {
                     header
-                    heroCard
-                    statsRow
+                    meshHero
+                    bentoRow
                     todaySection
                     engineFooter
                 }
-                .padding(20)
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 20)
             }
             .background(Theme.background.ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)
@@ -52,10 +54,7 @@ struct HomeView: View {
 
     private var header: some View {
         HStack(spacing: 14) {
-            Image("BrandMark")
-                .resizable().scaledToFit()
-                .frame(width: 46, height: 46)
-                .accessibilityHidden(true)
+            BrandMark(size: 44)
             VStack(alignment: .leading, spacing: 2) {
                 Text("VIRAL ARCHITECT ENGINE")
                     .font(.caption2.weight(.bold))
@@ -89,79 +88,150 @@ struct HomeView: View {
                     : "Swipe pour trier, exporte les meilleurs."
     }
 
-    private var heroCard: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
+    private var meshHero: some View {
+        ZStack(alignment: .topLeading) {
+            AnimatedMeshHero()
+            LinearGradient(colors: [.black.opacity(0.05), .black.opacity(0.32)],
+                           startPoint: .top, endPoint: .bottom)
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .top) {
                     Text(heroEyebrow)
-                        .font(.caption.weight(.bold)).tracking(1.2)
-                        .foregroundStyle(.white.opacity(0.85)).textCase(.uppercase)
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text("\(heroCount)")
-                            .font(.system(size: 62, weight: .heavy, design: .rounded))
-                            .foregroundStyle(.white)
-                            .contentTransition(.numericText())
-                        if !allCaughtUp {
-                            Text("clips").font(.title3.weight(.semibold)).foregroundStyle(.white.opacity(0.9))
-                        }
-                    }
-                    Text(heroSubtitle).font(.subheadline).foregroundStyle(.white.opacity(0.88))
-                }
-                Spacer(minLength: 0)
-                Image(systemName: allCaughtUp ? "checkmark.seal.fill" : "sparkles")
-                    .font(.system(size: 34, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .shadow(color: .black.opacity(0.2), radius: 6)
-            }
-            Button {
-                selectedTab?.wrappedValue = 3   // Clips tab (Pilote=1, Sources=2)
-            } label: {
-                HStack {
-                    Text(allCaughtUp ? "Ouvrir la file" : "Reviewer maintenant")
-                        .font(.subheadline.weight(.bold))
+                        .font(.caption.weight(.bold)).tracking(1.3)
+                        .foregroundStyle(.white.opacity(0.9)).textCase(.uppercase)
                     Spacer()
-                    Image(systemName: "arrow.right").font(.subheadline.weight(.bold))
+                    Image(systemName: allCaughtUp ? "checkmark.seal.fill" : "sparkles")
+                        .font(.system(size: 26, weight: .semibold)).foregroundStyle(.white)
+                        .shadow(color: .black.opacity(0.25), radius: 6)
                 }
-                .foregroundStyle(Theme.accentDeep)
-                .padding(.vertical, 13).padding(.horizontal, 18)
-                .frame(maxWidth: .infinity)
-                .background(.white, in: Capsule())
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("\(heroCount)")
+                        .font(.system(size: 66, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.white).contentTransition(.numericText())
+                        .shadow(color: .black.opacity(0.25), radius: 8, y: 2)
+                    if !allCaughtUp {
+                        Text("clips").font(.title3.weight(.semibold)).foregroundStyle(.white.opacity(0.92))
+                    }
+                }
+                Text(heroSubtitle).font(.subheadline.weight(.medium)).foregroundStyle(.white.opacity(0.92))
+                Spacer(minLength: 16)
+                Button {
+                    selectedTab?.wrappedValue = 3   // Clips tab (Pilote=1, Sources=2)
+                } label: {
+                    HStack {
+                        Text(allCaughtUp ? "Ouvrir la file" : "Reviewer maintenant")
+                            .font(.subheadline.weight(.bold))
+                        Spacer()
+                        Image(systemName: "arrow.right").font(.subheadline.weight(.bold))
+                    }
+                    .foregroundStyle(Theme.accentDeep)
+                    .padding(.vertical, 13).padding(.horizontal, 18)
+                    .frame(maxWidth: .infinity)
+                    .background(.white, in: Capsule())
+                    .shadow(color: .black.opacity(0.15), radius: 8, y: 3)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("home.openQueue")
             }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("home.openQueue")
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .padding(22)
         }
-        .padding(22)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background {
-            ZStack {
-                Theme.heroGradient
-                Theme.glowGradient
-            }
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-        .shadow(color: Theme.accent.opacity(0.35), radius: 18, y: 10)
+        .frame(maxWidth: .infinity).frame(height: 236)
+        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous).stroke(.white.opacity(0.14), lineWidth: 1))
+        .shadow(color: Theme.accent.opacity(0.4), radius: 22, y: 12)
         .animation(.easeInOut, value: heroCount)
     }
 
     // MARK: - Stats
 
-    private var statsRow: some View {
-        HStack(spacing: 12) {
-            statCard("En attente", summary?.pendingReview ?? 0, "tray.full.fill", Theme.accent)
-            statCard("Approuvés", summary?.approved ?? 0, "checkmark.circle.fill", Theme.success)
-            statCard("Postés", summary?.published ?? 0, "paperplane.fill", Color(red: 0.4, green: 0.6, blue: 1.0))
+    /// Highest-scoring clip of the day — the "top du jour" feature.
+    private var topClip: Clip? {
+        let pending = todayClips.filter { $0.status == "pending_review" }
+        return (pending.isEmpty ? todayClips : pending).max(by: { $0.viralScore < $1.viralScore })
+    }
+
+    /// Asymmetric "bento": a tall feature cell beside stacked stat tiles.
+    private var bentoRow: some View {
+        HStack(alignment: .top, spacing: 12) {
+            featureCell
+            VStack(spacing: 12) {
+                statTile("En attente", summary?.pendingReview ?? 0, "tray.full.fill", Theme.accent)
+                statTile("Approuvés", summary?.approved ?? 0, "checkmark.circle.fill", Theme.success)
+                statTile("Postés", summary?.published ?? 0, "paperplane.fill", Theme.accentBright)
+            }
+            .frame(width: 124)
         }
     }
 
-    private func statCard(_ label: String, _ value: Int, _ icon: String, _ color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Image(systemName: icon).foregroundStyle(color).font(.title3)
-            Text("\(value)")
-                .font(.title2.weight(.bold).monospacedDigit())
-                .foregroundStyle(Theme.textPrimary)
-            Text(label).font(.caption).foregroundStyle(Theme.textSecondary)
+    @ViewBuilder
+    private var featureCell: some View {
+        if let clip = topClip {
+            NavigationLink {
+                ClipDetailView(api: api, clip: clip, demo: demoClips != nil)
+            } label: {
+                featureCard(clip)
+            }
+            .buttonStyle(PressableCardStyle())
+        } else {
+            VStack(spacing: 8) {
+                Image(systemName: "wand.and.stars").font(.title).foregroundStyle(Theme.accent)
+                Text("Pas de clip à la une").font(.subheadline).foregroundStyle(Theme.textSecondary)
+            }
+            .frame(maxWidth: .infinity).frame(height: 232).forgeGlassCard(cornerRadius: 20)
         }
-        .padding(14)
+    }
+
+    private func featureCard(_ clip: Clip) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            featureCover(clip)
+                .frame(height: 158)
+                .frame(maxWidth: .infinity)
+                .clipped()
+                .overlay(alignment: .topTrailing) { ScoreRing(score: clip.viralScore).padding(10) }
+                .overlay(alignment: .topLeading) {
+                    Text("TOP DU JOUR").font(.caption2.weight(.bold)).tracking(1)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .background(Theme.accent, in: Capsule()).padding(10)
+                }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(clip.title ?? "Clip \(clip.id.prefix(6))")
+                    .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.textPrimary)
+                    .lineLimit(2).multilineTextAlignment(.leading)
+                if let ch = clip.channelName {
+                    Text(ch).font(.caption2).foregroundStyle(Theme.textSecondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+        }
+        .background(Theme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(.white.opacity(0.08), lineWidth: 1))
+    }
+
+    @ViewBuilder
+    private func featureCover(_ clip: Clip) -> some View {
+        if demoClips != nil {
+            LinearGradient(colors: [Theme.accentDeep, Theme.accent], startPoint: .topLeading, endPoint: .bottomTrailing)
+                .overlay(Image(systemName: "play.fill").font(.title).foregroundStyle(.white.opacity(0.9)))
+        } else {
+            RemoteImage(url: api.coverURL(clipId: clip.id), api: api) {
+                Rectangle().fill(Theme.background).overlay(Image(systemName: "photo").foregroundStyle(Theme.textSecondary))
+            }
+        }
+    }
+
+    private func statTile(_ label: String, _ value: Int, _ icon: String, _ color: Color) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon).foregroundStyle(color).font(.subheadline).frame(width: 22)
+            VStack(alignment: .leading, spacing: 0) {
+                Text("\(value)").font(.title3.weight(.bold).monospacedDigit()).foregroundStyle(Theme.textPrimary)
+                Text(label).font(.caption2).foregroundStyle(Theme.textSecondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12).padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .forgeGlassCard(cornerRadius: 16)
     }

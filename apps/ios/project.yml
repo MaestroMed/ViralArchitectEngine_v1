@@ -39,6 +39,12 @@ targets:
           pour que tu puisses les poster directement sur TikTok.
         NSUserTrackingUsageDescription: >
           FORGE LAB n'utilise aucun tracker.
+        # iOS 14+ gates connections to LAN addresses (the engine on 192.168.x.x)
+        # behind the Local Network privacy permission — without this key the OS
+        # never prompts and the connection silently fails ("moteur injoignable").
+        NSLocalNetworkUsageDescription: >
+          FORGE LAB se connecte au moteur de rendu sur ton réseau local
+          (ton Mac) pour piloter l'analyse et récupérer les clips.
         # Allow plain-text http traffic to the LAN-bound engine only.
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: false

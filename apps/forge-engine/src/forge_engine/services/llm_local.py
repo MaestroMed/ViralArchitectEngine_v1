@@ -363,8 +363,8 @@ Réponds en JSON:
                 data["available"] = True
                 data["parsed"] = True
                 return data
-        except:
-            pass
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.debug("LLM response JSON parse failed, returning raw: %s", e)
 
         return {"available": True, "parsed": False, "raw": response[:500]}
 

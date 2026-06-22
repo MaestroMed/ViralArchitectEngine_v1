@@ -606,7 +606,8 @@ class AudioAnalyzer:
             if duration > 0:
                 return len(onsets) / duration
             return 0.0
-        except:
+        except Exception as e:
+            logger.debug("Speech-rate estimate failed: %s", e)
             return 0.0
 
     def _generate_summary(

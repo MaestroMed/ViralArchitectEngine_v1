@@ -3,7 +3,7 @@
 import os
 from pathlib import Path
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -152,15 +152,16 @@ class Settings(BaseSettings):
     LLM_TIMEOUT: int = 120
     LLM_MAX_CONCURRENT: int = 3
 
-    class Config:
-        env_prefix = "FORGE_"
-        env_file = Path(__file__).parent.parent.parent.parent / ".env"  # apps/forge-engine/.env
-        case_sensitive = True
-        # Tolerate FORGE_* keys that aren't Settings fields (e.g. FORGE_REQUIRE_AUTH,
-        # read directly from the environment by core/auth.py). Without this, such a
-        # line in .env makes pydantic-settings raise extra_forbidden and the whole
-        # engine fails to import.
-        extra = "ignore"
+    # Tolerate FORGE_* keys that aren't Settings fields (e.g. FORGE_REQUIRE_AUTH,
+    # read directly from the environment by core/auth.py). Without extra="ignore",
+    # such a line in .env makes pydantic-settings raise extra_forbidden and the
+    # whole engine fails to import.
+    model_config = SettingsConfigDict(
+        env_prefix="FORGE_",
+        env_file=Path(__file__).parent.parent.parent.parent / ".env",  # apps/forge-engine/.env
+        case_sensitive=True,
+        extra="ignore",
+    )
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

@@ -96,13 +96,13 @@ jobs:
           fetch-depth: 0
 
       - name: Download Windows artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: forge-lab-windows
           path: release-assets/windows
 
       - name: Download PWA artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: forge-review-pwa
           path: release-assets/web-review

@@ -16,7 +16,7 @@ jobs:
     name: Desktop — TypeScript
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v3
         with:
@@ -38,7 +38,7 @@ jobs:
     name: Desktop — ESLint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v3
         with:
@@ -61,7 +61,7 @@ jobs:
     name: Web Review — Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v3
         with:
@@ -91,7 +91,7 @@ jobs:
     name: Backend — Ruff
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
         with:
@@ -114,7 +114,7 @@ jobs:
       FORGE_WHISPER_MODEL: tiny
       FORGE_DEBUG: "1"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
         with:
